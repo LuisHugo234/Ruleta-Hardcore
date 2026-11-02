@@ -1,0 +1,34 @@
+{
+	"schemaVersion": 1,
+	"id": "ruleta_hardcore",
+	"version": "${version}",
+	"name": "Ruleta_Hardcore",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/ruleta_hardcore/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.luishugomod01.Ruleta_Hardcore"
+		],
+		"client": [
+			"com.luishugomod01.client.Ruleta_HardcoreClient"
+		]
+	},
+	"mixins": [
+		"ruleta_hardcore.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
