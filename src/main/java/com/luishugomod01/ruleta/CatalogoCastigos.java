@@ -4,8 +4,10 @@ import net.minecraft.world.level.gamerules.GameRules;
 
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class CatalogoCastigos {
@@ -13,6 +15,7 @@ public class CatalogoCastigos {
     public record EntradaCastigo(String id, NivelRuleta nivel, String nombre, String explicacion, Castigo castigo) {}
 
     private static final EnumMap<NivelRuleta, List<EntradaCastigo>> sesion = new EnumMap<>(NivelRuleta.class);
+    private static final Set<String> consumidos = new HashSet<>();
 
     static {
         reiniciar();
@@ -20,6 +23,7 @@ public class CatalogoCastigos {
 
     public static void reiniciar() {
         sesion.clear();
+        consumidos.clear();
         for (NivelRuleta nivel : NivelRuleta.values()) {
             sesion.put(nivel, new ArrayList<>());
         }
@@ -34,18 +38,33 @@ public class CatalogoCastigos {
         List<EntradaCastigo> lista = sesion.get(nivel);
         if (lista == null || lista.isEmpty()) return Optional.empty();
         int indice = ThreadLocalRandom.current().nextInt(lista.size());
-        return Optional.of(lista.remove(indice));
+        EntradaCastigo entrada = lista.remove(indice);
+        consumidos.add(entrada.id().toLowerCase());
+        return Optional.of(entrada);
     }
 
     public static Optional<EntradaCastigo> activarYEliminarPorId(String id) {
         for (List<EntradaCastigo> lista : sesion.values()) {
             for (int i = 0; i < lista.size(); i++) {
                 if (lista.get(i).id().equalsIgnoreCase(id)) {
-                    return Optional.of(lista.remove(i));
+                    EntradaCastigo entrada = lista.remove(i);
+                    consumidos.add(entrada.id().toLowerCase());
+                    return Optional.of(entrada);
                 }
             }
         }
         return Optional.empty();
+    }
+
+    public static Set<String> obtenerIdsConsumidos() {
+        return new HashSet<>(consumidos);
+    }
+
+    public static void marcarConsumido(String id) {
+        consumidos.add(id.toLowerCase());
+        for (List<EntradaCastigo> lista : sesion.values()) {
+            lista.removeIf(entrada -> entrada.id().equalsIgnoreCase(id));
+        }
     }
 
     public static boolean hayDisponibles(NivelRuleta nivel) {
@@ -114,5 +133,9 @@ public class CatalogoCastigos {
                         }
                     }
                 });
+
+        registrar("apocalipsis6", NivelRuleta.NIVEL_6, "¡Apocalipsis Minecraft !!!!",
+                "Los zombies se apilan en torres, huelen sangre y acuden al ruido al picar.",
+                (level, player) -> CursosActivos.activarApocalipsisMinecraftTotal());
     }
 }

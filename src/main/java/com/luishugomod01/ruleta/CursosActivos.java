@@ -11,18 +11,19 @@ import java.util.UUID;
  */
 public class CursosActivos {
 
-    private static volatile boolean creepersEnPerla    = false;
-    private static volatile boolean fuegoFatuo         = false;
-    private static volatile boolean speedpers          = false;
-    private static volatile boolean wardensDeepDark     = false;
-    private static volatile boolean apocalipsisZombie   = false;
-    private static volatile boolean filoMortal          = false;
-    private static volatile boolean errorTotemico       = false;
-    private static volatile boolean danoColateral       = false;
-    private static volatile boolean ultraFundido        = false;
-    private static volatile boolean intrusosCalavericos  = false;
-    private static volatile boolean spiderman           = false;
-    private static volatile boolean permadeath          = false;
+    private static volatile boolean creepersEnPerla           = false;
+    private static volatile boolean fuegoFatuo                = false;
+    private static volatile boolean speedpers                 = false;
+    private static volatile boolean wardensDeepDark            = false;
+    private static volatile boolean apocalipsisZombie          = false;
+    private static volatile boolean filoMortal                 = false;
+    private static volatile boolean errorTotemico              = false;
+    private static volatile boolean danoColateral              = false;
+    private static volatile boolean ultraFundido               = false;
+    private static volatile boolean intrusosCalavericos         = false;
+    private static volatile boolean spiderman                  = false;
+    private static volatile boolean permadeath                 = false;
+    private static volatile boolean apocalipsisMinecraftTotal  = false;
 
     // Creepers en Perla
     public static void activarCreepersEnPerla() { creepersEnPerla = true; }
@@ -43,7 +44,7 @@ public class CursosActivos {
     public static boolean isWardensDeepDark() { return wardensDeepDark; }
     public static boolean tieneWardensDeepDark(UUID playerId) { return wardensDeepDark; }
 
-    // Apocalipsis Zombie
+    // ¿Apocalipsis Minecraft? (Nivel 1)
     public static void activarApocalipsisZombie() { apocalipsisZombie = true; }
     public static boolean isApocalipsisZombie() { return apocalipsisZombie; }
     public static boolean tieneApocalipsisZombie(UUID playerId) { return apocalipsisZombie; }
@@ -83,10 +84,51 @@ public class CursosActivos {
     public static boolean isPermadeath() { return permadeath; }
     public static boolean tienePermadeath(UUID playerId) { return permadeath; }
 
+    // ¡Apocalipsis Minecraft !!!! (Nivel 6)
+    public static void activarApocalipsisMinecraftTotal() { apocalipsisMinecraftTotal = true; }
+    public static boolean isApocalipsisMinecraftTotal() { return apocalipsisMinecraftTotal; }
+
     public static boolean hayMaldicionesActivas() {
         return fuegoFatuo || creepersEnPerla || speedpers || wardensDeepDark
                 || apocalipsisZombie || filoMortal || errorTotemico || danoColateral
-                || ultraFundido || intrusosCalavericos || spiderman || permadeath;
+                || ultraFundido || intrusosCalavericos || spiderman || permadeath
+                || apocalipsisMinecraftTotal;
+    }
+
+    public static List<String> obtenerIdsActivas() {
+        List<String> ids = new ArrayList<>();
+        if (creepersEnPerla) ids.add("creepersperla");
+        if (fuegoFatuo) ids.add("fuegofatuo");
+        if (speedpers) ids.add("speedpers");
+        if (wardensDeepDark) ids.add("wardens");
+        if (apocalipsisZombie) ids.add("apocalipsis");
+        if (filoMortal) ids.add("filomortal");
+        if (errorTotemico) ids.add("errortotemico");
+        if (danoColateral) ids.add("danocolateral");
+        if (ultraFundido) ids.add("ultrafundido");
+        if (intrusosCalavericos) ids.add("intrusoscalavericos");
+        if (spiderman) ids.add("spiderman");
+        if (permadeath) ids.add("permadeath");
+        if (apocalipsisMinecraftTotal) ids.add("apocalipsis6");
+        return ids;
+    }
+
+    public static void activarPorId(String id) {
+        switch (id.toLowerCase()) {
+            case "creepersperla" -> activarCreepersEnPerla();
+            case "fuegofatuo" -> activarFuegoFatuo();
+            case "speedpers" -> activarSpeedpers();
+            case "wardens" -> activarWardensDeepDark();
+            case "apocalipsis" -> activarApocalipsisZombie();
+            case "filomortal" -> activarFiloMortal();
+            case "errortotemico" -> activarErrorTotemico();
+            case "danocolateral" -> activarDanoColateral();
+            case "ultrafundido" -> activarUltraFundido();
+            case "intrusoscalavericos" -> activarIntrusosCalavericos();
+            case "spiderman" -> activarSpiderman();
+            case "permadeath" -> activarPermadeath();
+            case "apocalipsis6", "apocalipsistotal" -> activarApocalipsisMinecraftTotal();
+        }
     }
 
     public static List<Component> obtenerMensajesMaldicionesActivas() {
@@ -127,6 +169,9 @@ public class CursosActivos {
         if (permadeath) {
             lista.add(Component.literal("  §4§l☠ PERMADEATH:§r Se ha eliminado la regeneración pasiva de vida."));
         }
+        if (apocalipsisMinecraftTotal) {
+            lista.add(Component.literal("  §4§l☣ ¡APOCALIPSIS MINECRAFT !!!!:§r Los zombies se apilan en torres, huelen sangre y acuden al ruido al picar."));
+        }
         return lista;
     }
 
@@ -143,5 +188,6 @@ public class CursosActivos {
         intrusosCalavericos = false;
         spiderman = false;
         permadeath = false;
+        apocalipsisMinecraftTotal = false;
     }
 }

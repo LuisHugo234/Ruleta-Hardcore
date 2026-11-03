@@ -4,28 +4,36 @@ import com.luishugomod01.network.RuletaAnimacionPayload;
 import com.luishugomod01.ruleta.CatalogoCastigos;
 import com.luishugomod01.ruleta.CursosActivos;
 import com.luishugomod01.ruleta.NivelRuleta;
+import com.luishugomod01.ruleta.RuletaPersistencia;
 import com.luishugomod01.ruleta.WallClimberAccessor;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.server.permissions.Permissions;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Unit;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.InteractionResult;
@@ -70,17 +78,27 @@ public class Ruleta_Hardcore implements ModInitializer {
 
         PayloadTypeRegistry.clientboundPlay().register(RuletaAnimacionPayload.TYPE, RuletaAnimacionPayload.STREAM_CODEC);
 
+        ServerLifecycleEvents.SERVER_STARTED.register(RuletaPersistencia::cargar);
+        ServerLifecycleEvents.SERVER_STOPPING.register(RuletaPersistencia::guardar);
+
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
             dispatcher.register(Commands.literal("ruleta")
                 .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                 .then(Commands.literal("girar")
                     .executes(ctx -> ejecutarGiroAleatorio(ctx.getSource()))
-                    .then(Commands.literal("novato").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_1)))
-                    .then(Commands.literal("aprendiz").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_2)))
-                    .then(Commands.literal("experto").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_3)))
-                    .then(Commands.literal("maestro").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_4)))
-                    .then(Commands.literal("legendario").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_5)))
-                    .then(Commands.literal("dios").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_6))))
+                    .then(Commands.literal("1").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_1)))
+                    .then(Commands.literal("2").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_2)))
+                    .then(Commands.literal("3").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_3)))
+                    .then(Commands.literal("4").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_4)))
+                    .then(Commands.literal("5").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_5)))
+                    .then(Commands.literal("6").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_6))))
+                .then(Commands.literal("nivel")
+                    .then(Commands.literal("1").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_1)))
+                    .then(Commands.literal("2").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_2)))
+                    .then(Commands.literal("3").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_3)))
+                    .then(Commands.literal("4").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_4)))
+                    .then(Commands.literal("5").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_5)))
+                    .then(Commands.literal("6").executes(ctx -> ejecutarGiroNivel(ctx.getSource(), NivelRuleta.NIVEL_6))))
                 .then(Commands.literal("activar")
                     .then(Commands.literal("wardens").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "wardens")))
                     .then(Commands.literal("fuegofatuo").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "fuegofatuo")))
@@ -93,7 +111,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("ultrafundido").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "ultrafundido")))
                     .then(Commands.literal("intrusoscalavericos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "intrusoscalavericos")))
                     .then(Commands.literal("spiderman").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "spiderman")))
-                    .then(Commands.literal("permadeath").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "permadeath"))))
+                    .then(Commands.literal("permadeath").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "permadeath")))
+                    .then(Commands.literal("apocalipsis6").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "apocalipsis6"))))
                 .then(Commands.literal("estado").executes(ctx -> {
                     var source = ctx.getSource();
                     if (!CursosActivos.hayMaldicionesActivas()) {
@@ -110,6 +129,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                     var srv = ctx.getSource().getServer();
                     CursosActivos.limpiar();
                     CatalogoCastigos.reiniciar();
+                    RuletaPersistencia.limpiar(srv);
                     for (ServerLevel lvl : srv.getAllLevels()) {
                         lvl.getGameRules().set(GameRules.NATURAL_HEALTH_REGENERATION, true, srv);
                     }
@@ -139,6 +159,19 @@ public class Ruleta_Hardcore implements ModInitializer {
             return InteractionResult.PASS;
         });
 
+        // ¡Apocalipsis Minecraft !!!! (Nivel 6): alerta a zombies al picar bloques
+        PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
+            if (!world.isClientSide() && CursosActivos.isApocalipsisMinecraftTotal() && world instanceof ServerLevel serverLevel) {
+                double radius = player.isShiftKeyDown() ? 10.0 : 24.0;
+                var nearby = serverLevel.getEntitiesOfClass(Zombie.class, new net.minecraft.world.phys.AABB(pos).inflate(radius), Entity::isAlive);
+                for (Zombie z : nearby) {
+                    if (z.getTarget() == null || !z.getTarget().isAlive()) {
+                        z.getNavigation().moveTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, 1.25);
+                    }
+                }
+            }
+        });
+
         // Notificación de bienvenida con las maldiciones activas al unirse al servidor
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             if (CursosActivos.hayMaldicionesActivas()) {
@@ -158,6 +191,9 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
                 if (CursosActivos.isFiloMortal()) {
                     equiparEspadaFiloMortal(zombie, level);
+                }
+                if (CursosActivos.isApocalipsisMinecraftTotal()) {
+                    evaluarSpawnApocalipsisTotal(zombie, level);
                 }
             }
             if (entity instanceof WitherSkeleton witherSkeleton && CursosActivos.isIntrusosCalavericos()) {
@@ -321,7 +357,134 @@ public class Ruleta_Hardcore implements ModInitializer {
                     }
                 }
             }
+
+            // ¡Apocalipsis Minecraft !!!! (Nivel 6): Rastrear sangre de jugadores heridos
+            if (CursosActivos.isApocalipsisMinecraftTotal() && server.getTickCount() % 20 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive()) continue;
+                    if (player.getHealth() < player.getMaxHealth()) {
+                        ServerLevel sLvl = (ServerLevel) player.level();
+                        List<Zombie> zombies = sLvl.getEntitiesOfClass(Zombie.class, player.getBoundingBox().inflate(48.0), Entity::isAlive);
+                        for (Zombie z : zombies) {
+                            if (z.getTarget() == null || z.getTarget() != player) {
+                                z.setTarget(player);
+                            }
+                            z.addEffect(new MobEffectInstance(MobEffects.SPEED, 40, 0, false, false, false));
+                        }
+                        if (server.getTickCount() % 40 == 0) {
+                            sLvl.sendParticles(ParticleTypes.DAMAGE_INDICATOR, player.getX(), player.getY() + 0.6, player.getZ(), 2, 0.2, 0.2, 0.2, 0.02);
+                        }
+                    }
+                }
+            }
+
+            // ¡Apocalipsis Minecraft !!!! (Nivel 6): Apilar zombies en torres si el jugador está elevado (Anti-Pilares)
+            if (CursosActivos.isApocalipsisMinecraftTotal() && server.getTickCount() % 10 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isSpectator() || player.isCreative()) continue;
+                    ServerLevel sLvl = (ServerLevel) player.level();
+                    List<Zombie> nearbyZombies = sLvl.getEntitiesOfClass(Zombie.class, player.getBoundingBox().inflate(20.0, 10.0, 20.0), Entity::isAlive);
+                    if (nearbyZombies.isEmpty()) continue;
+
+                    // 1. Forzar que todos los zombies detecten y persigan al jugador incluso si está sobre un pilar
+                    for (Zombie z : nearbyZombies) {
+                        if (z.getTarget() != player) {
+                            z.setTarget(player);
+                        }
+                    }
+
+                    if (nearbyZombies.size() < 2) continue;
+
+                    double pX = player.getX();
+                    double pZ = player.getZ();
+
+                    // 2. Obtener zombies que estén en el suelo (no montados como pasajeros)
+                    List<Zombie> groundZombies = nearbyZombies.stream()
+                            .filter(z -> !z.isPassenger())
+                            .sorted(Comparator.comparingDouble(z -> z.distanceToSqr(pX, z.getY(), pZ)))
+                            .toList();
+
+                    if (groundZombies.isEmpty()) continue;
+
+                    Zombie baseZombie = groundZombies.get(0);
+                    double baseDistSq = baseZombie.distanceToSqr(pX, baseZombie.getY(), pZ);
+                    double dyGround = player.getY() - baseZombie.getY();
+
+                    // Solo activar modo torre si el jugador está elevado (de 1.2 a 6.5 bloques de altura)
+                    if (dyGround >= 1.2 && dyGround <= 6.5) {
+                        // Guiar a los zombies terrestres directamente al pie del pilar (X, Z del jugador a nivel de suelo)
+                        for (Zombie gz : groundZombies) {
+                            if (gz.distanceToSqr(pX, gz.getY(), pZ) > 4.0) {
+                                gz.getNavigation().moveTo(pX, gz.getY(), pZ, 1.25);
+                            }
+                        }
+
+                        // Si el zombie base ya está cerca del pilar (<= 3.5 bloques de distancia)
+                        if (baseDistSq <= 12.25) {
+                            // Encontrar el zombie más alto de la torre actual sobre la base
+                            Zombie topZombie = baseZombie;
+                            int towerHeight = 1;
+                            while (!topZombie.getPassengers().isEmpty()) {
+                                Entity rider = topZombie.getFirstPassenger();
+                                if (rider instanceof Zombie rz && rz.isAlive()) {
+                                    topZombie = rz;
+                                    towerHeight++;
+                                } else {
+                                    break;
+                                }
+                            }
+
+                            double heightDiff = player.getY() - topZombie.getY();
+
+                            // Si el jugador sigue estando más alto que la punta de la torre y no excedemos altura 5
+                            if (heightDiff >= 1.2 && towerHeight < 5) {
+                                // Buscar otro zombie en el suelo cercano que pueda escalar la torre
+                                for (int i = 1; i < groundZombies.size(); i++) {
+                                    Zombie climber = groundZombies.get(i);
+                                    if (climber != baseZombie && !climber.isPassenger() && climber.getPassengers().isEmpty()) {
+                                        double climberDistSq = climber.distanceToSqr(pX, climber.getY(), pZ);
+                                        if (climberDistSq <= 20.25) { // dentro de 4.5 bloques
+                                            climber.setPos(topZombie.getX(), topZombie.getY() + 1.8, topZombie.getZ());
+                                            boolean mounted = climber.startRiding(topZombie, true, true);
+                                            if (mounted) {
+                                                climber.setTarget(player);
+                                                sLvl.getChunkSource().sendToTrackingPlayers(topZombie, new ClientboundSetPassengersPacket(topZombie));
+                                                sLvl.getChunkSource().sendToTrackingPlayers(climber, new ClientboundSetPassengersPacket(climber));
+                                                sLvl.playSound(null, topZombie.getX(), topZombie.getY(), topZombie.getZ(),
+                                                        SoundEvents.ZOMBIE_AMBIENT, SoundSource.HOSTILE, 1.0f, 1.2f);
+                                                sLvl.sendParticles(ParticleTypes.ANGRY_VILLAGER, topZombie.getX(), topZombie.getY() + 1.8, topZombie.getZ(), 5, 0.2, 0.2, 0.2, 0.0);
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Si el zombie más alto está al alcance del jugador, atacarlo activamente
+                            if (topZombie.distanceToSqr(player) <= 9.0 && server.getTickCount() % 20 == 0) {
+                                topZombie.doHurtTarget(sLvl, player);
+                            }
+                        }
+                    }
+                }
+            }
         });
+    }
+
+    public static void evaluarSpawnApocalipsisTotal(Zombie zombie, ServerLevel level) {
+        if (zombie.entityTags().contains("apoc6_spawn_evaluado")) return;
+        zombie.addTag("apoc6_spawn_evaluado");
+
+        if (ThreadLocalRandom.current().nextFloat() < 0.15f && !zombie.isPassenger()) {
+            var entity = zombie.getType().create(level, EntitySpawnReason.NATURAL);
+            if (entity instanceof Zombie rider) {
+                rider.setPos(zombie.getX(), zombie.getY(), zombie.getZ());
+                rider.addTag("apoc6_spawn_evaluado");
+                rider.startRiding(zombie, true, true);
+                level.addFreshEntity(rider);
+                level.getChunkSource().sendToTrackingPlayers(zombie, new ClientboundSetPassengersPacket(zombie));
+            }
+        }
     }
 
     public static void evaluarZombieApocalipsis(Zombie zombie) {
@@ -494,6 +657,7 @@ public class Ruleta_Hardcore implements ModInitializer {
             } else {
                 entrada.castigo().ejecutar(srv.overworld(), null);
             }
+            RuletaPersistencia.guardar(srv);
             source.sendSuccess(() -> Component.literal(
                     "§a[PermaRuleta] Maldición '§e" + entrada.nombre() + "§a' activada y retirada del catálogo de la ruleta."), true);
             return 1;
@@ -597,6 +761,7 @@ public class Ruleta_Hardcore implements ModInitializer {
             for (ServerPlayer p : currentPlayers) {
                 entrada.castigo().ejecutar((ServerLevel) p.level(), p);
             }
+            RuletaPersistencia.guardar(srv);
         });
     }
 
