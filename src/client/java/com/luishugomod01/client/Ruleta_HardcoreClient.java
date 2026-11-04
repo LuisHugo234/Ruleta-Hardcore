@@ -2,9 +2,13 @@ package com.luishugomod01.client;
 
 import com.luishugomod01.Ruleta_Hardcore;
 import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
+import com.luishugomod01.client.gui.AdminConfigScreen;
 import com.luishugomod01.client.gui.RuletaHudOverlay;
+import com.luishugomod01.client.vidas.VidasClientState;
+import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
+import com.luishugomod01.network.VidasSyncPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -31,7 +35,22 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
             });
         });
 
+        ClientPlayNetworking.registerGlobalReceiver(VidasSyncPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                VidasClientState.actualizar(payload.vidasRestantes(), payload.vidasMaximas());
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(AbrirMenuAdminPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                context.client().setScreenAndShow(new AdminConfigScreen(payload.ruletaAutomatica(), payload.vidasIniciales()));
+            });
+        });
+
         ClientTickEvents.END_CLIENT_TICK.register(BloodMoonClientState::tick);
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> BloodMoonClientState.reset());
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            BloodMoonClientState.reset();
+            VidasClientState.reset();
+        });
     }
 }

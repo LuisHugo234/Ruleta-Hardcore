@@ -6,7 +6,8 @@
 		"SkyRendererMixin",
 		"LevelExtractorMixin",
 		"LightmapRenderStateExtractorMixin",
-		"FogRendererMixin"
+		"FogRendererMixin",
+		"DeathScreenMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

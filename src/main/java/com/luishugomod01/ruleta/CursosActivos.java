@@ -53,6 +53,19 @@ public class CursosActivos {
     private static volatile boolean isBloodMoonActive         = false;
     private static volatile long ultimoDiaBloodMoon           = -1L;
 
+    private static volatile boolean ruletaAutomatica          = false;
+    private static volatile int vidasIniciales                = 3;
+    private static volatile boolean mundoConfigurado          = false;
+
+    public static void setRuletaAutomatica(boolean automatica) { ruletaAutomatica = automatica; }
+    public static boolean isRuletaAutomatica() { return ruletaAutomatica; }
+
+    public static void setVidasIniciales(int vidas) { vidasIniciales = Math.max(1, vidas); }
+    public static int getVidasIniciales() { return vidasIniciales; }
+
+    public static void setMundoConfigurado(boolean configurado) { mundoConfigurado = configurado; }
+    public static boolean isMundoConfigurado() { return mundoConfigurado; }
+
     // --- Nivel 1 ---
     public static void activarCreepersEnPerla() { creepersEnPerla = true; }
     public static boolean isCreepersEnPerla() { return creepersEnPerla; }
@@ -338,5 +351,8 @@ public class CursosActivos {
         monturaAcuatica = false;
         isBloodMoonActive = false;
         ultimoDiaBloodMoon = -1L;
+        ruletaAutomatica = false;
+        vidasIniciales = 3;
+        mundoConfigurado = false;
     }
 }

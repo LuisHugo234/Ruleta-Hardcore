@@ -1,12 +1,16 @@
 package com.luishugomod01;
 
+import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
+import com.luishugomod01.network.GuardarConfigAdminPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
+import com.luishugomod01.network.VidasSyncPayload;
 import com.luishugomod01.ruleta.CatalogoCastigos;
 import com.luishugomod01.ruleta.CursosActivos;
 import com.luishugomod01.ruleta.NivelRuleta;
 import com.luishugomod01.ruleta.RuletaPersistencia;
 import com.luishugomod01.ruleta.WallClimberAccessor;
+import com.luishugomod01.vidas.VidasJugadorAccessor;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
@@ -68,6 +72,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biomes;
@@ -96,6 +101,41 @@ public class Ruleta_Hardcore implements ModInitializer {
 
         PayloadTypeRegistry.clientboundPlay().register(RuletaAnimacionPayload.TYPE, RuletaAnimacionPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BloodMoonSyncPayload.TYPE, BloodMoonSyncPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(AbrirMenuAdminPayload.TYPE, AbrirMenuAdminPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(VidasSyncPayload.TYPE, VidasSyncPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(GuardarConfigAdminPayload.TYPE, GuardarConfigAdminPayload.STREAM_CODEC);
+
+        ServerPlayNetworking.registerGlobalReceiver(GuardarConfigAdminPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            MinecraftServer srv = player.level().getServer();
+            if (srv == null || !esAdministrador(player, srv)) {
+                return;
+            }
+            srv.execute(() -> {
+                boolean eraConfigurado = CursosActivos.isMundoConfigurado();
+                CursosActivos.setRuletaAutomatica(payload.ruletaAutomatica());
+                CursosActivos.setVidasIniciales(payload.vidasIniciales());
+                CursosActivos.setMundoConfigurado(true);
+
+                for (ServerPlayer p : srv.getPlayerList().getPlayers()) {
+                    if (p instanceof VidasJugadorAccessor accessor) {
+                        if (!eraConfigurado || !accessor.ruleta$isVidasInicializadas()) {
+                            accessor.ruleta$setVidas(CursosActivos.getVidasIniciales());
+                            accessor.ruleta$setVidasInicializadas(true);
+                        }
+                        sincronizarVidasJugador(p);
+                    }
+                }
+                RuletaPersistencia.guardar(srv);
+
+                String modoStr = CursosActivos.isRuletaAutomatica() ? "§aAUTOMÁTICO" : "§eMANUAL";
+                srv.getPlayerList().broadcastSystemMessage(
+                        Component.literal("§6§l[PermaRuleta] §fConfiguración guardada: Giro " + modoStr
+                                + " §7| §c♥ Vidas Iniciales: §f§l" + CursosActivos.getVidasIniciales()),
+                        false
+                );
+            });
+        });
 
         ServerLifecycleEvents.SERVER_STARTED.register(RuletaPersistencia::cargar);
         ServerLifecycleEvents.SERVER_STOPPING.register(RuletaPersistencia::guardar);
@@ -182,6 +222,11 @@ public class Ruleta_Hardcore implements ModInitializer {
                     }
                     return 1;
                 }))
+                .then(Commands.literal("config").executes(ctx -> {
+                    ServerPlayer sp = ctx.getSource().getPlayerOrException();
+                    ServerPlayNetworking.send(sp, new AbrirMenuAdminPayload(CursosActivos.isRuletaAutomatica(), CursosActivos.getVidasIniciales()));
+                    return 1;
+                }))
                 .then(Commands.literal("limpiar").executes(ctx -> {
                     var srv = ctx.getSource().getServer();
                     CursosActivos.limpiar();
@@ -232,6 +277,41 @@ public class Ruleta_Hardcore implements ModInitializer {
 
         // KA-BOOM (Nivel 5): los Shulkers explotan 3 segundos (60 ticks) después de morir
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
+            if (entity instanceof ServerPlayer sp && sp instanceof VidasJugadorAccessor accessor) {
+                if (!accessor.ruleta$isVidasInicializadas()) {
+                    accessor.ruleta$setVidas(CursosActivos.getVidasIniciales());
+                    accessor.ruleta$setVidasInicializadas(true);
+                }
+                int vidasActuales = accessor.ruleta$getVidas();
+                int nuevasVidas = Math.max(0, vidasActuales - 1);
+                accessor.ruleta$setVidas(nuevasVidas);
+                sincronizarVidasJugador(sp);
+
+                MinecraftServer srv = sp.level().getServer();
+                if (nuevasVidas <= 0) {
+                    sp.setGameMode(GameType.SPECTATOR);
+                    sp.sendSystemMessage(Component.literal("§4§l[PermaRuleta] ☠ ¡Te has quedado sin vidas! Has sido eliminado y ahora estás en modo Espectador permanente."));
+                    if (srv != null) {
+                        srv.getPlayerList().broadcastSystemMessage(
+                                Component.literal("§4§l☠ [PermaRuleta] §c" + sp.getScoreboardName() + " ha perdido su última vida y ha sido eliminado permanentemente."),
+                                false
+                        );
+                    }
+                } else {
+                    sp.sendSystemMessage(Component.literal("§c§l[PermaRuleta] ♥ Has muerto. Te quedan §e§l" + nuevasVidas + " §cvidas."));
+                    if (srv != null) {
+                        srv.getPlayerList().broadcastSystemMessage(
+                                Component.literal("§c[PermaRuleta] " + sp.getScoreboardName() + " perdió una vida. Vidas restantes: §e" + nuevasVidas),
+                                false
+                        );
+                    }
+                }
+                if (srv != null && CursosActivos.isRuletaAutomatica()) {
+                    long tickGiro = srv.getTickCount() + 40;
+                    programarTarea(tickGiro, () -> ejecutarGiroAleatorio(srv.createCommandSourceStack()));
+                }
+            }
+
             if (CursosActivos.isKaBoom() && entity instanceof Shulker shulker && shulker.level() instanceof ServerLevel serverLevel) {
                 double ex = shulker.getX();
                 double ey = shulker.getY() + 0.5;
@@ -256,6 +336,26 @@ public class Ruleta_Hardcore implements ModInitializer {
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.getPlayer();
             ServerPlayNetworking.send(player, new BloodMoonSyncPayload(CursosActivos.isBloodMoonActive()));
+
+            if (player instanceof VidasJugadorAccessor accessor) {
+                if (!accessor.ruleta$isVidasInicializadas()) {
+                    accessor.ruleta$setVidas(CursosActivos.getVidasIniciales());
+                    accessor.ruleta$setVidasInicializadas(true);
+                }
+                if (accessor.ruleta$getVidas() <= 0) {
+                    player.setGameMode(GameType.SPECTATOR);
+                }
+                sincronizarVidasJugador(player);
+            }
+
+            if (!CursosActivos.isMundoConfigurado() && esAdministrador(player, server)) {
+                programarTarea(server.getTickCount() + 10, () -> {
+                    if (!CursosActivos.isMundoConfigurado() && player.connection != null) {
+                        ServerPlayNetworking.send(player, new AbrirMenuAdminPayload(CursosActivos.isRuletaAutomatica(), CursosActivos.getVidasIniciales()));
+                    }
+                });
+            }
+
             if (CursosActivos.hayMaldicionesActivas()) {
                 player.sendSystemMessage(Component.literal("§6§l[PermaRuleta] §c¡Atención! Este mundo tiene maldiciones activas:"));
                 for (Component msg : CursosActivos.obtenerMensajesMaldicionesActivas()) {
@@ -693,6 +793,18 @@ public class Ruleta_Hardcore implements ModInitializer {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             ServerPlayNetworking.send(player, payload);
         }
+    }
+
+    public static void sincronizarVidasJugador(ServerPlayer player) {
+        if (player instanceof VidasJugadorAccessor accessor) {
+            ServerPlayNetworking.send(player, new VidasSyncPayload(accessor.ruleta$getVidas(), CursosActivos.getVidasIniciales()));
+        }
+    }
+
+    public static boolean esAdministrador(ServerPlayer player, MinecraftServer server) {
+        if (player == null || server == null) return false;
+        return player.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)
+                || server.isSingleplayerOwner(player.nameAndId());
     }
 
     public static void aplicarDefensaVillera(IronGolem golem, ServerLevel level) {

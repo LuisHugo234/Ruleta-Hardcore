@@ -1,6 +1,7 @@
 package com.luishugomod01.client.gui;
 
 import com.luishugomod01.Ruleta_Hardcore;
+import com.luishugomod01.client.vidas.VidasClientState;
 import com.luishugomod01.network.RuletaAnimacionPayload;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
@@ -41,12 +42,14 @@ public class RuletaHudOverlay implements HudElement {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor extractor, DeltaTracker deltaTracker) {
-        if (!activa || payloadActual == null) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null) {
             return;
         }
 
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.player == null) {
+        renderizarContadorVidas(extractor, mc);
+
+        if (!activa || payloadActual == null) {
             return;
         }
 
@@ -169,5 +172,27 @@ public class RuletaHudOverlay implements HudElement {
                 currentY += lineHeight;
             }
         }
+    }
+
+    private void renderizarContadorVidas(GuiGraphicsExtractor extractor, Minecraft mc) {
+        if (!VidasClientState.isSincronizado()) {
+            return;
+        }
+        int restantes = VidasClientState.getVidasRestantes();
+        int maximas = VidasClientState.getVidasMaximas();
+
+        String colorVidas = restantes <= 1 ? "§4§l" : (restantes == 2 ? "§6§l" : "§a§l");
+        Component texto = Component.literal("§c♥ Vidas: " + colorVidas + restantes + "§7/" + maximas);
+
+        int textW = mc.font.width(texto);
+        int pad = 4;
+        int boxW = textW + pad * 2;
+        int boxH = 16;
+        int boxX = extractor.guiWidth() - boxW - 8;
+        int boxY = extractor.guiHeight() - boxH - 8;
+
+        extractor.fill(boxX, boxY, boxX + boxW, boxY + boxH, 0x88000000);
+        extractor.fill(boxX, boxY, boxX + 2, boxY + boxH, restantes <= 1 ? 0xFFFF2222 : 0xFFFFAA00);
+        extractor.text(mc.font, texto, boxX + pad + 2, boxY + 4, 0xFFFFFFFF, true);
     }
 }

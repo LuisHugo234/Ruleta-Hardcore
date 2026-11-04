@@ -43,6 +43,9 @@ public class RuletaPersistencia {
             root.put("CastigosConsumidos", consumidosTag);
             root.putBoolean("IsBloodMoonActive", CursosActivos.isBloodMoonActive());
             root.putLong("UltimoDiaBloodMoon", CursosActivos.getUltimoDiaBloodMoon());
+            root.putBoolean("RuletaAutomatica", CursosActivos.isRuletaAutomatica());
+            root.putInt("VidasIniciales", CursosActivos.getVidasIniciales());
+            root.putBoolean("MundoConfigurado", CursosActivos.isMundoConfigurado());
 
             NbtIo.writeCompressed(root, file);
         } catch (Exception e) {
@@ -53,6 +56,8 @@ public class RuletaPersistencia {
     public static void cargar(MinecraftServer server) {
         if (server == null) return;
         try {
+            CursosActivos.limpiar();
+            CatalogoCastigos.reiniciar();
             Path file = obtenerRutaArchivo(server);
             if (!Files.exists(file)) return;
 
@@ -76,6 +81,9 @@ public class RuletaPersistencia {
 
             CursosActivos.setBloodMoonActive(root.getBooleanOr("IsBloodMoonActive", false));
             CursosActivos.setUltimoDiaBloodMoon(root.getLongOr("UltimoDiaBloodMoon", -1L));
+            CursosActivos.setRuletaAutomatica(root.getBooleanOr("RuletaAutomatica", false));
+            CursosActivos.setVidasIniciales(root.getIntOr("VidasIniciales", 3));
+            CursosActivos.setMundoConfigurado(root.getBooleanOr("MundoConfigurado", false));
 
             if (CursosActivos.isPermadeath()) {
                 for (var lvl : server.getAllLevels()) {
