@@ -23,7 +23,11 @@
 		]
 	},
 	"mixins": [
-		"ruleta_hardcore.mixins.json"
+		"ruleta_hardcore.mixins.json",
+		{
+			"config": "ruleta_hardcore.client.mixins.json",
+			"environment": "client"
+		}
 	],
 	"depends": {
 		"fabricloader": ">=0.19.5",

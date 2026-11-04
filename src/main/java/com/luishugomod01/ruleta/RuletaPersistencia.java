@@ -41,6 +41,8 @@ public class RuletaPersistencia {
                 consumidosTag.add(StringTag.valueOf(id));
             }
             root.put("CastigosConsumidos", consumidosTag);
+            root.putBoolean("IsBloodMoonActive", CursosActivos.isBloodMoonActive());
+            root.putLong("UltimoDiaBloodMoon", CursosActivos.getUltimoDiaBloodMoon());
 
             NbtIo.writeCompressed(root, file);
         } catch (Exception e) {
@@ -71,6 +73,9 @@ public class RuletaPersistencia {
                     CatalogoCastigos.marcarConsumido(id);
                 }
             }
+
+            CursosActivos.setBloodMoonActive(root.getBooleanOr("IsBloodMoonActive", false));
+            CursosActivos.setUltimoDiaBloodMoon(root.getLongOr("UltimoDiaBloodMoon", -1L));
 
             if (CursosActivos.isPermadeath()) {
                 for (var lvl : server.getAllLevels()) {

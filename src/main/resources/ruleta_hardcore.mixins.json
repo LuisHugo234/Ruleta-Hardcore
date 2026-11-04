@@ -4,7 +4,13 @@
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
 		"MobMixin",
-		"LivingEntityMixin"
+		"LivingEntityMixin",
+		"ServerPlayerMixin",
+		"NaturalSpawnerMixin",
+		"NaturalSpawnerSpawnStateMixin",
+		"AbstractArrowMixin",
+		"GhastShootFireballGoalMixin",
+		"LargeFireballMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -1,0 +1,243 @@
+package com.luishugomod01.client.bloodmoon;
+
+import java.util.concurrent.ThreadLocalRandom;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
+
+public final class BloodMoonClientState {
+
+    private static volatile boolean serverBloodMoonActive = false;
+    private static boolean fadeOutLatch = false;
+
+    private static float prevBloodMoonIntensity = 0.0f;
+    private static float bloodMoonIntensity = 0.0f;
+    private static float currentRenderIntensity = 0.0f;
+    private static double smoothWorldTime = 0.0;
+
+    private static long lastAnnouncedDay = -1L;
+
+    private BloodMoonClientState() {}
+
+    public static void setServerActive(boolean active) {
+        if (serverBloodMoonActive && !active) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null && mc.level.dimension().equals(Level.OVERWORLD)) {
+                long dayTime = ((mc.level.getOverworldClockTime() % 24000L) + 24000L) % 24000L;
+                // Si el servidor desactiva en el amanecer (tick 23000), mantener el cierre suave hasta 23500
+                if (dayTime >= 22500L && dayTime < 23500L) {
+                    fadeOutLatch = true;
+                } else {
+                    fadeOutLatch = false;
+                }
+            }
+        } else if (active) {
+            fadeOutLatch = false;
+        }
+        serverBloodMoonActive = active;
+    }
+
+    public static boolean isServerActive() {
+        return serverBloodMoonActive;
+    }
+
+    public static void reset() {
+        serverBloodMoonActive = false;
+        fadeOutLatch = false;
+        prevBloodMoonIntensity = 0.0f;
+        bloodMoonIntensity = 0.0f;
+        currentRenderIntensity = 0.0f;
+        lastAnnouncedDay = -1L;
+    }
+
+    /**
+     * Calcula la intensidad teórica según la curva horaria solicitada:
+     * - Fade-in lineal entre 12500 y 13500
+     * - 1.0f sostenido entre 13500 y 22500
+     * - Fade-out lineal entre 22500 y 23500
+     */
+    private static float calcularCurvaPorTick(float exactDayTime) {
+        if (exactDayTime < 12500.0f || exactDayTime >= 23500.0f) {
+            return 0.0f;
+        }
+        if (exactDayTime <= 13500.0f) {
+            float t = Mth.clamp((exactDayTime - 12500.0f) / 1000.0f, 0.0f, 1.0f);
+            return Mth.lerp(t, 0.0f, 1.0f);
+        }
+        if (exactDayTime < 22500.0f) {
+            return 1.0f;
+        }
+        float t = Mth.clamp((exactDayTime - 22500.0f) / 1000.0f, 0.0f, 1.0f);
+        return Mth.lerp(t, 1.0f, 0.0f);
+    }
+
+    public static float getIntensity(float tickDelta) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || !mc.level.dimension().equals(Level.OVERWORLD)) {
+            currentRenderIntensity = 0.0f;
+            return 0.0f;
+        }
+        smoothWorldTime = (double) mc.level.getGameTime() + (double) tickDelta;
+
+        float lerpedTickIntensity = Mth.lerp(tickDelta, prevBloodMoonIntensity, bloodMoonIntensity);
+        if (serverBloodMoonActive || fadeOutLatch) {
+            long clockTime = mc.level.getOverworldClockTime();
+            float exactDayTime = (float) (((clockTime % 24000L) + 24000L) % 24000L) + tickDelta;
+            float exactCurve = calcularCurvaPorTick(exactDayTime);
+            // Si ya alcanzó la curva natural, usar la interpolación sub-tick exacta con tickDelta
+            if (Math.abs(exactCurve - lerpedTickIntensity) < 0.02f) {
+                currentRenderIntensity = exactCurve;
+                return exactCurve;
+            }
+        }
+        currentRenderIntensity = lerpedTickIntensity;
+        return lerpedTickIntensity;
+    }
+
+    public static float getCurrentRenderIntensity() {
+        return currentRenderIntensity;
+    }
+
+    public static double getSmoothWorldTime() {
+        return smoothWorldTime;
+    }
+
+    public static void tick(Minecraft client) {
+        prevBloodMoonIntensity = bloodMoonIntensity;
+
+        ClientLevel level = client.level;
+        LocalPlayer player = client.player;
+        if (level == null || player == null || !level.dimension().equals(Level.OVERWORLD)) {
+            bloodMoonIntensity = 0.0f;
+            prevBloodMoonIntensity = 0.0f;
+            currentRenderIntensity = 0.0f;
+            return;
+        }
+
+        long clockTime = level.getOverworldClockTime();
+        long dayTime = ((clockTime % 24000L) + 24000L) % 24000L;
+        long dayNumber = Math.floorDiv(clockTime, 24000L);
+
+        if (dayTime >= 23500L || dayTime < 12000L) {
+            fadeOutLatch = false;
+        }
+
+        float target = (serverBloodMoonActive || fadeOutLatch)
+                ? calcularCurvaPorTick((float) dayTime)
+                : 0.0f;
+
+        // Suavizado máximo de 0.025f por tick en caso de activación manual a mitad de la noche
+        float maxStep = 0.025f;
+        if (Math.abs(target - bloodMoonIntensity) <= maxStep) {
+            bloodMoonIntensity = target;
+        } else {
+            bloodMoonIntensity += Math.signum(target - bloodMoonIntensity) * maxStep;
+        }
+        bloodMoonIntensity = Mth.clamp(bloodMoonIntensity, 0.0f, 1.0f);
+
+        // Al alcanzar el tick 13000: sonido grave y ominoso + título/actionbar rojo oscuro
+        if (serverBloodMoonActive && dayTime >= 13000L && dayTime < 22500L && lastAnnouncedDay != dayNumber) {
+            lastAnnouncedDay = dayNumber;
+            reproducirInicioOminoso(client, level, player);
+        }
+
+        // Partículas flotantes cuando bloodMoonIntensity > 0.5f y el jugador está al aire libre
+        if (!client.isPaused() && bloodMoonIntensity > 0.5f && estaAlAireLibre(level, player)) {
+            generarParticulasAmbientales(level, player);
+        }
+    }
+
+    private static void reproducirInicioOminoso(Minecraft client, ClientLevel level, LocalPlayer player) {
+        double x = player.getX();
+        double y = player.getY();
+        double z = player.getZ();
+
+        level.playLocalSound(
+                x, y, z,
+                SoundEvents.AMBIENT_CRIMSON_FOREST_MOOD.value(),
+                SoundSource.AMBIENT,
+                1.5f,
+                0.5f,
+                false
+        );
+        level.playLocalSound(
+                x, y, z,
+                SoundEvents.WITHER_SPAWN,
+                SoundSource.AMBIENT,
+                0.55f,
+                0.5f,
+                false
+        );
+        level.playLocalSound(
+                x, y, z,
+                SoundEvents.LIGHTNING_BOLT_THUNDER,
+                SoundSource.AMBIENT,
+                0.65f,
+                0.5f,
+                false
+        );
+
+        client.gui.hud.setTimes(15, 70, 25);
+        client.gui.hud.setTitle(
+                Component.literal("LUNA DE SANGRE")
+                        .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD)
+        );
+        client.gui.hud.setSubtitle(
+                Component.literal("La noche se tiñe de sangre...")
+                        .withStyle(ChatFormatting.RED)
+        );
+        client.gui.hud.setOverlayMessage(
+                Component.literal("☠ La Luna de Sangre se alza sobre el mundo... ☠")
+                        .withStyle(ChatFormatting.DARK_RED),
+                false
+        );
+    }
+
+    private static boolean estaAlAireLibre(ClientLevel level, LocalPlayer player) {
+        BlockPos eyePos = BlockPos.containing(player.getX(), player.getEyeY(), player.getZ());
+        if (level.canSeeSky(eyePos)) return true;
+        // También permitir si hay cielo abierto inmediatamente alrededor (p. ej. bajo hojas o aleros)
+        for (int dx = -2; dx <= 2; dx += 2) {
+            for (int dz = -2; dz <= 2; dz += 2) {
+                if (level.canSeeSky(eyePos.offset(dx, 1, dz))) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void generarParticulasAmbientales(ClientLevel level, LocalPlayer player) {
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        int cantidad = Math.round(10.0f * bloodMoonIntensity);
+
+        for (int i = 0; i < cantidad; i++) {
+            double offsetX = (rng.nextDouble() * 2.0 - 1.0) * 16.0;
+            double offsetZ = (rng.nextDouble() * 2.0 - 1.0) * 16.0;
+            if (offsetX * offsetX + offsetZ * offsetZ > 256.0) continue;
+
+            double px = player.getX() + offsetX;
+            double py = player.getY() + rng.nextDouble() * 10.0 - 1.0;
+            double pz = player.getZ() + offsetZ;
+
+            BlockPos samplePos = BlockPos.containing(px, py, pz);
+            if (!level.canSeeSky(samplePos) || !level.getBlockState(samplePos).isAir()) {
+                continue;
+            }
+
+            var particle = (rng.nextFloat() < 0.65f) ? ParticleTypes.CRIMSON_SPORE : ParticleTypes.ASH;
+            double vx = (rng.nextDouble() - 0.5) * 0.01;
+            double vy = -0.008 - rng.nextDouble() * 0.012;
+            double vz = (rng.nextDouble() - 0.5) * 0.01;
+            level.addParticle(particle, px, py, pz, vx, vy, vz);
+        }
+    }
+}

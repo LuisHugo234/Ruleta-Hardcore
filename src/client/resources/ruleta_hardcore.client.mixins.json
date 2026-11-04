@@ -1,0 +1,17 @@
+{
+	"required": true,
+	"package": "com.luishugomod01.client.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"SkyRendererMixin",
+		"LevelExtractorMixin",
+		"LightmapRenderStateExtractorMixin",
+		"FogRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

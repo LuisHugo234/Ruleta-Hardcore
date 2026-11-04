@@ -13,7 +13,9 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.monster.Ghast;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.hurtingprojectile.LargeFireball;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -37,23 +39,35 @@ public abstract class LivingEntityMixin {
     @ModifyVariable(method = "hurtServer", at = @At("HEAD"), argsOnly = true)
     private float ruleta$multiplicarDanoEntrante(float amount, ServerLevel level, DamageSource damageSource) {
         if (CursosActivos.isDanoColateral() && damageSource.is(DamageTypes.ENDER_PEARL)) {
-            amount *= 5.0f;
+            amount *= 3.0f;
         }
-        if (CursosActivos.isUltraFundido() && (Object) this instanceof Player && damageSource.is(DamageTypeTags.IS_FIRE)) {
+        if (CursosActivos.isMuerteEspinosa() && damageSource.is(DamageTypes.CACTUS)) {
+            amount = 1.0E9f;
+        }
+        if (CursosActivos.isUltraFundido() && (Object) this instanceof Player
+                && damageSource.is(DamageTypeTags.IS_FIRE)) {
             amount *= 10.0f;
+        }
+        if (CursosActivos.isEnderGhast() && !((Object) this instanceof Ghast)) {
+            if (damageSource.getDirectEntity() instanceof LargeFireball
+                    || damageSource.getEntity() instanceof Ghast) {
+                amount *= 3.0f;
+            }
         }
         return amount;
     }
 
     @Inject(method = "getDamageAfterArmorAbsorb", at = @At("HEAD"), cancellable = true)
-    private void ruleta$ignorarArmaduraEnderPearl(DamageSource damageSource, float damage, CallbackInfoReturnable<Float> cir) {
+    private void ruleta$ignorarArmaduraEnderPearl(DamageSource damageSource, float damage,
+            CallbackInfoReturnable<Float> cir) {
         if (CursosActivos.isDanoColateral() && damageSource.is(DamageTypes.ENDER_PEARL)) {
             cir.setReturnValue(damage);
         }
     }
 
     @Inject(method = "getDamageAfterMagicAbsorb", at = @At("HEAD"), cancellable = true)
-    private void ruleta$ignorarEncantamientosArmaduraEnderPearl(DamageSource damageSource, float damage, CallbackInfoReturnable<Float> cir) {
+    private void ruleta$ignorarEncantamientosArmaduraEnderPearl(DamageSource damageSource, float damage,
+            CallbackInfoReturnable<Float> cir) {
         if (CursosActivos.isDanoColateral() && damageSource.is(DamageTypes.ENDER_PEARL)) {
             LivingEntity self = (LivingEntity) (Object) this;
             if (self.hasEffect(MobEffects.RESISTANCE) && !damageSource.is(DamageTypeTags.BYPASSES_RESISTANCE)) {
