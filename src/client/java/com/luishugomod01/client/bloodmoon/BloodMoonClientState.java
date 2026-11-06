@@ -16,16 +16,50 @@ import net.minecraft.world.level.Level;
 public final class BloodMoonClientState {
 
     private static volatile boolean serverBloodMoonActive = false;
+    private static volatile boolean serverEclipseActive = false;
+    private static volatile boolean serverContaminacionActive = false;
+    private static volatile boolean serverCuevasTenebrosasActive = false;
     private static boolean fadeOutLatch = false;
+    private static boolean eclipseFadeOutLatch = false;
 
     private static float prevBloodMoonIntensity = 0.0f;
     private static float bloodMoonIntensity = 0.0f;
     private static float currentRenderIntensity = 0.0f;
+
+    private static float prevEclipseIntensity = 0.0f;
+    private static float eclipseIntensity = 0.0f;
+    private static float currentEclipseRenderIntensity = 0.0f;
+
     private static double smoothWorldTime = 0.0;
 
     private static long lastAnnouncedDay = -1L;
+    private static long lastAnnouncedEclipseDay = -1L;
 
     private BloodMoonClientState() {}
+
+    public static void updateFromPayload(boolean active, boolean eclipseActive, boolean contaminacionActive, boolean cuevasTenebrosasActive) {
+        setServerActive(active);
+        setServerEclipseActive(eclipseActive);
+        serverContaminacionActive = contaminacionActive;
+        serverCuevasTenebrosasActive = cuevasTenebrosasActive;
+    }
+
+    public static void setServerEclipseActive(boolean active) {
+        if (serverEclipseActive && !active) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null && mc.level.dimension().equals(Level.OVERWORLD)) {
+                long dayTime = ((mc.level.getOverworldClockTime() % 24000L) + 24000L) % 24000L;
+                if (dayTime >= 11000L && dayTime < 12500L) {
+                    eclipseFadeOutLatch = true;
+                } else {
+                    eclipseFadeOutLatch = false;
+                }
+            }
+        } else if (active) {
+            eclipseFadeOutLatch = false;
+        }
+        serverEclipseActive = active;
+    }
 
     public static void setServerActive(boolean active) {
         if (serverBloodMoonActive && !active) {
@@ -49,13 +83,80 @@ public final class BloodMoonClientState {
         return serverBloodMoonActive;
     }
 
+    public static boolean isServerEclipseActive() {
+        return serverEclipseActive;
+    }
+
+    public static boolean isContaminacionActive() {
+        return serverContaminacionActive;
+    }
+
+    public static boolean isCuevasTenebrosasActive() {
+        return serverCuevasTenebrosasActive;
+    }
+
+    /**
+     * Curva gradual diurna del Eclipse Solar (0.0f a 1.0f):
+     * - Fade-in gradual entre tick 500 y 1500 a medida que la luna cubre el sol
+     * - Fase máxima total (1.0f) entre tick 1500 y 11000
+     * - Fade-out gradual entre tick 11000 y 12000 al ponerse el sol
+     */
+    private static float calcularCurvaEclipsePorTick(float exactDayTime) {
+        if (exactDayTime < 500.0f || exactDayTime >= 12000.0f) {
+            return 0.0f;
+        }
+        if (exactDayTime <= 1500.0f) {
+            float t = Mth.clamp((exactDayTime - 500.0f) / 1000.0f, 0.0f, 1.0f);
+            return Mth.lerp(t, 0.0f, 1.0f);
+        }
+        if (exactDayTime < 11000.0f) {
+            return 1.0f;
+        }
+        float t = Mth.clamp((exactDayTime - 11000.0f) / 1000.0f, 0.0f, 1.0f);
+        return Mth.lerp(t, 1.0f, 0.0f);
+    }
+
+    public static float getEclipseIntensity(float tickDelta) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null || !mc.level.dimension().equals(Level.OVERWORLD)) {
+            currentEclipseRenderIntensity = 0.0f;
+            return 0.0f;
+        }
+        smoothWorldTime = (double) mc.level.getGameTime() + (double) tickDelta;
+
+        float lerpedTickIntensity = Mth.lerp(tickDelta, prevEclipseIntensity, eclipseIntensity);
+        if (serverEclipseActive || eclipseFadeOutLatch) {
+            long clockTime = mc.level.getOverworldClockTime();
+            float exactDayTime = (float) (((clockTime % 24000L) + 24000L) % 24000L) + tickDelta;
+            float exactCurve = calcularCurvaEclipsePorTick(exactDayTime);
+            if (Math.abs(exactCurve - lerpedTickIntensity) < 0.025f) {
+                currentEclipseRenderIntensity = exactCurve;
+                return exactCurve;
+            }
+        }
+        currentEclipseRenderIntensity = lerpedTickIntensity;
+        return currentEclipseRenderIntensity;
+    }
+
+    public static float getCurrentEclipseRenderIntensity() {
+        return currentEclipseRenderIntensity;
+    }
+
     public static void reset() {
         serverBloodMoonActive = false;
+        serverEclipseActive = false;
+        serverContaminacionActive = false;
+        serverCuevasTenebrosasActive = false;
         fadeOutLatch = false;
+        eclipseFadeOutLatch = false;
         prevBloodMoonIntensity = 0.0f;
         bloodMoonIntensity = 0.0f;
         currentRenderIntensity = 0.0f;
+        prevEclipseIntensity = 0.0f;
+        eclipseIntensity = 0.0f;
+        currentEclipseRenderIntensity = 0.0f;
         lastAnnouncedDay = -1L;
+        lastAnnouncedEclipseDay = -1L;
     }
 
     /**
@@ -112,6 +213,7 @@ public final class BloodMoonClientState {
 
     public static void tick(Minecraft client) {
         prevBloodMoonIntensity = bloodMoonIntensity;
+        prevEclipseIntensity = eclipseIntensity;
 
         ClientLevel level = client.level;
         LocalPlayer player = client.player;
@@ -119,6 +221,9 @@ public final class BloodMoonClientState {
             bloodMoonIntensity = 0.0f;
             prevBloodMoonIntensity = 0.0f;
             currentRenderIntensity = 0.0f;
+            eclipseIntensity = 0.0f;
+            prevEclipseIntensity = 0.0f;
+            currentEclipseRenderIntensity = 0.0f;
             return;
         }
 
@@ -128,6 +233,9 @@ public final class BloodMoonClientState {
 
         if (dayTime >= 23500L || dayTime < 12000L) {
             fadeOutLatch = false;
+        }
+        if (dayTime >= 12500L || dayTime < 500L) {
+            eclipseFadeOutLatch = false;
         }
 
         float target = (serverBloodMoonActive || fadeOutLatch)
@@ -143,15 +251,80 @@ public final class BloodMoonClientState {
         }
         bloodMoonIntensity = Mth.clamp(bloodMoonIntensity, 0.0f, 1.0f);
 
+        // Intensidad del Eclipse Solar durante el día con transición gradual suave (0.0f -> 1.0f)
+        float eclipseTarget = 0.0f;
+        if (serverEclipseActive && dayTime < 12500L) {
+            // Si el eclipse se inicia manualmente antes del tick 500, usar 1.0f; de lo contrario seguir la curva solar
+            eclipseTarget = (dayTime < 500L) ? 1.0f : calcularCurvaEclipsePorTick((float) dayTime);
+        } else if (eclipseFadeOutLatch) {
+            eclipseTarget = calcularCurvaEclipsePorTick((float) dayTime);
+        }
+        float eclipseStep = 0.02f;
+        if (Math.abs(eclipseTarget - eclipseIntensity) <= eclipseStep) {
+            eclipseIntensity = eclipseTarget;
+        } else {
+            eclipseIntensity += Math.signum(eclipseTarget - eclipseIntensity) * eclipseStep;
+        }
+        eclipseIntensity = Mth.clamp(eclipseIntensity, 0.0f, 1.0f);
+
         // Al alcanzar el tick 13000: sonido grave y ominoso + título/actionbar rojo oscuro
         if (serverBloodMoonActive && dayTime >= 13000L && dayTime < 22500L && lastAnnouncedDay != dayNumber) {
             lastAnnouncedDay = dayNumber;
             reproducirInicioOminoso(client, level, player);
         }
 
+        // Anuncio ominoso del Eclipse Solar
+        if (serverEclipseActive && dayTime < 12000L && lastAnnouncedEclipseDay != dayNumber) {
+            lastAnnouncedEclipseDay = dayNumber;
+            reproducirInicioEclipse(client, level, player);
+        }
+
         // Partículas flotantes cuando bloodMoonIntensity > 0.5f y el jugador está al aire libre
         if (!client.isPaused() && bloodMoonIntensity > 0.5f && estaAlAireLibre(level, player)) {
             generarParticulasAmbientales(level, player);
+        }
+
+        // Partículas de humo y esporas tóxicas para ¿Contaminación? sobre la capa Y=100
+        if (!client.isPaused() && serverContaminacionActive && player.getY() > 95.0) {
+            generarParticulasContaminacion(level, player);
+        }
+    }
+
+    private static void reproducirInicioEclipse(Minecraft client, ClientLevel level, LocalPlayer player) {
+        level.playLocalSound(
+                player.getX(), player.getY(), player.getZ(),
+                SoundEvents.WITHER_SPAWN,
+                SoundSource.AMBIENT,
+                0.7f,
+                0.5f,
+                false
+        );
+        client.gui.hud.setTimes(15, 70, 25);
+        client.gui.hud.setTitle(
+                Component.literal("ECLIPSE SOLAR")
+                        .withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD)
+        );
+        client.gui.hud.setSubtitle(
+                Component.literal("El sol se oscurece y los cielos cobran vida...")
+                        .withStyle(ChatFormatting.LIGHT_PURPLE)
+        );
+        client.gui.hud.setOverlayMessage(
+                Component.literal("☼ ¡Un Eclipse Solar cubre el mundo! ☼")
+                        .withStyle(ChatFormatting.DARK_PURPLE),
+                false
+        );
+    }
+
+    private static void generarParticulasContaminacion(ClientLevel level, LocalPlayer player) {
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        for (int i = 0; i < 10; i++) {
+            double ox = (rng.nextDouble() * 2.0 - 1.0) * 14.0;
+            double oz = (rng.nextDouble() * 2.0 - 1.0) * 14.0;
+            double px = player.getX() + ox;
+            double py = Math.max(100.0, player.getY() + (rng.nextDouble() * 8.0 - 2.0));
+            double pz = player.getZ() + oz;
+            var pType = rng.nextBoolean() ? ParticleTypes.SPORE_BLOSSOM_AIR : ParticleTypes.CAMPFIRE_COSY_SMOKE;
+            level.addParticle(pType, px, py, pz, (rng.nextDouble() - 0.5) * 0.01, 0.01, (rng.nextDouble() - 0.5) * 0.01);
         }
     }
 

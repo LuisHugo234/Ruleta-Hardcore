@@ -1,9 +1,14 @@
 package com.luishugomod01.client.mixin;
 
 import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LightmapRenderStateExtractor;
 import net.minecraft.client.renderer.state.LightmapRenderState;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,6 +27,43 @@ public abstract class LightmapRenderStateExtractorMixin {
         if (!state.needsUpdate) {
             return;
         }
+
+        // Cuevas Tenebrosas (Nivel 1): si el jugador está bajo Y=0 y porta un farol en la mano secundaria,
+        // añadir un resplandor cálido en la luz ambiental como si llevara una fuente de luz
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (BloodMoonClientState.isCuevasTenebrosasActive() && player != null && player.getY() < 0.0) {
+            ItemStack offhand = player.getItemBySlot(EquipmentSlot.OFFHAND);
+            boolean normalLantern = offhand.is(Items.LANTERN);
+            boolean soulLantern = offhand.is(Items.SOUL_LANTERN);
+            if ((normalLantern || soulLantern) && state.ambientColor != null) {
+                float targetR = soulLantern ? 0.14f : 0.24f;
+                float targetG = soulLantern ? 0.22f : 0.18f;
+                float targetB = soulLantern ? 0.25f : 0.10f;
+                state.ambientColor = new Vector3f(
+                        Math.max(state.ambientColor.x(), targetR),
+                        Math.max(state.ambientColor.y(), targetG),
+                        Math.max(state.ambientColor.z(), targetB)
+                );
+            }
+        }
+
+        // Eclipse Solar (Nivel 6): reducir drásticamente el nivel de luz global del Overworld hacia una penumbra fría y lúgubre
+        float eclipseIntensity = BloodMoonClientState.getEclipseIntensity(partialTick);
+        if (eclipseIntensity > 0.001f) {
+            if (state.skyLightColor != null) {
+                float sr = Mth.lerp(eclipseIntensity, state.skyLightColor.x(), 0.07f);
+                float sg = Mth.lerp(eclipseIntensity, state.skyLightColor.y(), 0.08f);
+                float sb = Mth.lerp(eclipseIntensity, state.skyLightColor.z(), 0.13f);
+                state.skyLightColor = new Vector3f(sr, sg, sb);
+            }
+            if (state.ambientColor != null && !(BloodMoonClientState.isCuevasTenebrosasActive() && player != null && player.getY() < 0.0)) {
+                float ar = Mth.lerp(eclipseIntensity * 0.85f, state.ambientColor.x(), 0.02f);
+                float ag = Mth.lerp(eclipseIntensity * 0.85f, state.ambientColor.y(), 0.02f);
+                float ab = Mth.lerp(eclipseIntensity * 0.85f, state.ambientColor.z(), 0.04f);
+                state.ambientColor = new Vector3f(ar, ag, ab);
+            }
+        }
+
         float intensity = BloodMoonClientState.getIntensity(partialTick);
         if (intensity <= 0.001f) {
             return;

@@ -37,14 +37,23 @@ public abstract class LevelExtractorMixin {
             float partialTick,
             CallbackInfo ci
     ) {
-        float intensity = BloodMoonClientState.getIntensity(partialTick);
-        if (intensity <= 0.001f) {
-            return;
-        }
-
         int current = this.levelRenderState.cloudColor;
         int alpha = ARGB.alpha(current);
         if (alpha <= 0) {
+            return;
+        }
+
+        float eclipseIntensity = BloodMoonClientState.getEclipseIntensity(partialTick);
+        if (eclipseIntensity > 0.001f) {
+            int er = Math.round(Mth.lerp(eclipseIntensity, (float) ARGB.red(current), 12.0f));
+            int eg = Math.round(Mth.lerp(eclipseIntensity, (float) ARGB.green(current), 12.0f));
+            int eb = Math.round(Mth.lerp(eclipseIntensity, (float) ARGB.blue(current), 14.0f));
+            current = ARGB.color(alpha, er, eg, eb);
+            this.levelRenderState.cloudColor = current;
+        }
+
+        float intensity = BloodMoonClientState.getIntensity(partialTick);
+        if (intensity <= 0.001f) {
             return;
         }
 

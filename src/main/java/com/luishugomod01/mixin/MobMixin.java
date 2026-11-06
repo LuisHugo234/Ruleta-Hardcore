@@ -1,5 +1,6 @@
 package com.luishugomod01.mixin;
 
+import com.luishugomod01.ruleta.CursosActivos;
 import com.luishugomod01.ruleta.WallClimberAccessor;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.navigation.PathNavigation;
@@ -19,7 +20,9 @@ public abstract class MobMixin implements WallClimberAccessor {
     @Inject(method = "isSunBurnTick", at = @At("HEAD"), cancellable = true)
     private void ruleta$inmuneAlSol(CallbackInfoReturnable<Boolean> cir) {
         Mob self = (Mob) (Object) this;
-        if (self.entityTags().contains("apoc_mutante")) {
+        if (self.entityTags().contains("apoc_mutante")
+                || self.entityTags().contains("eclipse_inmune_sol")
+                || CursosActivos.isEclipseActive()) {
             cir.setReturnValue(false);
         }
     }

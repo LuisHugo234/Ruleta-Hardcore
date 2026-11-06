@@ -54,6 +54,14 @@ public abstract class SkyRendererMixin {
     @Unique
     private static final float HORIZON_B = 17.0f / 255.0f;
 
+    // Cielo Eclipse Solar: Negro profundo / Gris carbón (#050505 / RGB: 5, 5, 5)
+    @Unique
+    private static final float ECLIPSE_ZENITH_R = 5.0f / 255.0f;
+    @Unique
+    private static final float ECLIPSE_ZENITH_G = 5.0f / 255.0f;
+    @Unique
+    private static final float ECLIPSE_ZENITH_B = 5.0f / 255.0f;
+
     @Unique
     private static final int HORIZON_SEGMENTS = 32;
     @Unique
@@ -64,9 +72,18 @@ public abstract class SkyRendererMixin {
     @Unique
     private static final int AURA_VERTEX_COUNT = AURA_SEGMENTS + 2;
 
+    @Unique
+    private static final int ECLIPSE_SEGMENTS = 48;
+    @Unique
+    private static final int ECLIPSE_DISC_VERTEX_COUNT = ECLIPSE_SEGMENTS + 2;
+
     @Shadow
     @Final
     private RenderSystem.AutoStorageIndexBuffer quadIndices;
+
+    @Shadow
+    @Final
+    private GpuBuffer sunBuffer;
 
     @Shadow
     @Final
@@ -95,6 +112,15 @@ public abstract class SkyRendererMixin {
     @Unique
     private GpuBuffer ruleta$moonAuraBuffer;
 
+    @Unique
+    private GpuBuffer ruleta$eclipseCoronaBuffer;
+
+    @Unique
+    private GpuBuffer ruleta$eclipseFireRingBuffer;
+
+    @Unique
+    private GpuBuffer ruleta$eclipseBlackDiscBuffer;
+
     @Inject(method = "extractRenderState", at = @At("TAIL"))
     private void ruleta$tintarZenithLunaSangre(
             ClientLevel level,
@@ -103,11 +129,19 @@ public abstract class SkyRendererMixin {
             SkyRenderState state,
             CallbackInfo ci
     ) {
-        if (!level.dimension().equals(Level.OVERWORLD)) {
+        if (!level.dimension().equals(Level.OVERWORLD) || state.skyColor == null) {
             return;
         }
+        float eclipseIntensity = BloodMoonClientState.getEclipseIntensity(partialTick);
+        if (eclipseIntensity > 0.001f) {
+            float er = Mth.lerp(eclipseIntensity, state.skyColor.x(), ECLIPSE_ZENITH_R);
+            float eg = Mth.lerp(eclipseIntensity, state.skyColor.y(), ECLIPSE_ZENITH_G);
+            float eb = Mth.lerp(eclipseIntensity, state.skyColor.z(), ECLIPSE_ZENITH_B);
+            state.skyColor = new Vector3f(er, eg, eb);
+        }
+
         float intensity = BloodMoonClientState.getIntensity(partialTick);
-        if (intensity <= 0.001f || state.skyColor == null) {
+        if (intensity <= 0.001f) {
             return;
         }
 
@@ -247,6 +281,129 @@ public abstract class SkyRendererMixin {
         ci.cancel();
     }
 
+    @Inject(method = "renderSun", at = @At("HEAD"), cancellable = true)
+    private void ruleta$renderizarEclipseSolar(
+            RenderPass renderPass,
+            float rainBrightness,
+            PoseStack poseStack,
+            CallbackInfo ci
+    ) {
+        float eclipseIntensity = BloodMoonClientState.getCurrentEclipseRenderIntensity();
+        if (eclipseIntensity <= 0.001f) {
+            return;
+        }
+
+        // Escala de la matriz de renderizado del sol aumentada a 2.8x (entre 2.5x y 3.0x) respecto al tamaño normal (30.0f)
+        float scaleMultiplier = Mth.lerp(eclipseIntensity, 1.0f, 2.8f);
+        float sunSize = 30.0f * scaleMultiplier;
+
+        double worldTime = BloodMoonClientState.getSmoothWorldTime();
+        float pulse = 1.0f + 0.045f * (float) Math.sin(worldTime * 0.06);
+
+        Matrix4fStack mvStack = RenderSystem.getModelViewStack();
+
+        // 1. Corona exterior amplia (resplandor naranja rojizo difuso alrededor del eclipse)
+        GpuBuffer coronaBuffer = ruleta$getOrCreateEclipseCoronaBuffer();
+        float outerCoronaRadius = sunSize * 1.35f * pulse;
+        mvStack.pushMatrix();
+        mvStack.mul(poseStack.last().pose());
+        mvStack.translate(0.0f, 100.4f, 0.0f);
+        mvStack.scale(outerCoronaRadius, 1.0f, outerCoronaRadius);
+        Matrix4f outerCoronaMat = new Matrix4f(mvStack);
+        mvStack.popMatrix();
+
+        GpuBufferSlice outerCoronaSlice = RenderSystem.getDynamicUniforms().writeTransform(
+                outerCoronaMat,
+                new Vector4f(1.0f, 0.24f, 0.04f, 0.65f * eclipseIntensity * rainBrightness)
+        );
+        renderPass.pushDebugGroup(() -> "Solar Eclipse Outer Corona");
+        renderPass.setPipeline(RenderSystem.getCompiledPipeline(RenderPipelines.SUNRISE_SUNSET));
+        RenderSystem.bindDefaultUniforms(renderPass);
+        renderPass.setUniform("DynamicTransforms", outerCoronaSlice);
+        renderPass.setVertexBuffer(0, coronaBuffer.slice());
+        renderPass.draw(ECLIPSE_DISC_VERTEX_COUNT, 1, 0, 0);
+        renderPass.popDebugGroup();
+
+        // 2. Resplandor solar con blending aditivo (RenderPipelines.CELESTIAL) teñido de naranja rojizo brillante
+        Matrix4f sunGlowMat = this.applyCelestialBodyTransform(poseStack, 100.2f, sunSize * pulse);
+        float sunR = Mth.lerp(eclipseIntensity, 1.0f, 1.0f);
+        float sunG = Mth.lerp(eclipseIntensity, 1.0f, 0.36f);
+        float sunB = Mth.lerp(eclipseIntensity, 1.0f, 0.06f);
+        GpuBufferSlice sunGlowSlice = RenderSystem.getDynamicUniforms().writeTransform(
+                sunGlowMat,
+                new Vector4f(sunR, sunG, sunB, rainBrightness)
+        );
+        this.drawCelestialBody(
+                () -> "Solar Eclipse Sun Glow",
+                renderPass,
+                sunGlowSlice,
+                this.quadIndices.getBuffer(6),
+                this.sunBuffer,
+                0
+        );
+
+        // Segundo pase aditivo más concentrado para intensificar el anillo de fuego
+        Matrix4f innerGlowMat = this.applyCelestialBodyTransform(poseStack, 100.1f, sunSize * 0.72f);
+        GpuBufferSlice innerGlowSlice = RenderSystem.getDynamicUniforms().writeTransform(
+                innerGlowMat,
+                new Vector4f(1.0f, 0.58f, 0.14f, 0.90f * eclipseIntensity * rainBrightness)
+        );
+        this.drawCelestialBody(
+                () -> "Solar Eclipse Inner Additive Ring",
+                renderPass,
+                innerGlowSlice,
+                this.quadIndices.getBuffer(6),
+                this.sunBuffer,
+                0
+        );
+
+        // 3. Anillo de fuego incandescente (borde naranja-rojizo resplandeciente justo alrededor del disco oscuro)
+        GpuBuffer fireRingBuffer = ruleta$getOrCreateEclipseFireRingBuffer();
+        float fireRingRadius = sunSize * 0.54f * (1.0f + 0.02f * (float) Math.sin(worldTime * 0.09));
+        mvStack.pushMatrix();
+        mvStack.mul(poseStack.last().pose());
+        mvStack.translate(0.0f, 99.9f, 0.0f);
+        mvStack.scale(fireRingRadius, 1.0f, fireRingRadius);
+        Matrix4f fireRingMat = new Matrix4f(mvStack);
+        mvStack.popMatrix();
+
+        GpuBufferSlice fireRingSlice = RenderSystem.getDynamicUniforms().writeTransform(
+                fireRingMat,
+                new Vector4f(1.0f, 0.45f, 0.08f, 0.95f * eclipseIntensity * rainBrightness)
+        );
+        renderPass.pushDebugGroup(() -> "Solar Eclipse Ring of Fire");
+        renderPass.setPipeline(RenderSystem.getCompiledPipeline(RenderPipelines.SUNRISE_SUNSET));
+        RenderSystem.bindDefaultUniforms(renderPass);
+        renderPass.setUniform("DynamicTransforms", fireRingSlice);
+        renderPass.setVertexBuffer(0, fireRingBuffer.slice());
+        renderPass.draw(ECLIPSE_DISC_VERTEX_COUNT, 1, 0, 0);
+        renderPass.popDebugGroup();
+
+        // 4. Disco central completamente oscuro (luna cubriendo el sol gradualmente con eclipseIntensity)
+        GpuBuffer blackDiscBuffer = ruleta$getOrCreateEclipseBlackDiscBuffer();
+        float blackDiscRadius = sunSize * 0.39f * Mth.lerp(eclipseIntensity, 0.15f, 1.0f);
+        mvStack.pushMatrix();
+        mvStack.mul(poseStack.last().pose());
+        mvStack.translate(0.0f, 99.7f, 0.0f);
+        mvStack.scale(blackDiscRadius, 1.0f, blackDiscRadius);
+        Matrix4f blackDiscMat = new Matrix4f(mvStack);
+        mvStack.popMatrix();
+
+        GpuBufferSlice blackDiscSlice = RenderSystem.getDynamicUniforms().writeTransform(
+                blackDiscMat,
+                new Vector4f(1.0f, 1.0f, 1.0f, Mth.clamp(eclipseIntensity * 1.15f, 0.0f, 1.0f) * rainBrightness)
+        );
+        renderPass.pushDebugGroup(() -> "Solar Eclipse Black Lunar Disc");
+        renderPass.setPipeline(RenderSystem.getCompiledPipeline(RenderPipelines.SUNRISE_SUNSET));
+        RenderSystem.bindDefaultUniforms(renderPass);
+        renderPass.setUniform("DynamicTransforms", blackDiscSlice);
+        renderPass.setVertexBuffer(0, blackDiscBuffer.slice());
+        renderPass.draw(ECLIPSE_DISC_VERTEX_COUNT, 1, 0, 0);
+        renderPass.popDebugGroup();
+
+        ci.cancel();
+    }
+
     @Inject(method = "close", at = @At("TAIL"))
     private void ruleta$liberarBuffersLunaSangre(CallbackInfo ci) {
         if (this.ruleta$horizonGlowBuffer != null) {
@@ -256,6 +413,18 @@ public abstract class SkyRendererMixin {
         if (this.ruleta$moonAuraBuffer != null) {
             this.ruleta$moonAuraBuffer.close();
             this.ruleta$moonAuraBuffer = null;
+        }
+        if (this.ruleta$eclipseCoronaBuffer != null) {
+            this.ruleta$eclipseCoronaBuffer.close();
+            this.ruleta$eclipseCoronaBuffer = null;
+        }
+        if (this.ruleta$eclipseFireRingBuffer != null) {
+            this.ruleta$eclipseFireRingBuffer.close();
+            this.ruleta$eclipseFireRingBuffer = null;
+        }
+        if (this.ruleta$eclipseBlackDiscBuffer != null) {
+            this.ruleta$eclipseBlackDiscBuffer.close();
+            this.ruleta$eclipseBlackDiscBuffer = null;
         }
     }
 
@@ -324,5 +493,102 @@ public abstract class SkyRendererMixin {
             }
         }
         return this.ruleta$moonAuraBuffer;
+    }
+
+    @Unique
+    private GpuBuffer ruleta$getOrCreateEclipseCoronaBuffer() {
+        if (this.ruleta$eclipseCoronaBuffer != null) {
+            return this.ruleta$eclipseCoronaBuffer;
+        }
+        int vertexSize = DefaultVertexFormat.POSITION_COLOR.getVertexSize();
+        try (ByteBufferBuilder byteBuilder = ByteBufferBuilder.exactlySized(ECLIPSE_DISC_VERTEX_COUNT * vertexSize)) {
+            BufferBuilder builder = new BufferBuilder(
+                    byteBuilder,
+                    PrimitiveTopology.TRIANGLE_FAN,
+                    DefaultVertexFormat.POSITION_COLOR
+            );
+            int centerColor = ARGB.color(255, 255, 160, 50);
+            int edgeColor = ARGB.color(0, 180, 20, 0);
+
+            builder.addVertex(0.0f, 0.0f, 0.0f).setColor(centerColor);
+            for (int i = 0; i <= ECLIPSE_SEGMENTS; i++) {
+                float angle = (float) i * ((float) Math.PI * 2.0f) / (float) ECLIPSE_SEGMENTS;
+                builder.addVertex(Mth.cos(angle), 0.0f, Mth.sin(angle)).setColor(edgeColor);
+            }
+
+            try (MeshData meshData = builder.buildOrThrow()) {
+                this.ruleta$eclipseCoronaBuffer = RenderSystem.getDevice().createBuffer(
+                        () -> "Solar Eclipse Outer Corona VBO",
+                        32,
+                        meshData.vertexBuffer()
+                );
+            }
+        }
+        return this.ruleta$eclipseCoronaBuffer;
+    }
+
+    @Unique
+    private GpuBuffer ruleta$getOrCreateEclipseFireRingBuffer() {
+        if (this.ruleta$eclipseFireRingBuffer != null) {
+            return this.ruleta$eclipseFireRingBuffer;
+        }
+        int vertexSize = DefaultVertexFormat.POSITION_COLOR.getVertexSize();
+        try (ByteBufferBuilder byteBuilder = ByteBufferBuilder.exactlySized(ECLIPSE_DISC_VERTEX_COUNT * vertexSize)) {
+            BufferBuilder builder = new BufferBuilder(
+                    byteBuilder,
+                    PrimitiveTopology.TRIANGLE_FAN,
+                    DefaultVertexFormat.POSITION_COLOR
+            );
+            // Núcleo incandescente blanco-anaranjado que se funde hacia naranja rojizo en el borde del anillo
+            int centerColor = ARGB.color(255, 255, 230, 160);
+            int edgeColor = ARGB.color(0, 255, 60, 10);
+
+            builder.addVertex(0.0f, 0.0f, 0.0f).setColor(centerColor);
+            for (int i = 0; i <= ECLIPSE_SEGMENTS; i++) {
+                float angle = (float) i * ((float) Math.PI * 2.0f) / (float) ECLIPSE_SEGMENTS;
+                builder.addVertex(Mth.cos(angle), 0.0f, Mth.sin(angle)).setColor(edgeColor);
+            }
+
+            try (MeshData meshData = builder.buildOrThrow()) {
+                this.ruleta$eclipseFireRingBuffer = RenderSystem.getDevice().createBuffer(
+                        () -> "Solar Eclipse Fire Ring VBO",
+                        32,
+                        meshData.vertexBuffer()
+                );
+            }
+        }
+        return this.ruleta$eclipseFireRingBuffer;
+    }
+
+    @Unique
+    private GpuBuffer ruleta$getOrCreateEclipseBlackDiscBuffer() {
+        if (this.ruleta$eclipseBlackDiscBuffer != null) {
+            return this.ruleta$eclipseBlackDiscBuffer;
+        }
+        int vertexSize = DefaultVertexFormat.POSITION_COLOR.getVertexSize();
+        try (ByteBufferBuilder byteBuilder = ByteBufferBuilder.exactlySized(ECLIPSE_DISC_VERTEX_COUNT * vertexSize)) {
+            BufferBuilder builder = new BufferBuilder(
+                    byteBuilder,
+                    PrimitiveTopology.TRIANGLE_FAN,
+                    DefaultVertexFormat.POSITION_COLOR
+            );
+            // Disco central completamente negro opaco (#020202) para bloquear la luz solar en el centro
+            int pitchBlack = ARGB.color(255, 2, 2, 2);
+
+            builder.addVertex(0.0f, 0.0f, 0.0f).setColor(pitchBlack);
+            for (int i = 0; i <= ECLIPSE_SEGMENTS; i++) {
+                float angle = (float) i * ((float) Math.PI * 2.0f) / (float) ECLIPSE_SEGMENTS;
+                builder.addVertex(Mth.cos(angle), 0.0f, Mth.sin(angle)).setColor(pitchBlack);
+            }
+
+            try (MeshData meshData = builder.buildOrThrow()) {
+                this.ruleta$eclipseBlackDiscBuffer = RenderSystem.getDevice().createBuffer(
+                        () -> "Solar Eclipse Black Disc VBO",
+                        32,
+                        meshData.vertexBuffer()
+                );
+            }
+        }
+        return this.ruleta$eclipseBlackDiscBuffer;
     }
 }

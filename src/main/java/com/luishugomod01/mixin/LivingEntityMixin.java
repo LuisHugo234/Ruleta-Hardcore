@@ -11,22 +11,39 @@ import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.animal.chicken.Chicken;
 import net.minecraft.world.entity.monster.Ghast;
+import net.minecraft.world.entity.monster.Silverfish;
+import net.minecraft.world.entity.monster.Vex;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.hurtingprojectile.LargeFireball;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {
+
+    @Shadow
+    protected ItemStack useItem;
+
+    @Unique
+    private Item ruleta$lastUsedItem;
 
     @Inject(method = "onClimbable", at = @At("HEAD"), cancellable = true)
     private void ruleta$escalarParedes(CallbackInfoReturnable<Boolean> cir) {
@@ -44,17 +61,98 @@ public abstract class LivingEntityMixin {
         if (CursosActivos.isMuerteEspinosa() && damageSource.is(DamageTypes.CACTUS)) {
             amount = 1.0E9f;
         }
+        if (CursosActivos.isMagmaContacto() && damageSource.is(DamageTypes.HOT_FLOOR)) {
+            amount = 1.0E9f;
+        }
         if (CursosActivos.isUltraFundido() && (Object) this instanceof Player
                 && damageSource.is(DamageTypeTags.IS_FIRE)) {
             amount *= 10.0f;
         }
         if (CursosActivos.isEnderGhast() && !((Object) this instanceof Ghast)) {
             if (damageSource.getDirectEntity() instanceof LargeFireball
-                    || damageSource.getEntity() instanceof Ghast) {
+                    || damageSource.getEntity() instanceof Ghast
+                    || (damageSource.is(DamageTypeTags.IS_EXPLOSION) && damageSource.getEntity() instanceof Ghast)) {
                 amount *= 3.0f;
             }
         }
+        if (CursosActivos.isVexGrandes() && damageSource.getEntity() instanceof Vex) {
+            amount *= 2.0f;
+        }
         return amount;
+    }
+
+    @Inject(method = "hurtServer", at = @At("RETURN"))
+    private void ruleta$efectosPostGolpe(ServerLevel level, DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+
+        // Cuccos Salvajes: al golpear a un pollo, éste y los pollos cercanos se vuelven agresivos contra el jugador
+        if (CursosActivos.isCuccosSalvajes() && self instanceof Chicken chicken && damageSource.getEntity() instanceof Player) {
+            chicken.addTag("cucco_enfurecido");
+            List<Chicken> flock = level.getEntitiesOfClass(Chicken.class, chicken.getBoundingBox().inflate(16.0), Entity::isAlive);
+            for (Chicken c : flock) {
+                c.addTag("cucco_enfurecido");
+            }
+        }
+
+        // Cucaracha Plateada: los lepismas otorgan Lentitud II por 5s (100 ticks) al golpear al jugador
+        if (CursosActivos.isCucarachaPlateada() && cir.getReturnValueZ()
+                && self instanceof Player player && damageSource.getEntity() instanceof Silverfish) {
+            player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 100, 1));
+        }
+    }
+
+    @Inject(method = "applyItemBlocking", at = @At("RETURN"))
+    private void ruleta$escudoPesadoConsumoComida(ServerLevel level, DamageSource damageSource, float damage, CallbackInfoReturnable<Float> cir) {
+        if (!CursosActivos.isEscudoPesado()) return;
+        if (cir.getReturnValueF() > 0.0f && (Object) this instanceof ServerPlayer sp) {
+            // Consume el doble de comida por el esfuerzo de bloquear el impacto
+            int currentFood = sp.getFoodData().getFoodLevel();
+            sp.getFoodData().setFoodLevel(Math.max(0, currentFood - 2));
+            sp.causeFoodExhaustion(4.0f);
+        }
+    }
+
+    @Inject(method = "completeUsingItem", at = @At("HEAD"))
+    private void ruleta$capturarItemConsumido(CallbackInfo ci) {
+        this.ruleta$lastUsedItem = (this.useItem != null && !this.useItem.isEmpty()) ? this.useItem.getItem() : null;
+    }
+
+    @Inject(method = "completeUsingItem", at = @At("TAIL"))
+    private void ruleta$efectosConsumoAlimentos(CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self.level().isClientSide() || this.ruleta$lastUsedItem == null) return;
+
+        Item consumed = this.ruleta$lastUsedItem;
+        this.ruleta$lastUsedItem = null;
+
+        // Manzanas Regeneradoras: las manzanas de oro no dan absorción
+        if (CursosActivos.isManzanaRegeneradora()
+                && (consumed == Items.GOLDEN_APPLE || consumed == Items.ENCHANTED_GOLDEN_APPLE)) {
+            self.removeEffect(MobEffects.ABSORPTION);
+            self.setAbsorptionAmount(0.0f);
+        }
+
+        // Contaminación Cruzada: los alimentos crudos dan Hambre II y Veneno I
+        if (CursosActivos.isContaminacionCruzada() && ruleta$esAlimentoCrudo(consumed)) {
+            self.addEffect(new MobEffectInstance(MobEffects.HUNGER, 400, 1));
+            self.addEffect(new MobEffectInstance(MobEffects.POISON, 160, 0));
+        }
+    }
+
+    @Unique
+    private static boolean ruleta$esAlimentoCrudo(Item item) {
+        return item == Items.BEEF
+                || item == Items.PORKCHOP
+                || item == Items.CHICKEN
+                || item == Items.MUTTON
+                || item == Items.RABBIT
+                || item == Items.COD
+                || item == Items.SALMON
+                || item == Items.TROPICAL_FISH
+                || item == Items.PUFFERFISH
+                || item == Items.ROTTEN_FLESH
+                || item == Items.POTATO
+                || item == Items.POISONOUS_POTATO;
     }
 
     @Inject(method = "getDamageAfterArmorAbsorb", at = @At("HEAD"), cancellable = true)

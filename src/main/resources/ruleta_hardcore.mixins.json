@@ -10,7 +10,8 @@
 		"NaturalSpawnerSpawnStateMixin",
 		"AbstractArrowMixin",
 		"GhastShootFireballGoalMixin",
-		"LargeFireballMixin"
+		"LargeFireballMixin",
+		"BeeMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -31,7 +31,12 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(BloodMoonSyncPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
-                BloodMoonClientState.setServerActive(payload.active());
+                BloodMoonClientState.updateFromPayload(
+                        payload.active(),
+                        payload.eclipseActive(),
+                        payload.contaminacionActive(),
+                        payload.cuevasTenebrosasActive()
+                );
             });
         });
 
