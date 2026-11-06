@@ -30,7 +30,7 @@ public abstract class LargeFireballMixin {
             CallbackInfo ci
     ) {
         if (CursosActivos.isEnderGhast() && shooter instanceof Ghast) {
-            this.explosionPower = Math.max(3, explosionPower * 3);
+            this.explosionPower = 20;
         }
     }
 }

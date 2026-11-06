@@ -97,20 +97,36 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarWardensDeepDark());
 
         registrar("cuevastenebrosas", NivelRuleta.NIVEL_1, "Cuevas Tenebrosas",
-                "Recibes Oscuridad por debajo de la capa 0 (se reduce levemente con un farol en la mano secundaria).",
+                "Recibes Oscuridad por debajo de la capa 0 (se reduce al portar un farol en la mano secundaria como fuente de luz).",
                 (level, player) -> CursosActivos.activarCuevasTenebrosas());
 
-        registrar("defensavillera", NivelRuleta.NIVEL_1, "Defensa Villera",
-                "Los Gólems de Hierro ahora son agresivos con todos los jugadores.",
-                (level, player) -> CursosActivos.activarDefensaVillera());
+        registrar("comidaechada", NivelRuleta.NIVEL_1, "Comida Echada a Perder",
+                "5% de probabilidad de recibir Infestado por 15 segundos al comer cualquier alimento (excepto dorados o cocinados).",
+                (level, player) -> CursosActivos.activarComidaEchada());
 
         registrar("cuccossalvajes", NivelRuleta.NIVEL_1, "Cuccos Salvajes",
                 "Los pollos tienen 15 de vida y te golpean cuando les pegas (hacen 1 corazón por golpe).",
                 (level, player) -> CursosActivos.activarCuccosSalvajes());
 
+        registrar("cadaverespisados", NivelRuleta.NIVEL_1, "Cadáveres Pisados",
+                "Ahora al pisar la arena de almas dará el efecto de Debilidad I.",
+                (level, player) -> CursosActivos.activarCadaveresPisados());
+
+        registrar("vacaexplosiva", NivelRuleta.NIVEL_1, "Vaca Explosiva",
+                "Las vacas tienen una probabilidad del 1% de hacer una explosión cuando mueran.",
+                (level, player) -> CursosActivos.activarVacaExplosiva());
+
+        registrar("corrientesaereas", NivelRuleta.NIVEL_1, "Corrientes Aéreas",
+                "Los Breeze ahora disparan 6 Wind Charges en ráfaga (como los Blazes).",
+                (level, player) -> CursosActivos.activarCorrientesAereas());
+
+        registrar("invasionazul", NivelRuleta.NIVEL_1, "Invasión Azul",
+                "Los Breeze ahora pueden spawnear en todos los biomas del Overworld (de día) con un 20% de probabilidad.",
+                (level, player) -> CursosActivos.activarInvasionAzul());
+
         // --- NIVEL 2 ---
         registrar("speedpers", NivelRuleta.NIVEL_2, "Speedpers",
-                "Todos los Creepers tienen Velocidad II permanente.",
+                "Todos los Creepers del Overworld (excepto Creepers Escondidos) tienen Velocidad II permanente.",
                 (level, player) -> CursosActivos.activarSpeedpers());
 
         registrar("filomortal", NivelRuleta.NIVEL_2, "Filo Mortal",
@@ -145,6 +161,18 @@ public class CatalogoCastigos {
                 "Usar el escudo para bloquear ataques consume el doble de barra de comida.",
                 (level, player) -> CursosActivos.activarEscudoPesado());
 
+        registrar("wingardiumleviosa", NivelRuleta.NIVEL_2, "Wingardium Leviosa",
+                "Las brujas te pueden arrojar pociones de Levitación XV por 1 segundo.",
+                (level, player) -> CursosActivos.activarWingardiumLeviosa());
+
+        registrar("lavaactiva", NivelRuleta.NIVEL_2, "Lava Activa",
+                "Ahora la lava en el Overworld se mueve con la misma velocidad que en el Nether.",
+                (level, player) -> CursosActivos.activarLavaActiva());
+
+        registrar("webones", NivelRuleta.NIVEL_2, "Webones",
+                "Existe un 50% de probabilidad de que los aldeanos al crecer sean Nitwit (verdes).",
+                (level, player) -> CursosActivos.activarWebones());
+
         // --- NIVEL 3 ---
         registrar("errortotemico", NivelRuleta.NIVEL_3, "Error Totémico",
                 "Los Tótems de Inmortalidad tienen un 2% de probabilidad de fallar.",
@@ -171,16 +199,28 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarMuerteInstantanea());
 
         registrar("manzanaregeneradora", NivelRuleta.NIVEL_3, "Manzanas Regeneradoras",
-                "Ahora las manzanas de oro no dan el efecto de absorción.",
+                "Ahora las manzanas de oro (excepto las encantadas) no dan el efecto de absorción.",
                 (level, player) -> CursosActivos.activarManzanaRegeneradora());
 
         registrar("magmacontacto", NivelRuleta.NIVEL_3, "Magma al Contacto",
-                "Los bloques de magma hacen 1x10^9 de daño al tocarlos por cualquier ángulo.",
+                "Los bloques de magma hacen 1x10^9 de daño al tocarlos directamente por cualquier ángulo.",
                 (level, player) -> CursosActivos.activarMagmaContacto());
 
         registrar("contaminacioncruzada", NivelRuleta.NIVEL_3, "Contaminación Cruzada",
                 "Los alimentos crudos dan Hambre II y Veneno I al consumirlos.",
                 (level, player) -> CursosActivos.activarContaminacionCruzada());
+
+        registrar("sinoxigeno", NivelRuleta.NIVEL_3, "Sin Oxígeno",
+                "Ahora el oxígeno cuando te sumerges en el agua se agota el triple de rápido.",
+                (level, player) -> CursosActivos.activarSinOxigeno());
+
+        registrar("fallamecanica", NivelRuleta.NIVEL_3, "Falla Mecánica",
+                "Los Gólems miden x1.8, tienen Fuerza y Velocidad que aumentan por cada deterioro (+1) y con <25% de vida atacan a todo ser vivo.",
+                (level, player) -> CursosActivos.activarFallaMecanica());
+
+        registrar("adivinaquien", NivelRuleta.NIVEL_3, "Adivina Quién Ha Vuelto",
+                "El Illusioner aparece (25%) junto a raids, outposts y patrullas con Arco Retroceso X, Poder III y Resistencia III.",
+                (level, player) -> CursosActivos.activarAdivinaQuien());
 
         // --- NIVEL 4 ---
         registrar("danocolateral", NivelRuleta.NIVEL_4, "Daño Colateral",
@@ -196,7 +236,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarPoderEnLaMano());
 
         registrar("contaminacion", NivelRuleta.NIVEL_4, "¿Contaminación?",
-                "Por encima de la capa 100 hay una niebla y humo verde que hace daño de Veneno V.",
+                "Por encima de la capa 160 hay una niebla y humo verde que hace daño de Veneno V.",
                 (level, player) -> CursosActivos.activarContaminacion());
 
         registrar("congelacionprofunda", NivelRuleta.NIVEL_4, "Congelación Profunda",
@@ -206,6 +246,14 @@ public class CatalogoCastigos {
         registrar("escopeta", NivelRuleta.NIVEL_4, "Escopeta",
                 "Los Pillagers poseen en sus ballestas Multidisparo VI, Carga Rápida II y Perforación V.",
                 (level, player) -> CursosActivos.activarEscopeta());
+
+        registrar("reydeloprofundo", NivelRuleta.NIVEL_4, "Rey de lo Profundo",
+                "El Elder Guardian posee 100 de vida y su rayo da Debilidad I (+1 por cada golpe recibido) por 20 segundos.",
+                (level, player) -> CursosActivos.activarReyDeLoProfundo());
+
+        registrar("desiertoabrasador", NivelRuleta.NIVEL_4, "Desierto Abrasador",
+                "Permanecer 15 segundos en el desierto acumula Insolación, causando 1 corazón de daño cada 2 segundos y partículas de agua.",
+                (level, player) -> CursosActivos.activarDesiertoAbrasador());
 
         // --- NIVEL 5 ---
         registrar("intrusoscalavericos", NivelRuleta.NIVEL_5, "Intrusos Calavéricos",
@@ -217,7 +265,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarSpiderman());
 
         registrar("enderghast", NivelRuleta.NIVEL_5, "Ender Ghast",
-                "El Ghast se vuelve más agresivo y sus proyectiles hacen x3 el daño explosivo.",
+                "El Ghast se vuelve más agresivo y sus proyectiles tienen un radio de explosión de 20 bloques.",
                 (level, player) -> CursosActivos.activarEnderGhast());
 
         registrar("kaboom", NivelRuleta.NIVEL_5, "KA-BOOM",
@@ -236,6 +284,14 @@ public class CatalogoCastigos {
                 "En el Nether hay 5% de probabilidad de un Hoglin Gigante con 300 de vida, x2 de daño y Lentitud.",
                 (level, player) -> CursosActivos.activarMegaHoglin());
 
+        registrar("creepersescondidos", NivelRuleta.NIVEL_5, "Creepers Escondidos",
+                "Al romper bloques de pasto hay 20% de probabilidad de spawnear un mini-creeper cabezón con 1/3 de su daño explosivo.",
+                (level, player) -> CursosActivos.activarCreepersEscondidos());
+
+        registrar("creepercosmico", NivelRuleta.NIVEL_5, "Creeper Cósmico",
+                "Cerca de las End Cities puede aparecer (15%) un Creeper Eléctrico con radio de explosión de 30 bloques.",
+                (level, player) -> CursosActivos.activarCreeperCosmico());
+
         // --- NIVEL 6 ---
         registrar("permadeath", NivelRuleta.NIVEL_6, "PERMADEATH",
                 "Se elimina permanentemente la regeneración pasiva de vida natural.",
@@ -253,7 +309,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarApocalipsisMinecraftTotal());
 
         registrar("lunasangre", NivelRuleta.NIVEL_6, "Luna de Sangre",
-                "Cada noche hay 5% de probabilidad de Luna de Sangre: sin camas y hordas masivas.",
+                "5% de probabilidad de Luna de Sangre: sin camas, hordas masivas y mobs con hasta 3 efectos potentes aleatorios.",
                 (level, player) -> CursosActivos.activarLunaDeSangre());
 
         registrar("monturaacuatica", NivelRuleta.NIVEL_6, "Montura Acuática",
@@ -261,11 +317,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarMonturaAcuatica());
 
         registrar("eclipsesolar", NivelRuleta.NIVEL_6, "Eclipse Solar",
-                "Probabilidad de Eclipse Solar con Strays con Lanza de Diamante (Filo II) en Phantoms y Brujas en Murciélagos.",
+                "Probabilidad de Eclipse Solar con Strays con Lanza de Diamante (Filo II) en Phantoms, Brujas en Murciélagos y Creakings con Velocidad II.",
                 (level, player) -> CursosActivos.activarEclipseSolar());
-
-        registrar("insomniodesastroso", NivelRuleta.NIVEL_6, "Insomnio Desastroso",
-                "Las camas explotan al romperse.",
-                (level, player) -> CursosActivos.activarInsomnioDesastroso());
     }
 }

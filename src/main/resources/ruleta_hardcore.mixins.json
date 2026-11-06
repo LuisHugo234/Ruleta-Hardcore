@@ -11,7 +11,12 @@
 		"AbstractArrowMixin",
 		"GhastShootFireballGoalMixin",
 		"LargeFireballMixin",
-		"BeeMixin"
+		"BeeMixin",
+		"BreezeShootMixin",
+		"WitchMixin",
+		"LavaFluidMixin",
+		"VillagerMixin",
+		"CreeperMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

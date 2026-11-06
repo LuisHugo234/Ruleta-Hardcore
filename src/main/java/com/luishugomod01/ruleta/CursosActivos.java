@@ -17,8 +17,12 @@ public class CursosActivos {
     private static volatile boolean apocalipsisZombie         = false;
     private static volatile boolean wardensDeepDark           = false;
     private static volatile boolean cuevasTenebrosas          = false;
-    private static volatile boolean defensaVillera            = false;
+    private static volatile boolean comidaEchada              = false;
     private static volatile boolean cuccosSalvajes            = false;
+    private static volatile boolean cadaveresPisados          = false;
+    private static volatile boolean vacaExplosiva             = false;
+    private static volatile boolean corrientesAereas          = false;
+    private static volatile boolean invasionAzul              = false;
 
     // Nivel 2
     private static volatile boolean speedpers                 = false;
@@ -30,6 +34,9 @@ public class CursosActivos {
     private static volatile boolean vexGrandes                = false;
     private static volatile boolean resistenciaFisica         = false;
     private static volatile boolean escudoPesado              = false;
+    private static volatile boolean wingardiumLeviosa         = false;
+    private static volatile boolean lavaActiva                = false;
+    private static volatile boolean webones                   = false;
 
     // Nivel 3
     private static volatile boolean errorTotemico             = false;
@@ -41,6 +48,9 @@ public class CursosActivos {
     private static volatile boolean manzanaRegeneradora       = false;
     private static volatile boolean magmaContacto             = false;
     private static volatile boolean contaminacionCruzada      = false;
+    private static volatile boolean sinOxigeno                = false;
+    private static volatile boolean fallaMecanica             = false;
+    private static volatile boolean adivinaQuien              = false;
 
     // Nivel 4
     private static volatile boolean danoColateral             = false;
@@ -49,6 +59,8 @@ public class CursosActivos {
     private static volatile boolean contaminacion             = false;
     private static volatile boolean congelacionProfunda       = false;
     private static volatile boolean escopeta                  = false;
+    private static volatile boolean reyDeLoProfundo           = false;
+    private static volatile boolean desiertoAbrasador         = false;
 
     // Nivel 5
     private static volatile boolean intrusosCalavericos       = false;
@@ -58,6 +70,8 @@ public class CursosActivos {
     private static volatile boolean ataqueSlimes              = false;
     private static volatile boolean gigaEndermite             = false;
     private static volatile boolean megaHoglin                = false;
+    private static volatile boolean creepersEscondidos        = false;
+    private static volatile boolean creeperCosmico            = false;
 
     // Nivel 6
     private static volatile boolean permadeath                = false;
@@ -65,7 +79,6 @@ public class CursosActivos {
     private static volatile boolean maldicionLunaDeSangre     = false;
     private static volatile boolean monturaAcuatica           = false;
     private static volatile boolean eclipseSolar              = false;
-    private static volatile boolean insomnioDesastroso        = false;
 
     // Estados dinámicos de eventos temporales (Luna de Sangre / Eclipse Solar)
     private static volatile boolean isBloodMoonActive         = false;
@@ -107,11 +120,23 @@ public class CursosActivos {
     public static void activarCuevasTenebrosas() { cuevasTenebrosas = true; }
     public static boolean isCuevasTenebrosas() { return cuevasTenebrosas; }
 
-    public static void activarDefensaVillera() { defensaVillera = true; }
-    public static boolean isDefensaVillera() { return defensaVillera; }
+    public static void activarComidaEchada() { comidaEchada = true; }
+    public static boolean isComidaEchada() { return comidaEchada; }
 
     public static void activarCuccosSalvajes() { cuccosSalvajes = true; }
     public static boolean isCuccosSalvajes() { return cuccosSalvajes; }
+
+    public static void activarCadaveresPisados() { cadaveresPisados = true; }
+    public static boolean isCadaveresPisados() { return cadaveresPisados; }
+
+    public static void activarVacaExplosiva() { vacaExplosiva = true; }
+    public static boolean isVacaExplosiva() { return vacaExplosiva; }
+
+    public static void activarCorrientesAereas() { corrientesAereas = true; }
+    public static boolean isCorrientesAereas() { return corrientesAereas; }
+
+    public static void activarInvasionAzul() { invasionAzul = true; }
+    public static boolean isInvasionAzul() { return invasionAzul; }
 
     // --- Nivel 2 ---
     public static void activarSpeedpers() { speedpers = true; }
@@ -142,6 +167,15 @@ public class CursosActivos {
     public static void activarEscudoPesado() { escudoPesado = true; }
     public static boolean isEscudoPesado() { return escudoPesado; }
 
+    public static void activarWingardiumLeviosa() { wingardiumLeviosa = true; }
+    public static boolean isWingardiumLeviosa() { return wingardiumLeviosa; }
+
+    public static void activarLavaActiva() { lavaActiva = true; }
+    public static boolean isLavaActiva() { return lavaActiva; }
+
+    public static void activarWebones() { webones = true; }
+    public static boolean isWebones() { return webones; }
+
     // --- Nivel 3 ---
     public static void activarErrorTotemico() { errorTotemico = true; }
     public static boolean isErrorTotemico() { return errorTotemico; }
@@ -171,6 +205,15 @@ public class CursosActivos {
     public static void activarContaminacionCruzada() { contaminacionCruzada = true; }
     public static boolean isContaminacionCruzada() { return contaminacionCruzada; }
 
+    public static void activarSinOxigeno() { sinOxigeno = true; }
+    public static boolean isSinOxigeno() { return sinOxigeno; }
+
+    public static void activarFallaMecanica() { fallaMecanica = true; }
+    public static boolean isFallaMecanica() { return fallaMecanica; }
+
+    public static void activarAdivinaQuien() { adivinaQuien = true; }
+    public static boolean isAdivinaQuien() { return adivinaQuien; }
+
     // --- Nivel 4 ---
     public static void activarDanoColateral() { danoColateral = true; }
     public static boolean isDanoColateral() { return danoColateral; }
@@ -191,6 +234,12 @@ public class CursosActivos {
 
     public static void activarEscopeta() { escopeta = true; }
     public static boolean isEscopeta() { return escopeta; }
+
+    public static void activarReyDeLoProfundo() { reyDeLoProfundo = true; }
+    public static boolean isReyDeLoProfundo() { return reyDeLoProfundo; }
+
+    public static void activarDesiertoAbrasador() { desiertoAbrasador = true; }
+    public static boolean isDesiertoAbrasador() { return desiertoAbrasador; }
 
     // --- Nivel 5 ---
     public static void activarIntrusosCalavericos() { intrusosCalavericos = true; }
@@ -216,6 +265,12 @@ public class CursosActivos {
     public static void activarMegaHoglin() { megaHoglin = true; }
     public static boolean isMegaHoglin() { return megaHoglin; }
 
+    public static void activarCreepersEscondidos() { creepersEscondidos = true; }
+    public static boolean isCreepersEscondidos() { return creepersEscondidos; }
+
+    public static void activarCreeperCosmico() { creeperCosmico = true; }
+    public static boolean isCreeperCosmico() { return creeperCosmico; }
+
     // --- Nivel 6 ---
     public static void activarPermadeath() { permadeath = true; }
     public static boolean isPermadeath() { return permadeath; }
@@ -233,9 +288,6 @@ public class CursosActivos {
     public static void activarEclipseSolar() { eclipseSolar = true; }
     public static boolean isEclipseSolar() { return eclipseSolar; }
 
-    public static void activarInsomnioDesastroso() { insomnioDesastroso = true; }
-    public static boolean isInsomnioDesastroso() { return insomnioDesastroso; }
-
     public static void setBloodMoonActive(boolean active) { isBloodMoonActive = active; }
     public static boolean isBloodMoonActive() { return isBloodMoonActive; }
 
@@ -250,17 +302,20 @@ public class CursosActivos {
 
     public static boolean hayMaldicionesActivas() {
         return fuegoFatuo || creepersEnPerla || speedpers || wardensDeepDark
-                || apocalipsisZombie || cuevasTenebrosas || defensaVillera || cuccosSalvajes
+                || apocalipsisZombie || cuevasTenebrosas || comidaEchada || cuccosSalvajes
+                || cadaveresPisados || vacaExplosiva || corrientesAereas || invasionAzul
                 || filoMortal || muerteEspinosa || cucarachaPlateada || abejasAsesinas
                 || cargaPesada || vexGrandes || resistenciaFisica || escudoPesado
+                || wingardiumLeviosa || lavaActiva || webones
                 || errorTotemico || artesMaritimos || boogieWoogie || energiaPoseica
                 || infestacionMinera || muerteInstantanea || manzanaRegeneradora
-                || magmaContacto || contaminacionCruzada || danoColateral || ultraFundido
-                || poderEnLaMano || contaminacion || congelacionProfunda || escopeta
+                || magmaContacto || contaminacionCruzada || sinOxigeno || fallaMecanica || adivinaQuien
+                || danoColateral || ultraFundido || poderEnLaMano || contaminacion
+                || congelacionProfunda || escopeta || reyDeLoProfundo || desiertoAbrasador
                 || intrusosCalavericos || spiderman || enderGhast || kaBoom
-                || ataqueSlimes || gigaEndermite || megaHoglin || permadeath
-                || apocalipsisMinecraftTotal || maldicionLunaDeSangre || monturaAcuatica
-                || eclipseSolar || insomnioDesastroso;
+                || ataqueSlimes || gigaEndermite || megaHoglin || creepersEscondidos || creeperCosmico
+                || permadeath || apocalipsisMinecraftTotal || maldicionLunaDeSangre
+                || monturaAcuatica || eclipseSolar;
     }
 
     public static List<String> obtenerIdsActivas() {
@@ -270,8 +325,12 @@ public class CursosActivos {
         if (apocalipsisZombie) ids.add("apocalipsis");
         if (wardensDeepDark) ids.add("wardens");
         if (cuevasTenebrosas) ids.add("cuevastenebrosas");
-        if (defensaVillera) ids.add("defensavillera");
+        if (comidaEchada) ids.add("comidaechada");
         if (cuccosSalvajes) ids.add("cuccossalvajes");
+        if (cadaveresPisados) ids.add("cadaverespisados");
+        if (vacaExplosiva) ids.add("vacaexplosiva");
+        if (corrientesAereas) ids.add("corrientesaereas");
+        if (invasionAzul) ids.add("invasionazul");
         if (speedpers) ids.add("speedpers");
         if (filoMortal) ids.add("filomortal");
         if (muerteEspinosa) ids.add("muerteespinosa");
@@ -281,6 +340,9 @@ public class CursosActivos {
         if (vexGrandes) ids.add("vexgrandes");
         if (resistenciaFisica) ids.add("resistenciafisica");
         if (escudoPesado) ids.add("escudopesado");
+        if (wingardiumLeviosa) ids.add("wingardiumleviosa");
+        if (lavaActiva) ids.add("lavaactiva");
+        if (webones) ids.add("webones");
         if (errorTotemico) ids.add("errortotemico");
         if (artesMaritimos) ids.add("artesmaritimos");
         if (boogieWoogie) ids.add("boogiewoogie");
@@ -290,12 +352,17 @@ public class CursosActivos {
         if (manzanaRegeneradora) ids.add("manzanaregeneradora");
         if (magmaContacto) ids.add("magmacontacto");
         if (contaminacionCruzada) ids.add("contaminacioncruzada");
+        if (sinOxigeno) ids.add("sinoxigeno");
+        if (fallaMecanica) ids.add("fallamecanica");
+        if (adivinaQuien) ids.add("adivinaquien");
         if (danoColateral) ids.add("danocolateral");
         if (ultraFundido) ids.add("ultrafundido");
         if (poderEnLaMano) ids.add("poderenlamano");
         if (contaminacion) ids.add("contaminacion");
         if (congelacionProfunda) ids.add("congelacionprofunda");
         if (escopeta) ids.add("escopeta");
+        if (reyDeLoProfundo) ids.add("reydeloprofundo");
+        if (desiertoAbrasador) ids.add("desiertoabrasador");
         if (intrusosCalavericos) ids.add("intrusoscalavericos");
         if (spiderman) ids.add("spiderman");
         if (enderGhast) ids.add("enderghast");
@@ -303,12 +370,13 @@ public class CursosActivos {
         if (ataqueSlimes) ids.add("ataqueslimes");
         if (gigaEndermite) ids.add("gigaendermite");
         if (megaHoglin) ids.add("megahoglin");
+        if (creepersEscondidos) ids.add("creepersescondidos");
+        if (creeperCosmico) ids.add("creepercosmico");
         if (permadeath) ids.add("permadeath");
         if (apocalipsisMinecraftTotal) ids.add("apocalipsis6");
         if (maldicionLunaDeSangre) ids.add("lunasangre");
         if (monturaAcuatica) ids.add("monturaacuatica");
         if (eclipseSolar) ids.add("eclipsesolar");
-        if (insomnioDesastroso) ids.add("insomniodesastroso");
         return ids;
     }
 
@@ -319,8 +387,12 @@ public class CursosActivos {
             case "apocalipsis" -> activarApocalipsisZombie();
             case "wardens" -> activarWardensDeepDark();
             case "cuevastenebrosas" -> activarCuevasTenebrosas();
-            case "defensavillera" -> activarDefensaVillera();
+            case "comidaechada" -> activarComidaEchada();
             case "cuccossalvajes" -> activarCuccosSalvajes();
+            case "cadaverespisados" -> activarCadaveresPisados();
+            case "vacaexplosiva" -> activarVacaExplosiva();
+            case "corrientesaereas" -> activarCorrientesAereas();
+            case "invasionazul" -> activarInvasionAzul();
             case "speedpers" -> activarSpeedpers();
             case "filomortal" -> activarFiloMortal();
             case "muerteespinosa" -> activarMuerteEspinosa();
@@ -330,6 +402,9 @@ public class CursosActivos {
             case "vexgrandes" -> activarVexGrandes();
             case "resistenciafisica" -> activarResistenciaFisica();
             case "escudopesado" -> activarEscudoPesado();
+            case "wingardiumleviosa" -> activarWingardiumLeviosa();
+            case "lavaactiva" -> activarLavaActiva();
+            case "webones" -> activarWebones();
             case "errortotemico" -> activarErrorTotemico();
             case "artesmaritimos" -> activarArtesMaritimos();
             case "boogiewoogie" -> activarBoogieWoogie();
@@ -339,12 +414,17 @@ public class CursosActivos {
             case "manzanaregeneradora" -> activarManzanaRegeneradora();
             case "magmacontacto" -> activarMagmaContacto();
             case "contaminacioncruzada" -> activarContaminacionCruzada();
+            case "sinoxigeno" -> activarSinOxigeno();
+            case "fallamecanica", "defensavillera" -> activarFallaMecanica();
+            case "adivinaquien" -> activarAdivinaQuien();
             case "danocolateral" -> activarDanoColateral();
             case "ultrafundido" -> activarUltraFundido();
             case "poderenlamano" -> activarPoderEnLaMano();
             case "contaminacion" -> activarContaminacion();
             case "congelacionprofunda" -> activarCongelacionProfunda();
             case "escopeta" -> activarEscopeta();
+            case "reydeloprofundo" -> activarReyDeLoProfundo();
+            case "desiertoabrasador" -> activarDesiertoAbrasador();
             case "intrusoscalavericos" -> activarIntrusosCalavericos();
             case "spiderman" -> activarSpiderman();
             case "enderghast" -> activarEnderGhast();
@@ -352,12 +432,13 @@ public class CursosActivos {
             case "ataqueslimes" -> activarAtaqueSlimes();
             case "gigaendermite" -> activarGigaEndermite();
             case "megahoglin" -> activarMegaHoglin();
+            case "creepersescondidos" -> activarCreepersEscondidos();
+            case "creepercosmico" -> activarCreeperCosmico();
             case "permadeath" -> activarPermadeath();
             case "apocalipsis6", "apocalipsistotal" -> activarApocalipsisMinecraftTotal();
             case "lunasangre", "bloodmoon" -> activarLunaDeSangre();
             case "monturaacuatica" -> activarMonturaAcuatica();
             case "eclipsesolar", "eclipse" -> activarEclipseSolar();
-            case "insomniodesastroso" -> activarInsomnioDesastroso();
         }
     }
 
@@ -376,16 +457,28 @@ public class CursosActivos {
             lista.add(Component.literal("  §1☠ WARDENS:§r Los Wardens ahora pueden aparecer naturalmente en el Deep Dark."));
         }
         if (cuevasTenebrosas) {
-            lista.add(Component.literal("  §8🌑 CUEVAS TENEBROSAS:§r Recibes Oscuridad por debajo de Y=0 (se reduce levemente con un farol en la mano secundaria)."));
+            lista.add(Component.literal("  §8🌑 CUEVAS TENEBROSAS:§r Recibes Oscuridad por debajo de Y=0 (se reduce al portar un farol en la mano secundaria como fuente de luz)."));
         }
-        if (defensaVillera) {
-            lista.add(Component.literal("  §7🛡 DEFENSA VILLERA:§r Los Gólems de Hierro ahora son agresivos con todos los jugadores."));
+        if (comidaEchada) {
+            lista.add(Component.literal("  §2🍖 COMIDA ECHADA A PERDER:§r 5% de probabilidad de recibir Infestado por 15s al comer alimentos (excepto dorados o cocinados)."));
         }
         if (cuccosSalvajes) {
             lista.add(Component.literal("  §f🐔 CUCCOS SALVAJES:§r Los pollos tienen 15 de vida y te contraatacan quitando 1 corazón por golpe."));
         }
+        if (cadaveresPisados) {
+            lista.add(Component.literal("  §8💀 CADÁVERES PISADOS:§r Pisar arena de almas otorga Debilidad I."));
+        }
+        if (vacaExplosiva) {
+            lista.add(Component.literal("  §c🐄 VACA EXPLOSIVA:§r Las vacas tienen 1% de probabilidad de explotar al morir."));
+        }
+        if (corrientesAereas) {
+            lista.add(Component.literal("  §b🌪 CORRIENTES AÉREAS:§r Los Breeze ahora disparan ráfagas de 6 Wind Charges."));
+        }
+        if (invasionAzul) {
+            lista.add(Component.literal("  §9🌬 INVASIÓN AZUL:§r Los Breeze pueden aparecer de día en cualquier bioma del Overworld (20% de probabilidad)."));
+        }
         if (speedpers) {
-            lista.add(Component.literal("  §e⚡ SPEEDPERS:§r Todos los Creepers tienen efecto permanente de Velocidad II."));
+            lista.add(Component.literal("  §e⚡ SPEEDPERS:§r Todos los Creepers del Overworld (excepto Creepers Escondidos) tienen Velocidad II."));
         }
         if (filoMortal) {
             lista.add(Component.literal("  §c⚔ FILO MORTAL:§r Todos los zombies están armados con una espada de hierro con Filo III."));
@@ -411,6 +504,15 @@ public class CursosActivos {
         if (escudoPesado) {
             lista.add(Component.literal("  §6🛡 ESCUDO PESADO:§r Bloquear ataques con el escudo consume el doble de barra de comida."));
         }
+        if (wingardiumLeviosa) {
+            lista.add(Component.literal("  §d🪄 WINGARDIUM LEVIOSA:§r Las brujas pueden arrojarte pociones de Levitación XV por 1 segundo."));
+        }
+        if (lavaActiva) {
+            lista.add(Component.literal("  §6🌋 LAVA ACTIVA:§r La lava en el Overworld fluye con la misma velocidad que en el Nether."));
+        }
+        if (webones) {
+            lista.add(Component.literal("  §a🧑‍🌾 WEBONES:§r 50% de probabilidad de que los aldeanos al crecer sean Nitwit (verdes)."));
+        }
         if (errorTotemico) {
             lista.add(Component.literal("  §4✝ ERROR TOTÉMICO:§r Los tótems de la inmortalidad tienen un 2% de probabilidad de fallar."));
         }
@@ -430,13 +532,22 @@ public class CursosActivos {
             lista.add(Component.literal("  §4🚪 MUERTE INSTANTÁNEA:§r Todos los botones, trampillas, puertas y puertas de valla de madera hacen 1x10^9 de daño al usarlos."));
         }
         if (manzanaRegeneradora) {
-            lista.add(Component.literal("  §e🍎 MANZANAS REGENERADORAS:§r Las manzanas de oro ya no otorgan el efecto de Absorción."));
+            lista.add(Component.literal("  §e🍎 MANZANAS REGENERADORAS:§r Las manzanas de oro normales ya no otorgan el efecto de Absorción."));
         }
         if (magmaContacto) {
-            lista.add(Component.literal("  §6🌋 MAGMA AL CONTACTO:§r Los bloques de magma hacen 1x10^9 de daño al tocarlos desde cualquier ángulo."));
+            lista.add(Component.literal("  §6🌋 MAGMA AL CONTACTO:§r Los bloques de magma hacen 1x10^9 de daño al tocarlos directamente desde cualquier ángulo."));
         }
         if (contaminacionCruzada) {
             lista.add(Component.literal("  §2🥩 CONTAMINACIÓN CRUZADA:§r Consumir alimentos crudos otorga Hambre II y Veneno I."));
+        }
+        if (sinOxigeno) {
+            lista.add(Component.literal("  §9🫧 SIN OXÍGENO:§r El oxígeno bajo el agua se agota el triple de rápido."));
+        }
+        if (fallaMecanica) {
+            lista.add(Component.literal("  §7⚙ FALLA MECÁNICA:§r Gólems x1.8 con Fuerza y Velocidad que aumentan con el deterioro; <25% HP atacan a todo ser vivo."));
+        }
+        if (adivinaQuien) {
+            lista.add(Component.literal("  §5🎩 ADIVINA QUIÉN HA VUELTO:§r El Illusioner aparece (25%) en raids, outposts y patrullas con Arco Retroceso X, Poder III y Resistencia III."));
         }
         if (danoColateral) {
             lista.add(Component.literal("  §5💥 DAÑO COLATERAL:§r Las Ender Pearls hacen x3 su daño e ignoran armadura."));
@@ -448,13 +559,19 @@ public class CursosActivos {
             lista.add(Component.literal("  §6🪓 PODER EN LA MANO:§r Los Piglins Brutos empuñan un hacha de diamante con Filo V."));
         }
         if (contaminacion) {
-            lista.add(Component.literal("  §a☣ ¿CONTAMINACIÓN?:§r Por encima de la capa 100 hay niebla y humo verde que inflige Veneno V."));
+            lista.add(Component.literal("  §a☣ ¿CONTAMINACIÓN?:§r Por encima de la capa 160 hay niebla y humo verde que inflige Veneno V."));
         }
         if (congelacionProfunda) {
             lista.add(Component.literal("  §b❄ CONGELACIÓN PROFUNDA:§r Permanecer >15s en biomas nevados sin calor reduce tu velocidad a la mitad y causa daño progresivo."));
         }
         if (escopeta) {
             lista.add(Component.literal("  §c🔫 ESCOPETA:§r Los Pillagers tienen ballestas con Multidisparo VI, Carga Rápida II y Perforación V."));
+        }
+        if (reyDeLoProfundo) {
+            lista.add(Component.literal("  §3👁 REY DE LO PROFUNDO:§r El Elder Guardian tiene 100 de vida y su rayo aplica Debilidad acumulativa (+1 por golpe) por 20s."));
+        }
+        if (desiertoAbrasador) {
+            lista.add(Component.literal("  §6☀ DESIERTO ABRASADOR:§r Permanecer 15s en el desierto causa insolación (1 corazón cada 2s y partículas de sudor)."));
         }
         if (intrusosCalavericos) {
             lista.add(Component.literal("  §8💀 INTRUSOS CALAVÉRICOS:§r Wither Skeletons aparecen de noche en el Overworld con Diamante Prot IV, Espada Filo V, Velocidad I y Fuerza II."));
@@ -463,7 +580,7 @@ public class CursosActivos {
             lista.add(Component.literal("  §9🕷 ¿SPIDERMAN?:§r Todas las arañas tienen Fuerza II, Velocidad II, Invisibilidad, Resistencia II y Regeneración II."));
         }
         if (enderGhast) {
-            lista.add(Component.literal("  §d👻 ENDER GHAST:§r Los Ghasts son mucho más agresivos y sus proyectiles hacen x3 de daño explosivo."));
+            lista.add(Component.literal("  §d👻 ENDER GHAST:§r Los Ghasts son más agresivos y sus proyectiles tienen un radio de explosión de 20 bloques."));
         }
         if (kaBoom) {
             lista.add(Component.literal("  §c💣 KA-BOOM:§r Los Shulkers explotan 3 segundos después de morir como una TNT."));
@@ -477,6 +594,12 @@ public class CursosActivos {
         if (megaHoglin) {
             lista.add(Component.literal("  §4🐗 MEGA HOGLIN:§r 5% de probabilidad en el Nether de un Hoglin Gigante con 300 HP, x2 de daño y Lentitud."));
         }
+        if (creepersEscondidos) {
+            lista.add(Component.literal("  §2🌱 CREEPERS ESCONDIDOS:§r 20% de probabilidad al romper pasto de que aparezca un mini-creeper cabezón con 1/3 de daño explosivo."));
+        }
+        if (creeperCosmico) {
+            lista.add(Component.literal("  §b⚡ CREEPER CÓSMICO:§r Cerca de las End Cities puede aparecer (15%) un Creeper Eléctrico con radio de explosión de 30 bloques."));
+        }
         if (permadeath) {
             lista.add(Component.literal("  §4§l☠ PERMADEATH:§r Se ha eliminado la regeneración pasiva de vida."));
         }
@@ -484,16 +607,13 @@ public class CursosActivos {
             lista.add(Component.literal("  §4§l☣ ¡APOCALIPSIS MINECRAFT !!!!:§r Los zombies se apilan en torres, huelen sangre y acuden al ruido al picar."));
         }
         if (maldicionLunaDeSangre) {
-            lista.add(Component.literal("  §4§l☾ LUNA DE SANGRE:§r Cada noche hay 5% de probabilidad de Luna de Sangre: sin camas y hordas masivas."));
+            lista.add(Component.literal("  §4§l☾ LUNA DE SANGRE:§r Noches sangrientas sin camas, hordas masivas y mobs con hasta 3 efectos potentes (Fuerza X, Velocidad V, Invisibilidad, Resistencia III, Regeneración III)."));
         }
         if (monturaAcuatica) {
             lista.add(Component.literal("  §3§l🐚 MONTURA ACUÁTICA:§r Los Zombies Ahogados tienen 10% de probabilidad de aparecer montados en un Nautilo o Delfín."));
         }
         if (eclipseSolar) {
-            lista.add(Component.literal("  §5§l☀ ECLIPSE SOLAR:§r Probabilidad de Eclipse Solar con Strays con Lanza de Diamante (Filo II) en Phantoms y Brujas en Murciélagos."));
-        }
-        if (insomnioDesastroso) {
-            lista.add(Component.literal("  §c§l💥 INSOMNIO DESASTROSO:§r Las camas explotan al romperse."));
+            lista.add(Component.literal("  §5§l☀ ECLIPSE SOLAR:§r Probabilidad de Eclipse Solar con Strays en Phantoms, Brujas en Murciélagos y Creakings con Velocidad II."));
         }
         return lista;
     }
@@ -504,8 +624,12 @@ public class CursosActivos {
         apocalipsisZombie = false;
         wardensDeepDark = false;
         cuevasTenebrosas = false;
-        defensaVillera = false;
+        comidaEchada = false;
         cuccosSalvajes = false;
+        cadaveresPisados = false;
+        vacaExplosiva = false;
+        corrientesAereas = false;
+        invasionAzul = false;
         speedpers = false;
         filoMortal = false;
         muerteEspinosa = false;
@@ -515,6 +639,9 @@ public class CursosActivos {
         vexGrandes = false;
         resistenciaFisica = false;
         escudoPesado = false;
+        wingardiumLeviosa = false;
+        lavaActiva = false;
+        webones = false;
         errorTotemico = false;
         artesMaritimos = false;
         boogieWoogie = false;
@@ -524,12 +651,17 @@ public class CursosActivos {
         manzanaRegeneradora = false;
         magmaContacto = false;
         contaminacionCruzada = false;
+        sinOxigeno = false;
+        fallaMecanica = false;
+        adivinaQuien = false;
         danoColateral = false;
         ultraFundido = false;
         poderEnLaMano = false;
         contaminacion = false;
         congelacionProfunda = false;
         escopeta = false;
+        reyDeLoProfundo = false;
+        desiertoAbrasador = false;
         intrusosCalavericos = false;
         spiderman = false;
         enderGhast = false;
@@ -537,12 +669,13 @@ public class CursosActivos {
         ataqueSlimes = false;
         gigaEndermite = false;
         megaHoglin = false;
+        creepersEscondidos = false;
+        creeperCosmico = false;
         permadeath = false;
         apocalipsisMinecraftTotal = false;
         maldicionLunaDeSangre = false;
         monturaAcuatica = false;
         eclipseSolar = false;
-        insomnioDesastroso = false;
         isBloodMoonActive = false;
         ultimoDiaBloodMoon = -1L;
         isEclipseActive = false;

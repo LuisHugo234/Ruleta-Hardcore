@@ -29,21 +29,25 @@ public abstract class LightmapRenderStateExtractorMixin {
         }
 
         // Cuevas Tenebrosas (Nivel 1): si el jugador está bajo Y=0 y porta un farol en la mano secundaria,
-        // añadir un resplandor cálido en la luz ambiental como si llevara una fuente de luz
+        // reducir el efecto de Oscuridad y añadir iluminación cálida como si estuviera en una fuente de luz
         LocalPlayer player = Minecraft.getInstance().player;
         if (BloodMoonClientState.isCuevasTenebrosasActive() && player != null && player.getY() < 0.0) {
             ItemStack offhand = player.getItemBySlot(EquipmentSlot.OFFHAND);
             boolean normalLantern = offhand.is(Items.LANTERN);
             boolean soulLantern = offhand.is(Items.SOUL_LANTERN);
-            if ((normalLantern || soulLantern) && state.ambientColor != null) {
-                float targetR = soulLantern ? 0.14f : 0.24f;
-                float targetG = soulLantern ? 0.22f : 0.18f;
-                float targetB = soulLantern ? 0.25f : 0.10f;
-                state.ambientColor = new Vector3f(
-                        Math.max(state.ambientColor.x(), targetR),
-                        Math.max(state.ambientColor.y(), targetG),
-                        Math.max(state.ambientColor.z(), targetB)
-                );
+            if (normalLantern || soulLantern) {
+                state.darknessEffectScale *= 0.20f;
+                state.blockFactor = Math.max(state.blockFactor, 0.85f);
+                if (state.ambientColor != null) {
+                    float targetR = soulLantern ? 0.22f : 0.38f;
+                    float targetG = soulLantern ? 0.34f : 0.30f;
+                    float targetB = soulLantern ? 0.38f : 0.18f;
+                    state.ambientColor = new Vector3f(
+                            Math.max(state.ambientColor.x(), targetR),
+                            Math.max(state.ambientColor.y(), targetG),
+                            Math.max(state.ambientColor.z(), targetB)
+                    );
+                }
             }
         }
 

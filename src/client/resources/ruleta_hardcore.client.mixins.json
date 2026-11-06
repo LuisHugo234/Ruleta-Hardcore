@@ -7,7 +7,8 @@
 		"LevelExtractorMixin",
 		"LightmapRenderStateExtractorMixin",
 		"FogRendererMixin",
-		"DeathScreenMixin"
+		"DeathScreenMixin",
+		"CreeperModelMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

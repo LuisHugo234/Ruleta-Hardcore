@@ -16,6 +16,8 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.chicken.Chicken;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.ElderGuardian;
 import net.minecraft.world.entity.monster.Ghast;
 import net.minecraft.world.entity.monster.Silverfish;
 import net.minecraft.world.entity.monster.Vex;
@@ -44,6 +46,9 @@ public abstract class LivingEntityMixin {
 
     @Unique
     private Item ruleta$lastUsedItem;
+
+    @Unique
+    private boolean ruleta$lastUsedWasFood;
 
     @Inject(method = "onClimbable", at = @At("HEAD"), cancellable = true)
     private void ruleta$escalarParedes(CallbackInfoReturnable<Boolean> cir) {
@@ -78,6 +83,10 @@ public abstract class LivingEntityMixin {
         if (CursosActivos.isVexGrandes() && damageSource.getEntity() instanceof Vex) {
             amount *= 2.0f;
         }
+        if (CursosActivos.isCreepersEscondidos() && damageSource.getEntity() instanceof Creeper creeper
+                && creeper.entityTags().contains("creeper_escondido")) {
+            amount *= (1.0f / 3.0f);
+        }
         return amount;
     }
 
@@ -99,6 +108,15 @@ public abstract class LivingEntityMixin {
                 && self instanceof Player player && damageSource.getEntity() instanceof Silverfish) {
             player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 100, 1));
         }
+
+        // Rey de lo Profundo (Nivel 4): el Elder Guardian aplica Debilidad I (+1 por cada golpe recibido por el rayo) por 20s (400 ticks)
+        if (CursosActivos.isReyDeLoProfundo() && cir.getReturnValueZ()
+                && self instanceof Player player && damageSource.getEntity() instanceof ElderGuardian
+                && damageSource.is(DamageTypes.INDIRECT_MAGIC)) {
+            MobEffectInstance currentWeakness = player.getEffect(MobEffects.WEAKNESS);
+            int nextAmplifier = (currentWeakness != null) ? Math.min(254, currentWeakness.getAmplifier() + 1) : 0;
+            player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 400, nextAmplifier));
+        }
     }
 
     @Inject(method = "applyItemBlocking", at = @At("RETURN"))
@@ -114,7 +132,13 @@ public abstract class LivingEntityMixin {
 
     @Inject(method = "completeUsingItem", at = @At("HEAD"))
     private void ruleta$capturarItemConsumido(CallbackInfo ci) {
-        this.ruleta$lastUsedItem = (this.useItem != null && !this.useItem.isEmpty()) ? this.useItem.getItem() : null;
+        if (this.useItem != null && !this.useItem.isEmpty()) {
+            this.ruleta$lastUsedItem = this.useItem.getItem();
+            this.ruleta$lastUsedWasFood = this.useItem.has(DataComponents.FOOD);
+        } else {
+            this.ruleta$lastUsedItem = null;
+            this.ruleta$lastUsedWasFood = false;
+        }
     }
 
     @Inject(method = "completeUsingItem", at = @At("TAIL"))
@@ -123,13 +147,22 @@ public abstract class LivingEntityMixin {
         if (self.level().isClientSide() || this.ruleta$lastUsedItem == null) return;
 
         Item consumed = this.ruleta$lastUsedItem;
+        boolean wasFood = this.ruleta$lastUsedWasFood;
         this.ruleta$lastUsedItem = null;
+        this.ruleta$lastUsedWasFood = false;
 
-        // Manzanas Regeneradoras: las manzanas de oro no dan absorción
-        if (CursosActivos.isManzanaRegeneradora()
-                && (consumed == Items.GOLDEN_APPLE || consumed == Items.ENCHANTED_GOLDEN_APPLE)) {
+        // Manzanas Regeneradoras: las manzanas de oro (exceptuando las Manzanas Doradas Encantadas) no dan absorción
+        if (CursosActivos.isManzanaRegeneradora() && consumed == Items.GOLDEN_APPLE) {
             self.removeEffect(MobEffects.ABSORPTION);
             self.setAbsorptionAmount(0.0f);
+        }
+
+        // Comida Echada a Perder (Nivel 1): 5% de probabilidad de recibir Infestado por 15s (300 ticks)
+        // No cuentan: Manzanas de oro, Manzanas de oro encantadas, Zanahorias doradas y cualquier alimento cocinado
+        if (CursosActivos.isComidaEchada() && wasFood && !ruleta$esComidaExentaInfestado(consumed)) {
+            if (ThreadLocalRandom.current().nextFloat() < 0.05f) {
+                self.addEffect(new MobEffectInstance(MobEffects.INFESTED, 300, 0));
+            }
         }
 
         // Contaminación Cruzada: los alimentos crudos dan Hambre II y Veneno I
@@ -137,6 +170,29 @@ public abstract class LivingEntityMixin {
             self.addEffect(new MobEffectInstance(MobEffects.HUNGER, 400, 1));
             self.addEffect(new MobEffectInstance(MobEffects.POISON, 160, 0));
         }
+    }
+
+    @Unique
+    private static boolean ruleta$esComidaExentaInfestado(Item item) {
+        return item == Items.GOLDEN_APPLE
+                || item == Items.ENCHANTED_GOLDEN_APPLE
+                || item == Items.GOLDEN_CARROT
+                || item == Items.COOKED_BEEF
+                || item == Items.COOKED_PORKCHOP
+                || item == Items.COOKED_CHICKEN
+                || item == Items.COOKED_MUTTON
+                || item == Items.COOKED_RABBIT
+                || item == Items.COOKED_COD
+                || item == Items.COOKED_SALMON
+                || item == Items.BAKED_POTATO
+                || item == Items.DRIED_KELP
+                || item == Items.BREAD
+                || item == Items.COOKIE
+                || item == Items.PUMPKIN_PIE
+                || item == Items.MUSHROOM_STEW
+                || item == Items.RABBIT_STEW
+                || item == Items.BEETROOT_SOUP
+                || item == Items.SUSPICIOUS_STEW;
     }
 
     @Unique
@@ -153,6 +209,21 @@ public abstract class LivingEntityMixin {
                 || item == Items.ROTTEN_FLESH
                 || item == Items.POTATO
                 || item == Items.POISONOUS_POTATO;
+    }
+
+    @Inject(method = "decreaseAirSupply", at = @At("RETURN"), cancellable = true)
+    private void ruleta$sinOxigenoTripleAgotamiento(int currentSupply, CallbackInfoReturnable<Integer> cir) {
+        if (!CursosActivos.isSinOxigeno()) {
+            return;
+        }
+        if (!((Object) this instanceof Player)) {
+            return;
+        }
+        int vanillaResult = cir.getReturnValueI();
+        int diff = currentSupply - vanillaResult;
+        if (diff > 0) {
+            cir.setReturnValue(Math.max(-20, currentSupply - diff * 3));
+        }
     }
 
     @Inject(method = "getDamageAfterArmorAbsorb", at = @At("HEAD"), cancellable = true)

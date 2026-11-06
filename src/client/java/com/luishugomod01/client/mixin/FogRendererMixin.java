@@ -55,14 +55,16 @@ public abstract class FogRendererMixin {
         LocalPlayer player = Minecraft.getInstance().player;
 
         // Cuevas Tenebrosas (Nivel 1): si el jugador está bajo Y=0 y lleva un farol en la mano secundaria,
-        // el efecto de Oscuridad se reduce levemente como si portara una fuente de luz
+        // el efecto de Oscuridad se reduce como si portara una fuente de luz
         if (BloodMoonClientState.isCuevasTenebrosasActive() && player != null && player.getY() < 0.0) {
             ItemStack offhand = player.getItemBySlot(EquipmentSlot.OFFHAND);
             if (offhand.is(Items.LANTERN) || offhand.is(Items.SOUL_LANTERN)) {
-                fogData.environmentalStart = Math.max(fogData.environmentalStart, 12.0f);
-                fogData.environmentalEnd = Math.max(fogData.environmentalEnd, 28.0f);
-                fogData.renderDistanceStart = Math.max(fogData.renderDistanceStart, 12.0f);
-                fogData.renderDistanceEnd = Math.max(fogData.renderDistanceEnd, 28.0f);
+                fogData.environmentalStart = Math.max(fogData.environmentalStart, 20.0f);
+                fogData.environmentalEnd = Math.max(fogData.environmentalEnd, 44.0f);
+                fogData.renderDistanceStart = Math.max(fogData.renderDistanceStart, 20.0f);
+                fogData.renderDistanceEnd = Math.max(fogData.renderDistanceEnd, 44.0f);
+                fogData.skyEnd = Math.max(fogData.skyEnd, 44.0f);
+                fogData.cloudEnd = Math.max(fogData.cloudEnd, 44.0f);
             }
         }
 
@@ -73,9 +75,9 @@ public abstract class FogRendererMixin {
         float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
         float renderDistBlocks = (float) (renderDistanceChunks * 16);
 
-        // ¿Contaminación? (Nivel 4): Niebla verde tóxica sobre la capa Y=100
-        if (BloodMoonClientState.isContaminacionActive() && player != null && player.getY() > 92.0) {
-            float contamFactor = Mth.clamp((float) ((player.getY() - 92.0) / 10.0), 0.0f, 1.0f);
+        // ¿Contaminación? (Nivel 4): Niebla verde tóxica sobre la capa Y=160
+        if (BloodMoonClientState.isContaminacionActive() && player != null && player.getY() > 152.0) {
+            float contamFactor = Mth.clamp((float) ((player.getY() - 152.0) / 10.0), 0.0f, 1.0f);
             float contamStart = Math.min(fogData.environmentalStart, 8.0f);
             float contamEnd = Math.min(fogData.environmentalEnd, 36.0f);
             fogData.environmentalStart = Mth.lerp(contamFactor, fogData.environmentalStart, contamStart);

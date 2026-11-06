@@ -6,6 +6,7 @@ import com.luishugomod01.network.GuardarConfigAdminPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
 import com.luishugomod01.network.VidasSyncPayload;
 import com.luishugomod01.ruleta.CatalogoCastigos;
+import com.luishugomod01.ruleta.CreeperCustomAccessor;
 import com.luishugomod01.ruleta.CursosActivos;
 import com.luishugomod01.ruleta.NivelRuleta;
 import com.luishugomod01.ruleta.RuletaPersistencia;
@@ -65,9 +66,15 @@ import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.animal.bee.Bee;
 import net.minecraft.world.entity.animal.chicken.Chicken;
+import net.minecraft.world.entity.animal.cow.AbstractCow;
 import net.minecraft.world.entity.animal.golem.IronGolem;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.monster.ElderGuardian;
+import net.minecraft.world.entity.monster.breeze.Breeze;
+import net.minecraft.world.entity.monster.creaking.Creaking;
 import net.minecraft.world.entity.monster.Endermite;
 import net.minecraft.world.entity.monster.Ghast;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Phantom;
 import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
@@ -75,6 +82,7 @@ import net.minecraft.world.entity.monster.Vex;
 import net.minecraft.world.entity.monster.Witch;
 import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.entity.monster.hoglin.Hoglin;
+import net.minecraft.world.entity.monster.illager.Illusioner;
 import net.minecraft.world.entity.monster.illager.Pillager;
 import net.minecraft.world.entity.monster.illager.Vindicator;
 import net.minecraft.world.entity.monster.piglin.PiglinBrute;
@@ -84,6 +92,7 @@ import net.minecraft.world.entity.monster.spider.Spider;
 import net.minecraft.world.entity.monster.zombie.Drowned;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.raid.Raider;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -96,6 +105,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -117,8 +127,12 @@ public class Ruleta_Hardcore implements ModInitializer {
     private static EntityType<?> STRAY_TYPE_CACHE = null;
     private static EntityType<?> WITCH_TYPE_CACHE = null;
     private static EntityType<?> BAT_TYPE_CACHE = null;
+    private static EntityType<?> BREEZE_TYPE_CACHE = null;
+    private static EntityType<?> ILLUSIONER_TYPE_CACHE = null;
+    private static EntityType<?> CREAKING_TYPE_CACHE = null;
 
     private static final Map<UUID, Integer> TICKS_EXPOSICION_NIEVE = new HashMap<>();
+    private static final Map<UUID, Integer> TICKS_INSOLACION_DESIERTO = new HashMap<>();
 
     @Override
     public void onInitialize() {
@@ -189,8 +203,12 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("apocalipsis").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "apocalipsis")))
                     .then(Commands.literal("wardens").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "wardens")))
                     .then(Commands.literal("cuevastenebrosas").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "cuevastenebrosas")))
-                    .then(Commands.literal("defensavillera").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "defensavillera")))
+                    .then(Commands.literal("comidaechada").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "comidaechada")))
                     .then(Commands.literal("cuccossalvajes").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "cuccossalvajes")))
+                    .then(Commands.literal("cadaverespisados").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "cadaverespisados")))
+                    .then(Commands.literal("vacaexplosiva").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "vacaexplosiva")))
+                    .then(Commands.literal("corrientesaereas").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "corrientesaereas")))
+                    .then(Commands.literal("invasionazul").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "invasionazul")))
                     .then(Commands.literal("speedpers").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "speedpers")))
                     .then(Commands.literal("filomortal").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "filomortal")))
                     .then(Commands.literal("muerteespinosa").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "muerteespinosa")))
@@ -200,6 +218,9 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("vexgrandes").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "vexgrandes")))
                     .then(Commands.literal("resistenciafisica").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "resistenciafisica")))
                     .then(Commands.literal("escudopesado").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "escudopesado")))
+                    .then(Commands.literal("wingardiumleviosa").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "wingardiumleviosa")))
+                    .then(Commands.literal("lavaactiva").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "lavaactiva")))
+                    .then(Commands.literal("webones").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "webones")))
                     .then(Commands.literal("errortotemico").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "errortotemico")))
                     .then(Commands.literal("artesmaritimos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "artesmaritimos")))
                     .then(Commands.literal("boogiewoogie").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "boogiewoogie")))
@@ -209,12 +230,17 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("manzanaregeneradora").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "manzanaregeneradora")))
                     .then(Commands.literal("magmacontacto").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "magmacontacto")))
                     .then(Commands.literal("contaminacioncruzada").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "contaminacioncruzada")))
+                    .then(Commands.literal("sinoxigeno").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "sinoxigeno")))
+                    .then(Commands.literal("fallamecanica").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "fallamecanica")))
+                    .then(Commands.literal("adivinaquien").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "adivinaquien")))
                     .then(Commands.literal("danocolateral").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "danocolateral")))
                     .then(Commands.literal("ultrafundido").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "ultrafundido")))
                     .then(Commands.literal("poderenlamano").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "poderenlamano")))
                     .then(Commands.literal("contaminacion").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "contaminacion")))
                     .then(Commands.literal("congelacionprofunda").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "congelacionprofunda")))
                     .then(Commands.literal("escopeta").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "escopeta")))
+                    .then(Commands.literal("reydeloprofundo").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "reydeloprofundo")))
+                    .then(Commands.literal("desiertoabrasador").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "desiertoabrasador")))
                     .then(Commands.literal("intrusoscalavericos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "intrusoscalavericos")))
                     .then(Commands.literal("spiderman").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "spiderman")))
                     .then(Commands.literal("enderghast").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "enderghast")))
@@ -222,12 +248,13 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("ataqueslimes").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "ataqueslimes")))
                     .then(Commands.literal("gigaendermite").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "gigaendermite")))
                     .then(Commands.literal("megahoglin").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "megahoglin")))
+                    .then(Commands.literal("creepersescondidos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creepersescondidos")))
+                    .then(Commands.literal("creepercosmico").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creepercosmico")))
                     .then(Commands.literal("permadeath").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "permadeath")))
                     .then(Commands.literal("apocalipsis6").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "apocalipsis6")))
                     .then(Commands.literal("lunasangre").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "lunasangre")))
                     .then(Commands.literal("monturaacuatica").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "monturaacuatica")))
-                    .then(Commands.literal("eclipsesolar").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "eclipsesolar")))
-                    .then(Commands.literal("insomniodesastroso").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "insomniodesastroso"))))
+                    .then(Commands.literal("eclipsesolar").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "eclipsesolar"))))
                 .then(Commands.literal("bloodmoon")
                     .then(Commands.literal("iniciar").executes(ctx -> {
                         var srv = ctx.getSource().getServer();
@@ -347,7 +374,7 @@ public class Ruleta_Hardcore implements ModInitializer {
             return InteractionResult.PASS;
         });
 
-        // ¡Apocalipsis Minecraft !!!! (Nivel 6) e Insomnio Desastroso (Nivel 6) al picar bloques
+        // ¡Apocalipsis Minecraft !!!! (Nivel 6) y Creepers Escondidos (Nivel 5) al picar bloques
         PlayerBlockBreakEvents.AFTER.register((world, player, pos, state, blockEntity) -> {
             if (!world.isClientSide() && world instanceof ServerLevel serverLevel) {
                 if (CursosActivos.isApocalipsisMinecraftTotal()) {
@@ -359,16 +386,30 @@ public class Ruleta_Hardcore implements ModInitializer {
                         }
                     }
                 }
-                if (CursosActivos.isInsomnioDesastroso() && state.is(BlockTags.BEDS)) {
-                    serverLevel.explode(
-                            null,
-                            pos.getX() + 0.5,
-                            pos.getY() + 0.5,
-                            pos.getZ() + 0.5,
-                            5.0f,
-                            true,
-                            Level.ExplosionInteraction.BLOCK
-                    );
+                if (CursosActivos.isCreepersEscondidos()
+                        && (state.is(Blocks.SHORT_GRASS) || state.is(Blocks.TALL_GRASS)
+                        || state.is(Blocks.FERN) || state.is(Blocks.LARGE_FERN)
+                        || state.is(Blocks.GRASS_BLOCK))) {
+                    if (ThreadLocalRandom.current().nextFloat() < 0.20f) {
+                        EntityType<?> creeperType = getCreeperType();
+                        if (creeperType != null) {
+                            Entity created = creeperType.create(serverLevel, EntitySpawnReason.EVENT);
+                            if (created instanceof Creeper creeper) {
+                                creeper.snapTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
+                                        ThreadLocalRandom.current().nextFloat() * 360.0f, 0.0f);
+                                creeper.addTag("creeper_escondido");
+                                AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
+                                if (scaleAttr != null) {
+                                    scaleAttr.setBaseValue(0.35);
+                                }
+                                if (creeper instanceof CreeperCustomAccessor accessor) {
+                                    accessor.ruleta$setExplosionRadius(2);
+                                }
+                                creeper.setTarget(player);
+                                serverLevel.addFreshEntity(creeper);
+                            }
+                        }
+                    }
                 }
             }
         });
@@ -407,6 +448,13 @@ public class Ruleta_Hardcore implements ModInitializer {
                 if (srv != null && CursosActivos.isRuletaAutomatica()) {
                     long tickGiro = srv.getTickCount() + 40;
                     programarTarea(tickGiro, () -> ejecutarGiroAleatorio(srv.createCommandSourceStack()));
+                }
+            }
+
+            // Vaca Explosiva (Nivel 1): 1% de probabilidad de que una vaca explote al morir
+            if (CursosActivos.isVacaExplosiva() && entity instanceof AbstractCow cow && cow.level() instanceof ServerLevel serverLevel) {
+                if (ThreadLocalRandom.current().nextFloat() < 0.01f) {
+                    serverLevel.explode(cow, cow.getX(), cow.getY() + 0.5, cow.getZ(), 4.0f, Level.ExplosionInteraction.MOB);
                 }
             }
 
@@ -509,11 +557,20 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (entity instanceof Pillager pillager && CursosActivos.isEscopeta()) {
                 equiparEscopetaPillager(pillager, level);
             }
-            if (entity instanceof IronGolem golem && CursosActivos.isDefensaVillera()) {
-                aplicarDefensaVillera(golem, level);
+            if (entity instanceof IronGolem golem && CursosActivos.isFallaMecanica()) {
+                aplicarFallaMecanica(golem, level);
+            }
+            if (entity instanceof Illusioner illusioner && CursosActivos.isAdivinaQuien()) {
+                prepararIllusioner(illusioner, level);
+            }
+            if (entity instanceof Raider raider && !(entity instanceof Illusioner) && !(entity instanceof Witch) && CursosActivos.isAdivinaQuien()) {
+                evaluarSpawnIllusionerAcompaniante(raider, level);
             }
             if (entity instanceof PiglinBrute brute && CursosActivos.isPoderEnLaMano()) {
                 equiparPoderEnLaMano(brute, level);
+            }
+            if (entity instanceof ElderGuardian elderGuardian && CursosActivos.isReyDeLoProfundo()) {
+                aplicarReyDeLoProfundo(elderGuardian);
             }
             if (entity instanceof WitherSkeleton witherSkeleton && CursosActivos.isIntrusosCalavericos()) {
                 prepararIntrusoCalaverico(witherSkeleton, level);
@@ -536,6 +593,16 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (entity instanceof Hoglin hoglin && CursosActivos.isMegaHoglin()) {
                 evaluarMegaHoglin(hoglin, level);
             }
+            if (CursosActivos.isCreeperCosmico() && level.dimension().equals(Level.END)
+                    && (entity instanceof Shulker || entity.getType() == getEndermanType())) {
+                evaluarSpawnCreeperCosmico(entity, level);
+            }
+            if (entity instanceof Monster monster && CursosActivos.isBloodMoonActive() && level.dimension().equals(Level.OVERWORLD)) {
+                aplicarBuffsLunaDeSangre(monster);
+            }
+            if (entity instanceof Creaking creaking && CursosActivos.isEclipseActive() && level.dimension().equals(Level.OVERWORLD)) {
+                creaking.addEffect(new MobEffectInstance(MobEffects.SPEED, MobEffectInstance.INFINITE_DURATION, 1));
+            }
         });
 
         // Bucle de actualización periódica en el servidor
@@ -557,7 +624,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Cuevas Tenebrosas (Nivel 1): Oscuridad por debajo de Y=0 (el efecto reduce levemente cuando el jugador porte un farol en la mano secundaria)
+            // Cuevas Tenebrosas (Nivel 1): Oscuridad por debajo de Y=0 (se reduce cuando el jugador porte un farol en la mano secundaria)
             if (CursosActivos.isCuevasTenebrosas() && currentTick % 20 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
@@ -567,12 +634,59 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Defensa Villera (Nivel 1): Gólems agresivos con todos los jugadores
-            if (CursosActivos.isDefensaVillera() && currentTick % 20 == 0) {
+            // Cadáveres Pisados (Nivel 1): Pisar arena de almas otorga Debilidad I
+            if (CursosActivos.isCadaveresPisados() && currentTick % 10 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                    ServerLevel sLvl = (ServerLevel) player.level();
+                    BlockPos posAt = player.blockPosition();
+                    BlockPos posBelow = player.getBlockPosBelowThatAffectsMyMovement();
+                    if (sLvl.getBlockState(posAt).is(Blocks.SOUL_SAND) || sLvl.getBlockState(posBelow).is(Blocks.SOUL_SAND)) {
+                        player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 60, 0, false, true, true));
+                    }
+                }
+            }
+
+            // Invasión Azul (Nivel 1): Los Breeze pueden spawnear de día en todos los biomas del Overworld con 20% de probabilidad
+            if (CursosActivos.isInvasionAzul() && currentTick % 80 == 0) {
+                EntityType<?> breezeType = getBreezeType();
+                if (breezeType != null) {
+                    for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                        if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                        if (!player.level().dimension().equals(Level.OVERWORLD)) continue;
+                        ServerLevel sLvl = (ServerLevel) player.level();
+                        if (!sLvl.isBrightOutside() || sLvl.getDifficulty() == Difficulty.PEACEFUL) continue;
+
+                        var nearbyBreezes = sLvl.getEntitiesOfClass(Breeze.class, player.getBoundingBox().inflate(64.0), Entity::isAlive);
+                        if (nearbyBreezes.size() >= 3) continue;
+
+                        if (ThreadLocalRandom.current().nextFloat() < 0.20f) {
+                            intentarSpawnearBreezeDia(sLvl, player, breezeType);
+                        }
+                    }
+                }
+            }
+
+            // Falla Mecánica (Nivel 3): Gólems x1.8 con Fuerza y Velocidad escalables por deterioro y locura <25% HP
+            if (CursosActivos.isFallaMecanica() && currentTick % 20 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
                         if (entity instanceof IronGolem golem && golem.isAlive()) {
-                            aplicarDefensaVillera(golem, lvl);
+                            aplicarFallaMecanica(golem, lvl);
+                        }
+                    }
+                }
+            }
+
+            // Adivina Quién Ha Vuelto (Nivel 3): Illusioners equipados y acompañando raids, outposts y patrullas
+            if (CursosActivos.isAdivinaQuien() && currentTick % 40 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Illusioner illusioner && illusioner.isAlive() && !illusioner.entityTags().contains("illusioner_equipado")) {
+                            prepararIllusioner(illusioner, lvl);
+                        } else if (entity instanceof Raider raider && !(entity instanceof Illusioner) && !(entity instanceof Witch)
+                                && raider.isAlive() && !raider.entityTags().contains("illusioner_spawn_evaluado")) {
+                            evaluarSpawnIllusionerAcompaniante(raider, lvl);
                         }
                     }
                 }
@@ -723,34 +837,69 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Magma al Contacto (Nivel 3): Tocar bloque de magma desde cualquier ángulo mata al instante
+            // Magma al Contacto (Nivel 3): Tocar directamente cualquier cara de un bloque de magma hace 1x10^9 de daño
             if (CursosActivos.isMagmaContacto() && currentTick % 5 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
                     ServerLevel sLvl = (ServerLevel) player.level();
-                    AABB checkBox = player.getBoundingBox().inflate(0.06);
-                    boolean tocandoMagma = false;
-                    for (BlockPos bp : BlockPos.betweenClosed(
-                            (int) Math.floor(checkBox.minX), (int) Math.floor(checkBox.minY), (int) Math.floor(checkBox.minZ),
-                            (int) Math.floor(checkBox.maxX), (int) Math.floor(checkBox.maxY), (int) Math.floor(checkBox.maxZ))) {
-                        if (sLvl.getBlockState(bp).is(Blocks.MAGMA_BLOCK)) {
-                            tocandoMagma = true;
-                            break;
-                        }
-                    }
-                    if (tocandoMagma) {
+                    if (estaTocandoMagmaDirectamente(sLvl, player.getBoundingBox())) {
                         player.hurtServer(sLvl, sLvl.damageSources().hotFloor(), 1.0E9f);
                     }
                 }
             }
 
-            // ¿Contaminación? (Nivel 4): Sobre la capa Y=100, humo/niebla verde y Veneno V
+            // ¿Contaminación? (Nivel 4): Sobre la capa Y=160, humo/niebla verde y Veneno V
             if (CursosActivos.isContaminacion() && currentTick % 20 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
                     if (!player.level().dimension().equals(Level.OVERWORLD)) continue;
-                    if (player.getY() > 100.0) {
+                    if (player.getY() > 160.0) {
                         player.addEffect(new MobEffectInstance(MobEffects.POISON, 100, 4, false, true, true));
+                    }
+                }
+            }
+
+            // Rey de lo Profundo (Nivel 4): Elder Guardian con 100 de vida
+            if (CursosActivos.isReyDeLoProfundo() && currentTick % 40 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof ElderGuardian elder && elder.isAlive() && !elder.entityTags().contains("rey_profundo_aplicado")) {
+                            aplicarReyDeLoProfundo(elder);
+                        }
+                    }
+                }
+            }
+
+            // Desierto Abrasador (Nivel 4): Quedarse en el desierto durante 15s (300 ticks) acumula Insolación (1 corazón cada 2s y partículas de agua)
+            if (CursosActivos.isDesiertoAbrasador() && currentTick % 10 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) {
+                        TICKS_INSOLACION_DESIERTO.remove(player.getUUID());
+                        continue;
+                    }
+                    ServerLevel sLvl = (ServerLevel) player.level();
+                    BlockPos pos = player.blockPosition();
+                    boolean enDesierto = sLvl.getBiome(pos).is(Biomes.DESERT);
+
+                    int acumulados = TICKS_INSOLACION_DESIERTO.getOrDefault(player.getUUID(), 0);
+                    if (enDesierto) {
+                        acumulados = Math.min(2400, acumulados + 10);
+                    } else {
+                        acumulados = Math.max(0, acumulados - 20);
+                    }
+                    TICKS_INSOLACION_DESIERTO.put(player.getUUID(), acumulados);
+
+                    if (acumulados >= 300) {
+                        // Partículas de agua cayendo del personaje
+                        sLvl.sendParticles(
+                                ParticleTypes.FALLING_WATER,
+                                player.getX(), player.getY() + 1.1, player.getZ(),
+                                6, 0.28, 0.35, 0.28, 0.0
+                        );
+                        // Quemaduras leves de 1 corazón (2.0f) cada 2 segundos (40 ticks)
+                        if (currentTick % 40 == 0) {
+                            player.hurtServer(sLvl, sLvl.damageSources().dryOut(), 2.0f);
+                        }
                     }
                 }
             }
@@ -889,15 +1038,15 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Speedpers: velocidad constante para Creepers
-            if (CursosActivos.isSpeedpers() && currentTick % 60 == 0) {
+            // Speedpers (Nivel 2): Velocidad II para Creepers que aparezcan en el Overworld (excluyendo Creepers Escondidos)
+            if (CursosActivos.isSpeedpers() && currentTick % 40 == 0) {
                 EntityType<?> creeperType = getCreeperType();
-                if (creeperType != null) {
-                    for (ServerLevel lvl : server.getAllLevels()) {
-                        for (Entity entity : lvl.getAllEntities()) {
-                            if (entity.getType() == creeperType && entity instanceof LivingEntity living) {
-                                living.addEffect(new MobEffectInstance(MobEffects.SPEED, 100, 1));
-                            }
+                ServerLevel overworldLvl = server.overworld();
+                if (creeperType != null && overworldLvl != null) {
+                    for (Entity entity : overworldLvl.getAllEntities()) {
+                        if (entity.getType() == creeperType && entity instanceof LivingEntity living
+                                && !entity.entityTags().contains("creeper_escondido")) {
+                            living.addEffect(new MobEffectInstance(MobEffects.SPEED, 100, 1));
                         }
                     }
                 }
@@ -1151,6 +1300,16 @@ public class Ruleta_Hardcore implements ModInitializer {
                         }
                     }
                 }
+
+                // Luna de Sangre (Nivel 6): Aplicar efectos aleatorios a todos los monstruos de la noche
+                if (CursosActivos.isBloodMoonActive() && currentTick % 40 == 0) {
+                    for (Entity entity : overworld.getAllEntities()) {
+                        if (entity instanceof Monster monster && monster.isAlive()
+                                && !monster.entityTags().contains("bloodmoon_buff_evaluado")) {
+                            aplicarBuffsLunaDeSangre(monster);
+                        }
+                    }
+                }
             }
         });
     }
@@ -1240,6 +1399,16 @@ public class Ruleta_Hardcore implements ModInitializer {
         vindicator.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 200, 0));
     }
 
+    public static void aplicarReyDeLoProfundo(ElderGuardian elderGuardian) {
+        if (elderGuardian.entityTags().contains("rey_profundo_aplicado")) return;
+        elderGuardian.addTag("rey_profundo_aplicado");
+        AttributeInstance healthAttr = elderGuardian.getAttribute(Attributes.MAX_HEALTH);
+        if (healthAttr != null) {
+            healthAttr.setBaseValue(100.0);
+            elderGuardian.setHealth(100.0f);
+        }
+    }
+
     public static void equiparEscopetaPillager(Pillager pillager, ServerLevel level) {
         if (pillager.entityTags().contains("escopeta_equipada")) return;
         pillager.addTag("escopeta_equipada");
@@ -1254,23 +1423,131 @@ public class Ruleta_Hardcore implements ModInitializer {
         pillager.setDropChance(EquipmentSlot.MAINHAND, 0.05f);
     }
 
-    public static void aplicarDefensaVillera(IronGolem golem, ServerLevel level) {
+    public static void aplicarFallaMecanica(IronGolem golem, ServerLevel level) {
         if (golem.isPlayerCreated()) {
             golem.setPlayerCreated(false);
         }
-        if (golem.getTarget() instanceof Player targetPlayer && targetPlayer.isAlive()
-                && !targetPlayer.isCreative() && !targetPlayer.isSpectator()) {
-            return;
+        if (!golem.entityTags().contains("falla_mecanica_escala")) {
+            golem.addTag("falla_mecanica_escala");
+            AttributeInstance scaleAttr = golem.getAttribute(Attributes.SCALE);
+            if (scaleAttr != null) {
+                scaleAttr.setBaseValue(1.8);
+            }
         }
-        Player nearest = level.getNearestPlayer(
-                golem.getX(), golem.getY(), golem.getZ(),
-                32.0,
-                entity -> entity instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
-        );
-        if (nearest != null) {
-            golem.setTarget(nearest);
-            golem.startPersistentAngerTimer();
+
+        // Por cada deterioro recibido aumenta en +1 sus efectos (base Fuerza I y Velocidad I = amplificador 0)
+        int bonusDeterioro = switch (golem.getCrackiness()) {
+            case NONE -> 0;
+            case LOW -> 1;
+            case MEDIUM -> 2;
+            case HIGH -> 3;
+        };
+        golem.addEffect(new MobEffectInstance(MobEffects.STRENGTH, 60, bonusDeterioro, false, false, true));
+        golem.addEffect(new MobEffectInstance(MobEffects.SPEED, 60, bonusDeterioro, false, false, true));
+
+        boolean menosDe25Vida = golem.getHealth() < (golem.getMaxHealth() * 0.25f);
+        if (menosDe25Vida) {
+            // Al tener menos del 25% de vida, ataca a cualquier ser con vida a su alrededor
+            LivingEntity currentTarget = golem.getTarget();
+            if (currentTarget != null && currentTarget.isAlive() && currentTarget != golem
+                    && !(currentTarget instanceof Player p && (p.isCreative() || p.isSpectator()))) {
+                return;
+            }
+            List<LivingEntity> cercanos = level.getEntitiesOfClass(
+                    LivingEntity.class,
+                    golem.getBoundingBox().inflate(24.0),
+                    e -> e != golem && e.isAlive() && !(e instanceof IronGolem)
+                            && !(e instanceof Player p && (p.isCreative() || p.isSpectator()))
+            );
+            cercanos.sort(Comparator.comparingDouble(golem::distanceToSqr));
+            if (!cercanos.isEmpty()) {
+                golem.setTarget(cercanos.get(0));
+                golem.startPersistentAngerTimer();
+            }
+        } else {
+            if (golem.getTarget() instanceof Player targetPlayer && targetPlayer.isAlive()
+                    && !targetPlayer.isCreative() && !targetPlayer.isSpectator()) {
+                return;
+            }
+            Player nearest = level.getNearestPlayer(
+                    golem.getX(), golem.getY(), golem.getZ(),
+                    32.0,
+                    entity -> entity instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+            );
+            if (nearest != null) {
+                golem.setTarget(nearest);
+                golem.startPersistentAngerTimer();
+            }
         }
+    }
+
+    public static void prepararIllusioner(Illusioner illusioner, ServerLevel level) {
+        if (!illusioner.entityTags().contains("illusioner_equipado")) {
+            illusioner.addTag("illusioner_equipado");
+            ItemStack bow = new ItemStack(Items.BOW);
+            level.registryAccess().lookup(Registries.ENCHANTMENT).ifPresent(reg -> {
+                reg.get(Enchantments.PUNCH).ifPresent(h -> bow.enchant(h, 10));
+                reg.get(Enchantments.POWER).ifPresent(h -> bow.enchant(h, 3));
+            });
+            illusioner.setItemSlot(EquipmentSlot.MAINHAND, bow);
+            illusioner.setDropChance(EquipmentSlot.MAINHAND, 0.05f);
+        }
+        illusioner.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, MobEffectInstance.INFINITE_DURATION, 2));
+    }
+
+    public static void evaluarSpawnIllusionerAcompaniante(Raider raider, ServerLevel level) {
+        if (raider.entityTags().contains("illusioner_spawn_evaluado")) return;
+        raider.addTag("illusioner_spawn_evaluado");
+
+        boolean enRaid = raider.hasActiveRaid();
+        boolean enPatrulla = raider.isPatrolLeader() || raider.hasPatrolTarget();
+        boolean enOutpost = level.structureManager().getStructureWithPieceAt(
+                raider.blockPosition(),
+                holder -> holder.is(BuiltinStructures.PILLAGER_OUTPOST)
+        ).isValid();
+
+        if (!enRaid && !enPatrulla && !enOutpost) return;
+
+        var nearbyIllusioners = level.getEntitiesOfClass(Illusioner.class, raider.getBoundingBox().inflate(32.0), Entity::isAlive);
+        if (nearbyIllusioners.size() >= 2) return;
+
+        if (ThreadLocalRandom.current().nextFloat() < 0.25f) {
+            EntityType<?> illusionerType = getIllusionerType();
+            if (illusionerType != null) {
+                Entity created = illusionerType.create(level, EntitySpawnReason.EVENT);
+                if (created instanceof Illusioner illusioner) {
+                    illusioner.snapTo(raider.getX(), raider.getY(), raider.getZ(), raider.getYRot(), 0.0f);
+                    illusioner.addTag("illusioner_spawn_evaluado");
+                    prepararIllusioner(illusioner, level);
+                    if (enRaid && raider.getCurrentRaid() != null) {
+                        raider.getCurrentRaid().addWaveMob(level, raider.getWave(), illusioner, false);
+                    } else if (enPatrulla && raider.getPatrolTarget() != null) {
+                        illusioner.setPatrolTarget(raider.getPatrolTarget());
+                    }
+                    level.addFreshEntity(illusioner);
+                }
+            }
+        }
+    }
+
+    private static boolean estaTocandoMagmaDirectamente(ServerLevel level, AABB playerBox) {
+        // Comprobación axial por caras (X, Y, Z por separado) encogiendo ligeramente los otros 2 ejes
+        // para evitar falsos positivos diagonales cuando el bloque de magma está tapado por bloques adyacentes
+        AABB[] axialBoxes = new AABB[] {
+                playerBox.inflate(0.03, -0.02, -0.02),
+                playerBox.inflate(-0.02, 0.03, -0.02),
+                playerBox.inflate(-0.02, -0.02, 0.03)
+        };
+        for (AABB box : axialBoxes) {
+            for (BlockPos bp : BlockPos.betweenClosed(
+                    (int) Math.floor(box.minX), (int) Math.floor(box.minY), (int) Math.floor(box.minZ),
+                    (int) Math.floor(box.maxX), (int) Math.floor(box.maxY), (int) Math.floor(box.maxZ))) {
+                if (level.getBlockState(bp).is(Blocks.MAGMA_BLOCK)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public static void equiparTridenteArtesMaritimos(Drowned drowned) {
@@ -1417,11 +1694,32 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (!level.isLoaded(col)) return;
 
         BlockPos ground = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, col);
+        int branch = rng.nextInt(3);
+
+        if (branch == 2) {
+            // Creaking con Velocidad II en el suelo durante el Eclipse Solar
+            EntityType<?> creakingType = getCreakingType();
+            BlockPos floorPos = ground.below();
+            if (creakingType != null && level.isLoaded(floorPos)
+                    && level.getBlockState(floorPos).isFaceSturdy(level, floorPos, Direction.UP)
+                    && level.getBlockState(ground).getCollisionShape(level, ground).isEmpty()) {
+                Entity cEnt = creakingType.create(level, EntitySpawnReason.EVENT);
+                if (cEnt instanceof Creaking creaking) {
+                    creaking.snapTo(ground.getX() + 0.5, ground.getY(), ground.getZ() + 0.5, rng.nextFloat() * 360.0f, 0.0f);
+                    creaking.addTag("eclipse_inmune_sol");
+                    creaking.addEffect(new MobEffectInstance(MobEffects.SPEED, MobEffectInstance.INFINITE_DURATION, 1));
+                    creaking.setTarget(player);
+                    level.addFreshEntity(creaking);
+                    return;
+                }
+            }
+        }
+
         double sy = Math.max(player.getY() + 8.0, ground.getY() + 8.0);
         BlockPos airPos = BlockPos.containing(sx, sy, sz);
         if (!level.getBlockState(airPos).isAir()) return;
 
-        if (rng.nextBoolean()) {
+        if (branch == 0) {
             // Stray con Lanza de Diamante Filo II montando un Phantom
             EntityType<?> phantomType = getPhantomType();
             EntityType<?> strayType = getStrayType();
@@ -1647,6 +1945,65 @@ public class Ruleta_Hardcore implements ModInitializer {
                 dmgAttr.setBaseValue(dmgAttr.getBaseValue() * 2.0);
             }
             hoglin.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, MobEffectInstance.INFINITE_DURATION, 0));
+        }
+    }
+
+    public static void evaluarSpawnCreeperCosmico(Entity refEntity, ServerLevel level) {
+        if (refEntity.entityTags().contains("creeper_cosmico_check")) return;
+        refEntity.addTag("creeper_cosmico_check");
+
+        if (!level.dimension().equals(Level.END)) return;
+
+        if (!level.structureManager().getStructureWithPieceAt(
+                refEntity.blockPosition(),
+                holder -> holder.is(BuiltinStructures.END_CITY)
+        ).isValid()) {
+            return;
+        }
+
+        var nearbyCosmicos = level.getEntitiesOfClass(
+                Creeper.class,
+                refEntity.getBoundingBox().inflate(48.0),
+                c -> c.isAlive() && c.entityTags().contains("creeper_cosmico")
+        );
+        if (nearbyCosmicos.size() >= 2) return;
+
+        if (ThreadLocalRandom.current().nextFloat() < 0.15f) {
+            EntityType<?> creeperType = getCreeperType();
+            if (creeperType != null) {
+                Entity created = creeperType.create(level, EntitySpawnReason.NATURAL);
+                if (created instanceof Creeper creeper) {
+                    creeper.snapTo(refEntity.getX(), refEntity.getY(), refEntity.getZ(), refEntity.getYRot(), 0.0f);
+                    creeper.addTag("creeper_cosmico");
+                    if (creeper instanceof CreeperCustomAccessor accessor) {
+                        accessor.ruleta$setPowered(true);
+                        // En Creeper#explodeCreeper, cuando isPowered() es true, el radio se multiplica por 2.0f -> 15 * 2 = 30 bloques
+                        accessor.ruleta$setExplosionRadius(15);
+                    }
+                    level.addFreshEntity(creeper);
+                }
+            }
+        }
+    }
+
+    public static void aplicarBuffsLunaDeSangre(Monster monster) {
+        if (monster.entityTags().contains("bloodmoon_buff_evaluado")) return;
+        monster.addTag("bloodmoon_buff_evaluado");
+
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        float roll = rng.nextFloat();
+        int cantidadEfectos = (roll < 0.05f) ? 3 : (roll < 0.20f) ? 2 : 1;
+
+        List<MobEffectInstance> pool = new ArrayList<>(5);
+        pool.add(new MobEffectInstance(MobEffects.STRENGTH, MobEffectInstance.INFINITE_DURATION, 9));
+        pool.add(new MobEffectInstance(MobEffects.SPEED, MobEffectInstance.INFINITE_DURATION, 4));
+        pool.add(new MobEffectInstance(MobEffects.INVISIBILITY, MobEffectInstance.INFINITE_DURATION, 0));
+        pool.add(new MobEffectInstance(MobEffects.RESISTANCE, MobEffectInstance.INFINITE_DURATION, 2));
+        pool.add(new MobEffectInstance(MobEffects.REGENERATION, MobEffectInstance.INFINITE_DURATION, 2));
+
+        for (int i = 0; i < cantidadEfectos && !pool.isEmpty(); i++) {
+            int idx = rng.nextInt(pool.size());
+            monster.addEffect(pool.remove(idx));
         }
     }
 
@@ -2050,6 +2407,69 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .orElse(null);
         }
         return BAT_TYPE_CACHE;
+    }
+
+    private static EntityType<?> getBreezeType() {
+        if (BREEZE_TYPE_CACHE == null) {
+            BREEZE_TYPE_CACHE = BuiltInRegistries.ENTITY_TYPE
+                    .getOptional(Identifier.fromNamespaceAndPath("minecraft", "breeze"))
+                    .orElse(null);
+        }
+        return BREEZE_TYPE_CACHE;
+    }
+
+    private static EntityType<?> getIllusionerType() {
+        if (ILLUSIONER_TYPE_CACHE == null) {
+            ILLUSIONER_TYPE_CACHE = BuiltInRegistries.ENTITY_TYPE
+                    .getOptional(Identifier.fromNamespaceAndPath("minecraft", "illusioner"))
+                    .orElse(null);
+        }
+        return ILLUSIONER_TYPE_CACHE;
+    }
+
+    private static EntityType<?> getCreakingType() {
+        if (CREAKING_TYPE_CACHE == null) {
+            CREAKING_TYPE_CACHE = BuiltInRegistries.ENTITY_TYPE
+                    .getOptional(Identifier.fromNamespaceAndPath("minecraft", "creaking"))
+                    .orElse(null);
+        }
+        return CREAKING_TYPE_CACHE;
+    }
+
+    private static void intentarSpawnearBreezeDia(ServerLevel level, ServerPlayer player, EntityType<?> breezeType) {
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        for (int attempt = 0; attempt < 15; attempt++) {
+            double angle = rng.nextDouble() * Math.PI * 2.0;
+            double dist = 18.0 + rng.nextDouble() * 18.0;
+            int sx = (int) Math.floor(player.getX() + Math.cos(angle) * dist);
+            int sz = (int) Math.floor(player.getZ() + Math.sin(angle) * dist);
+            BlockPos col = new BlockPos(sx, player.blockPosition().getY(), sz);
+            if (!level.isLoaded(col)) continue;
+
+            BlockPos spawnPos = level.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, col);
+            BlockPos floorPos = spawnPos.below();
+            if (!level.isLoaded(floorPos) || !level.isLoaded(spawnPos)) continue;
+
+            BlockState floorState = level.getBlockState(floorPos);
+            if (!floorState.isFaceSturdy(level, floorPos, Direction.UP) || !floorState.getFluidState().isEmpty()) continue;
+
+            BlockState spawnState = level.getBlockState(spawnPos);
+            if (!spawnState.getCollisionShape(level, spawnPos).isEmpty() || !spawnState.getFluidState().isEmpty()) continue;
+
+            double x = spawnPos.getX() + 0.5;
+            double y = spawnPos.getY();
+            double z = spawnPos.getZ() + 0.5;
+            AABB box = new AABB(x - 0.4, y, z - 0.4, x + 0.4, y + 1.8, z + 0.4);
+            if (level.noCollision(box)) {
+                Entity entity = breezeType.create(level, EntitySpawnReason.NATURAL);
+                if (entity instanceof Breeze breeze) {
+                    breeze.snapTo(x, y, z, rng.nextFloat() * 360.0f, 0.0f);
+                    breeze.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, player);
+                    level.addFreshEntity(breeze);
+                    return;
+                }
+            }
+        }
     }
 
     private static NivelRuleta elegirNivel() {

@@ -284,8 +284,8 @@ public final class BloodMoonClientState {
             generarParticulasAmbientales(level, player);
         }
 
-        // Partículas de humo y esporas tóxicas para ¿Contaminación? sobre la capa Y=100
-        if (!client.isPaused() && serverContaminacionActive && player.getY() > 95.0) {
+        // Partículas de humo y esporas tóxicas para ¿Contaminación? sobre la capa Y=160
+        if (!client.isPaused() && serverContaminacionActive && player.getY() > 155.0) {
             generarParticulasContaminacion(level, player);
         }
     }
@@ -321,7 +321,7 @@ public final class BloodMoonClientState {
             double ox = (rng.nextDouble() * 2.0 - 1.0) * 14.0;
             double oz = (rng.nextDouble() * 2.0 - 1.0) * 14.0;
             double px = player.getX() + ox;
-            double py = Math.max(100.0, player.getY() + (rng.nextDouble() * 8.0 - 2.0));
+            double py = Math.max(160.0, player.getY() + (rng.nextDouble() * 8.0 - 2.0));
             double pz = player.getZ() + oz;
             var pType = rng.nextBoolean() ? ParticleTypes.SPORE_BLOSSOM_AIR : ParticleTypes.CAMPFIRE_COSY_SMOKE;
             level.addParticle(pType, px, py, pz, (rng.nextDouble() - 0.5) * 0.01, 0.01, (rng.nextDouble() - 0.5) * 0.01);
