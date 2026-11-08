@@ -14,6 +14,7 @@ import com.luishugomod01.ruleta.WallClimberAccessor;
 import com.luishugomod01.vidas.VidasJugadorAccessor;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -64,6 +65,7 @@ import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
 import net.minecraft.world.entity.ambient.Bat;
+import net.minecraft.world.entity.monster.Blaze;
 import net.minecraft.world.entity.animal.bee.Bee;
 import net.minecraft.world.entity.animal.chicken.Chicken;
 import net.minecraft.world.entity.animal.cow.AbstractCow;
@@ -140,6 +142,7 @@ public class Ruleta_Hardcore implements ModInitializer {
     private static final Map<UUID, Long> ULTIMA_ONDA_PHANTOM_ALFA = new HashMap<>();
     private static final Map<UUID, Integer> TICKS_AVISO_RAYO = new HashMap<>();
     private static final Map<UUID, Integer> RAYOS_IMPACTADOS = new HashMap<>();
+    private static final Map<UUID, Boolean> JUGADORES_SUELO_PREVIO = new HashMap<>();
 
     public static Map<UUID, Integer> getRayosImpactados() {
         return RAYOS_IMPACTADOS;
@@ -272,7 +275,11 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("eclipsesolar").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "eclipsesolar")))
                     .then(Commands.literal("elverdugo").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "elverdugo")))
                     .then(Commands.literal("maresacidos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "maresacidos")))
-                    .then(Commands.literal("parecequevallover").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "parecequevallover"))))
+                    .then(Commands.literal("parecequevallover").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "parecequevallover")))
+                    .then(Commands.literal("tensionmuscular").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "tensionmuscular")))
+                    .then(Commands.literal("falladimensional").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "falladimensional")))
+                    .then(Commands.literal("anomaliagravitacional").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "anomaliagravitacional")))
+                    .then(Commands.literal("corrupcionvacio").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "corrupcionvacio"))))
                 .then(Commands.literal("bloodmoon")
                     .then(Commands.literal("iniciar").executes(ctx -> {
                         var srv = ctx.getSource().getServer();
@@ -375,6 +382,17 @@ public class Ruleta_Hardcore implements ModInitializer {
             return InteractionResult.PASS;
         });
 
+        // Falla Dimensional (Nivel 5): al cruzar portal del Nether (Nether <-> Overworld), 15% de sobrecargar e invocar 2 Blazes agresivos
+        ServerEntityLevelChangeEvents.AFTER_PLAYER_CHANGE_LEVEL.register((player, origin, destination) -> {
+            if (CursosActivos.isFallaDimensional() && !player.isCreative() && !player.isSpectator()) {
+                boolean esNetherOverworld = (origin.dimension().equals(Level.NETHER) && destination.dimension().equals(Level.OVERWORLD))
+                        || (origin.dimension().equals(Level.OVERWORLD) && destination.dimension().equals(Level.NETHER));
+                if (esNetherOverworld && ThreadLocalRandom.current().nextFloat() < 0.15f) {
+                    ejecutarFallaDimensional(player, destination);
+                }
+            }
+        });
+
         // Muerte Instantánea (Nivel 3): usar botones, trampillas, puertas o puertas de valla de madera mata al instante
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (!world.isClientSide() && CursosActivos.isMuerteInstantanea()
@@ -419,6 +437,10 @@ public class Ruleta_Hardcore implements ModInitializer {
                                 AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
                                 if (scaleAttr != null) {
                                     scaleAttr.setBaseValue(0.35);
+                                }
+                                AttributeInstance speedAttr = creeper.getAttribute(Attributes.MOVEMENT_SPEED);
+                                if (speedAttr != null) {
+                                    speedAttr.setBaseValue(0.38);
                                 }
                                 if (creeper instanceof CreeperCustomAccessor accessor) {
                                     accessor.ruleta$setExplosionRadius(2);
@@ -731,6 +753,38 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
+            // Cuevas Tenebrosas (Nivel 1): Oscuridad por debajo de la capa 0.
+            // Portar farol (en mano principal o secundaria) anula la oscuridad. Portar antorcha atenúa el efecto en menor medida.
+            if (CursosActivos.isCuevasTenebrosas() && currentTick % 10 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                    if (player.getY() < 0.0) {
+                        ItemStack main = player.getMainHandItem();
+                        ItemStack off = player.getOffhandItem();
+                        boolean tieneFarol = main.is(Items.LANTERN) || main.is(Items.SOUL_LANTERN)
+                                || off.is(Items.LANTERN) || off.is(Items.SOUL_LANTERN);
+                        boolean tieneAntorcha = main.is(Items.TORCH) || main.is(Items.SOUL_TORCH) || main.is(Items.REDSTONE_TORCH)
+                                || off.is(Items.TORCH) || off.is(Items.SOUL_TORCH) || off.is(Items.REDSTONE_TORCH);
+
+                        if (tieneFarol) {
+                            if (player.hasEffect(MobEffects.DARKNESS)) {
+                                player.removeEffect(MobEffects.DARKNESS);
+                            }
+                        } else if (tieneAntorcha) {
+                            // Antorcha protege pero en mucha menor medida: pulsos breves cada 8 segundos (160 ticks)
+                            if (currentTick % 160 == 0) {
+                                player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 50, 0, false, false, true));
+                            }
+                        } else {
+                            // Sin fuentes de luz en mano: Oscuridad continua
+                            if (currentTick % 40 == 0) {
+                                player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 120, 0, false, false, true));
+                            }
+                        }
+                    }
+                }
+            }
+
             // Cuccos Salvajes (Nivel 1): Pollos con 15 de vida que atacan (1 corazón) al ser golpeados
             if (CursosActivos.isCuccosSalvajes()) {
                 if (currentTick % 40 == 0) {
@@ -909,7 +963,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Desierto Abrasador (Nivel 4): Quedarse en el desierto durante 15s (300 ticks) acumula Insolación (1 corazón cada 2s y partículas de agua)
+            // Desierto Abrasador (Nivel 3): Quedarse en el desierto durante 15s (300 ticks) acumula Insolación (1 corazón cada 2s y partículas de agua)
+            // Se reinicia al entrar en contacto con el agua o beber agua. Se anula con casco puesto (gastando durabilidad).
             if (CursosActivos.isDesiertoAbrasador() && currentTick % 10 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     if (!player.isAlive() || player.isCreative() || player.isSpectator()) {
@@ -919,6 +974,23 @@ public class Ruleta_Hardcore implements ModInitializer {
                     ServerLevel sLvl = (ServerLevel) player.level();
                     BlockPos pos = player.blockPosition();
                     boolean enDesierto = sLvl.getBiome(pos).is(Biomes.DESERT);
+                    boolean enContactoAgua = player.isInWater() || player.isInWaterOrRain() || player.isUnderWater() || player.isInShallowWater();
+                    ItemStack casco = player.getItemBySlot(EquipmentSlot.HEAD);
+                    boolean tieneCasco = !casco.isEmpty();
+
+                    if (enContactoAgua) {
+                        TICKS_INSOLACION_DESIERTO.put(player.getUUID(), 0);
+                        continue;
+                    }
+
+                    if (tieneCasco) {
+                        TICKS_INSOLACION_DESIERTO.put(player.getUUID(), 0);
+                        // El casco protege por completo de la insolación, pero desgasta su durabilidad en el desierto
+                        if (enDesierto && currentTick % 40 == 0 && casco.isDamageableItem()) {
+                            casco.hurtAndBreak(1, player, EquipmentSlot.HEAD);
+                        }
+                        continue;
+                    }
 
                     int acumulados = TICKS_INSOLACION_DESIERTO.getOrDefault(player.getUUID(), 0);
                     if (enDesierto) {
@@ -1040,6 +1112,56 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
+            // Tensión Muscular (Nivel 4): tensar arco o ballesta >3s (60 ticks) fatiga los brazos
+            if (CursosActivos.isTensionMuscular() && currentTick % 2 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                    if (player.isUsingItem()) {
+                        ItemStack using = player.getUseItem();
+                        if (using.is(Items.BOW) || using.is(Items.CROSSBOW)) {
+                            int ticks = player.getTicksUsingItem();
+                            if (ticks >= 60) {
+                                player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 40, 1, false, false, true));
+                                player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 40, 1, false, false, true));
+
+                                if (currentTick % 4 == 0) {
+                                    player.sendSystemMessage(Component.literal("§c💪 ¡Tus brazos tiemblan de fatiga por tensar demasiado el arma!"), true);
+                                    ServerLevel sLvl = (ServerLevel) player.level();
+                                    sLvl.sendParticles(ParticleTypes.CRIT, player.getX(), player.getEyeY(), player.getZ(), 2, 0.15, 0.15, 0.15, 0.05);
+                                    float jitterPitch = (ThreadLocalRandom.current().nextFloat() - 0.5f) * 3.5f;
+                                    float jitterYaw = (ThreadLocalRandom.current().nextFloat() - 0.5f) * 3.5f;
+                                    player.setXRot(player.getXRot() + jitterPitch);
+                                    player.setYRot(player.getYRot() + jitterYaw);
+                                }
+
+                                if (ticks >= 120) {
+                                    player.stopUsingItem();
+                                    player.getCooldowns().addCooldown(using, 40);
+                                    player.sendSystemMessage(Component.literal("§4💪 ¡Tus brazos han colapsado por el cansancio!"), true);
+                                    player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.0f, 1.5f);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Anomalía Gravitacional (Nivel 6): saltar en el End deja flotando en caída lenta durante 3 segundos
+            if (CursosActivos.isAnomaliaGravitacional()) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                    if (player.level().dimension().equals(Level.END)) {
+                        boolean wasOnGround = JUGADORES_SUELO_PREVIO.getOrDefault(player.getUUID(), true);
+                        boolean nowOnGround = player.onGround();
+                        JUGADORES_SUELO_PREVIO.put(player.getUUID(), nowOnGround);
+                        if (wasOnGround && !nowOnGround && player.getDeltaMovement().y > 0.18
+                                && !player.isInWater() && !player.isPassenger() && !player.isFallFlying()) {
+                            player.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 60, 0, false, false, true));
+                        }
+                    }
+                }
+            }
+
             // Escopeta (Nivel 4): Pillagers con Multishot VI, Carga Rápida II y Perforación V
             if (CursosActivos.isEscopeta() && currentTick % 40 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
@@ -1101,11 +1223,18 @@ public class Ruleta_Hardcore implements ModInitializer {
 
                         UUID pid = player.getUUID();
                         ServerLevel sLvl = (ServerLevel) player.level();
-                        boolean cieloAbierto = sLvl.canSeeSky(player.blockPosition());
+                        boolean bajoTecho = !sLvl.canSeeSky(player.blockPosition())
+                                || sLvl.getHeight(Heightmap.Types.MOTION_BLOCKING, player.getBlockX(), player.getBlockZ()) > player.getBlockY() + 1;
                         boolean tieneMetal = tieneConductorEquipado(player);
 
                         if (TICKS_AVISO_RAYO.containsKey(pid)) {
-                            int remaining = TICKS_AVISO_RAYO.get(pid);
+                            // Si se refugió bajo techo, el rayo se cancela
+                            if (bajoTecho) {
+                                TICKS_AVISO_RAYO.remove(pid);
+                                player.sendSystemMessage(Component.literal("§a⚡ El techo bloquea la atracción del rayo..."), true);
+                                sLvl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.FIRE_EXTINGUISH, SoundSource.PLAYERS, 0.8f, 1.2f);
+                                continue;
+                            }
                             // Si se despojó completamente de la armadura y no sostiene metales, se cancela el rayo
                             if (!tieneMetal) {
                                 TICKS_AVISO_RAYO.remove(pid);
@@ -1114,7 +1243,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                                 continue;
                             }
 
-                            // Contador de aviso previo de 10s (200 ticks) con partículas de estática
+                            // Contador de aviso previo con partículas de estática
+                            int remaining = TICKS_AVISO_RAYO.get(pid);
                             remaining--;
                             if (remaining > 0) {
                                 TICKS_AVISO_RAYO.put(pid, remaining);
@@ -1126,11 +1256,11 @@ public class Ruleta_Hardcore implements ModInitializer {
                                 if (remaining % 20 == 0) {
                                     int segs = remaining / 20;
                                     player.sendSystemMessage(
-                                            Component.literal("§c⚡ ¡Rayo inminente en " + segs + "s! ¡Quítate la armadura y suelta herramientas metálicas!"), true);
+                                            Component.literal("§c⚡ ¡Rayo inminente en " + segs + "s! ¡Busca techo o suelta metales!"), true);
                                     sLvl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BEE_STING, SoundSource.PLAYERS, 0.7f, 0.5f);
                                 }
                             } else {
-                                // Expiraron los 10 segundos y sigue con metales: impacto fulminante
+                                // Expiró el tiempo de aviso y sigue expuesto: impacto fulminante
                                 TICKS_AVISO_RAYO.remove(pid);
                                 EntityType<?> boltType = getLightningBoltType();
                                 if (boltType != null) {
@@ -1140,12 +1270,20 @@ public class Ruleta_Hardcore implements ModInitializer {
                                         sLvl.addFreshEntity(bolt);
                                     }
                                 }
+                                // Daño directo de 5 corazones completos (10.0f)
+                                player.hurtServer(sLvl, sLvl.damageSources().lightningBolt(), 10.0f);
+
                                 int previos = RAYOS_IMPACTADOS.getOrDefault(pid, 0);
                                 RAYOS_IMPACTADOS.put(pid, previos + 1);
                             }
                         } else {
+                            // Si está bajo techo, no entra en la probabilidad de que le caiga un rayo
+                            if (bajoTecho || !tieneMetal) {
+                                continue;
+                            }
+
                             // Evaluación periódica de selección cada 200 ticks (10s)
-                            if (currentTick % 200 == 0 && cieloAbierto && tieneMetal) {
+                            if (currentTick % 200 == 0) {
                                 int previos = RAYOS_IMPACTADOS.getOrDefault(pid, 0);
                                 float prob;
                                 if (previos == 0) {
@@ -1157,9 +1295,12 @@ public class Ruleta_Hardcore implements ModInitializer {
                                 }
 
                                 if (ThreadLocalRandom.current().nextFloat() < prob) {
-                                    TICKS_AVISO_RAYO.put(pid, 200); // 10s de aviso previo
+                                    // Primer rayo: 10s (200 ticks). A partir del segundo disminuye 5s -> 5s (100 ticks)
+                                    int avisoTicks = (previos == 0) ? 200 : 100;
+                                    TICKS_AVISO_RAYO.put(pid, avisoTicks);
+                                    int segsInicial = avisoTicks / 20;
                                     player.sendSystemMessage(
-                                            Component.literal("§e⚡ ¡La estática eriza tu piel! ¡Quítate la armadura y suelta las herramientas de metal!"), true);
+                                            Component.literal("§e⚡ ¡La estática eriza tu piel! ¡Rayo en " + segsInicial + "s! ¡Busca techo o suelta metales!"), true);
                                     sLvl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER, 0.4f, 1.8f);
                                 }
                             }
@@ -1192,12 +1333,23 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Mega Hoglin (Nivel 5): mantener Lentitud I activa
-            if (CursosActivos.isMegaHoglin() && currentTick % 60 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Hoglin hoglin && hoglin.isAlive() && hoglin.entityTags().contains("mega_hoglin")) {
-                            hoglin.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 0));
+            // Mega Hoglin (Nivel 5): mantener Lentitud I activa y romper obstáculos en su persecución
+            if (CursosActivos.isMegaHoglin()) {
+                if (currentTick % 60 == 0) {
+                    for (ServerLevel lvl : server.getAllLevels()) {
+                        for (Entity entity : lvl.getAllEntities()) {
+                            if (entity instanceof Hoglin hoglin && hoglin.isAlive() && hoglin.entityTags().contains("mega_hoglin")) {
+                                hoglin.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 0));
+                            }
+                        }
+                    }
+                }
+                if (currentTick % 4 == 0) {
+                    for (ServerLevel lvl : server.getAllLevels()) {
+                        for (Entity entity : lvl.getAllEntities()) {
+                            if (entity instanceof Hoglin hoglin && hoglin.isAlive() && hoglin.entityTags().contains("mega_hoglin")) {
+                                romperBloquesMegaHoglin(hoglin, lvl);
+                            }
                         }
                     }
                 }
@@ -2010,8 +2162,6 @@ public class Ruleta_Hardcore implements ModInitializer {
 
         if (ThreadLocalRandom.current().nextFloat() < 0.15f) {
             brute.addTag("piglin_verdugo");
-            brute.setCustomName(Component.literal("§4El Verdugo"));
-            brute.setCustomNameVisible(true);
 
             AttributeInstance scaleAttr = brute.getAttribute(Attributes.SCALE);
             if (scaleAttr != null) {
@@ -2019,8 +2169,8 @@ public class Ruleta_Hardcore implements ModInitializer {
             }
             AttributeInstance hpAttr = brute.getAttribute(Attributes.MAX_HEALTH);
             if (hpAttr != null) {
-                hpAttr.setBaseValue(80.0);
-                brute.setHealth(80.0f);
+                hpAttr.setBaseValue(100.0);
+                brute.setHealth(100.0f);
             }
 
             ItemStack axe = new ItemStack(Items.NETHERITE_AXE);
@@ -2039,8 +2189,6 @@ public class Ruleta_Hardcore implements ModInitializer {
         phantom.addTag("phantom_alfa_evaluado");
         phantom.addTag("phantom_alfa");
         phantom.addTag("eclipse_inmune_sol");
-        phantom.setCustomName(Component.literal("§cPhantom Alfa"));
-        phantom.setCustomNameVisible(true);
 
         AttributeInstance scaleAttr = phantom.getAttribute(Attributes.SCALE);
         if (scaleAttr != null) {
@@ -2310,6 +2458,55 @@ public class Ruleta_Hardcore implements ModInitializer {
             }
             hoglin.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, MobEffectInstance.INFINITE_DURATION, 0));
         }
+    }
+
+    public static void romperBloquesMegaHoglin(Hoglin hoglin, ServerLevel lvl) {
+        AABB box = hoglin.getBoundingBox().inflate(0.25, 0.0, 0.25);
+        int minX = (int) Math.floor(box.minX);
+        int maxX = (int) Math.floor(box.maxX);
+        int minY = (int) Math.floor(hoglin.getY() + 0.1);
+        int maxY = (int) Math.floor(box.maxY);
+        int minZ = (int) Math.floor(box.minZ);
+        int maxZ = (int) Math.floor(box.maxZ);
+
+        BlockPos.MutableBlockPos mPos = new BlockPos.MutableBlockPos();
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    mPos.set(x, y, z);
+                    BlockState state = lvl.getBlockState(mPos);
+                    if (!state.isAir() && !state.is(Blocks.BEDROCK) && !state.is(Blocks.NETHER_PORTAL)
+                            && state.getDestroySpeed(lvl, mPos) >= 0.0f) {
+                        lvl.destroyBlock(mPos, true, hoglin);
+                    }
+                }
+            }
+        }
+    }
+
+    public static void reiniciarInsolacion(UUID uuid) {
+        TICKS_INSOLACION_DESIERTO.remove(uuid);
+    }
+
+    public static void ejecutarFallaDimensional(ServerPlayer player, ServerLevel level) {
+        level.sendParticles(ParticleTypes.LAVA, player.getX(), player.getY() + 1.0, player.getZ(), 40, 1.0, 1.0, 1.0, 0.2);
+        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.PORTAL_TRAVEL, SoundSource.BLOCKS, 1.5f, 0.5f);
+        level.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BLAZE_BURN, SoundSource.HOSTILE, 1.5f, 0.8f);
+
+        EntityType<?> blazeType = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "blaze")).orElse(null);
+        if (blazeType != null) {
+            for (int i = 0; i < 2; i++) {
+                double ox = (ThreadLocalRandom.current().nextBoolean() ? 1 : -1) * (1.5 + ThreadLocalRandom.current().nextDouble() * 1.5);
+                double oz = (ThreadLocalRandom.current().nextBoolean() ? 1 : -1) * (1.5 + ThreadLocalRandom.current().nextDouble() * 1.5);
+                Entity b = blazeType.create(level, EntitySpawnReason.EVENT);
+                if (b instanceof Blaze blaze) {
+                    blaze.snapTo(player.getX() + ox, player.getY(), player.getZ() + oz, ThreadLocalRandom.current().nextFloat() * 360.0f, 0.0f);
+                    blaze.setTarget(player);
+                    level.addFreshEntity(blaze);
+                }
+            }
+        }
+        player.sendSystemMessage(Component.literal("§4🔥 ¡FALLA DIMENSIONAL! §c¡El portal ha sufrido una sobrecarga y ha atraído Blazes hostiles!"), true);
     }
 
     public static void evaluarSpawnCreeperCosmico(Entity refEntity, ServerLevel level) {

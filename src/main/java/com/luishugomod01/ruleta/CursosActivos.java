@@ -65,6 +65,7 @@ public class CursosActivos {
     private static volatile boolean reyDeLoProfundo           = false;
     private static volatile boolean desiertoAbrasador         = false;
     private static volatile boolean ataqueSlimes              = false;
+    private static volatile boolean tensionMuscular           = false;
 
     // Nivel 5
     private static volatile boolean intrusosCalavericos       = false;
@@ -77,6 +78,7 @@ public class CursosActivos {
     private static volatile boolean torbellinoIgneo           = false;
     private static volatile boolean phantomAlfa               = false;
     private static volatile boolean cegueraAbisal             = false;
+    private static volatile boolean fallaDimensional          = false;
 
     // Nivel 6
     private static volatile boolean permadeath                = false;
@@ -86,6 +88,8 @@ public class CursosActivos {
     private static volatile boolean elVerdugo                 = false;
     private static volatile boolean maresAcidos               = false;
     private static volatile boolean pareceQueVaALlover        = false;
+    private static volatile boolean anomaliaGravitacional     = false;
+    private static volatile boolean corrupcionVacio           = false;
 
     // Estados dinámicos de eventos temporales (Luna de Sangre / Eclipse Solar)
     private static volatile boolean isBloodMoonActive         = false;
@@ -251,6 +255,9 @@ public class CursosActivos {
     public static void activarDesiertoAbrasador() { desiertoAbrasador = true; }
     public static boolean isDesiertoAbrasador() { return desiertoAbrasador; }
 
+    public static void activarTensionMuscular() { tensionMuscular = true; }
+    public static boolean isTensionMuscular() { return tensionMuscular; }
+
     // --- Nivel 5 ---
     public static void activarIntrusosCalavericos() { intrusosCalavericos = true; }
     public static boolean isIntrusosCalavericos() { return intrusosCalavericos; }
@@ -290,6 +297,9 @@ public class CursosActivos {
     public static void activarCegueraAbisal() { cegueraAbisal = true; }
     public static boolean isCegueraAbisal() { return cegueraAbisal; }
 
+    public static void activarFallaDimensional() { fallaDimensional = true; }
+    public static boolean isFallaDimensional() { return fallaDimensional; }
+
     // --- Nivel 6 ---
     public static void activarPermadeath() { permadeath = true; }
     public static boolean isPermadeath() { return permadeath; }
@@ -316,6 +326,12 @@ public class CursosActivos {
     public static void activarPareceQueVaALlover() { pareceQueVaALlover = true; }
     public static boolean isPareceQueVaALlover() { return pareceQueVaALlover; }
 
+    public static void activarAnomaliaGravitacional() { anomaliaGravitacional = true; }
+    public static boolean isAnomaliaGravitacional() { return anomaliaGravitacional; }
+
+    public static void activarCorrupcionVacio() { corrupcionVacio = true; }
+    public static boolean isCorrupcionVacio() { return corrupcionVacio; }
+
     public static void setBloodMoonActive(boolean active) { isBloodMoonActive = active; }
     public static boolean isBloodMoonActive() { return isBloodMoonActive; }
 
@@ -340,12 +356,13 @@ public class CursosActivos {
                 || infestacionMinera || muerteInstantanea || manzanaRegeneradora
                 || magmaContacto || contaminacionCruzada || sinOxigeno || fallaMecanica || adivinaQuien
                 || danoColateral || ultraFundido || contaminacion
-                || congelacionProfunda || escopeta || reyDeLoProfundo || desiertoAbrasador
+                || congelacionProfunda || escopeta || reyDeLoProfundo || desiertoAbrasador || tensionMuscular
                 || intrusosCalavericos || spiderman || enderGhast || kaBoom
                 || ataqueSlimes || gigaEndermite || megaHoglin || creepersEscondidos || creeperCosmico
-                || torbellinoIgneo || phantomAlfa || cegueraAbisal
+                || torbellinoIgneo || phantomAlfa || cegueraAbisal || fallaDimensional
                 || permadeath || apocalipsisMinecraftTotal || maldicionLunaDeSangre
-                || monturaAcuatica || eclipseSolar || elVerdugo || maresAcidos || pareceQueVaALlover;
+                || monturaAcuatica || eclipseSolar || elVerdugo || maresAcidos || pareceQueVaALlover
+                || anomaliaGravitacional || corrupcionVacio;
     }
 
     public static List<String> obtenerIdsActivas() {
@@ -394,6 +411,7 @@ public class CursosActivos {
         if (escopeta) ids.add("escopeta");
         if (reyDeLoProfundo) ids.add("reydeloprofundo");
         if (desiertoAbrasador) ids.add("desiertoabrasador");
+        if (tensionMuscular) ids.add("tensionmuscular");
         if (intrusosCalavericos) ids.add("intrusoscalavericos");
         if (spiderman) ids.add("spiderman");
         if (enderGhast) ids.add("enderghast");
@@ -406,6 +424,7 @@ public class CursosActivos {
         if (torbellinoIgneo) ids.add("torbellinoigneo");
         if (phantomAlfa) ids.add("phantomalfa");
         if (cegueraAbisal) ids.add("cegueraabisal");
+        if (fallaDimensional) ids.add("falladimensional");
         if (permadeath) ids.add("permadeath");
         if (apocalipsisMinecraftTotal) ids.add("apocalipsis6");
         if (maldicionLunaDeSangre) ids.add("lunasangre");
@@ -414,6 +433,8 @@ public class CursosActivos {
         if (elVerdugo) ids.add("elverdugo");
         if (maresAcidos) ids.add("maresacidos");
         if (pareceQueVaALlover) ids.add("parecequevallover");
+        if (anomaliaGravitacional) ids.add("anomaliagravitacional");
+        if (corrupcionVacio) ids.add("corrupcionvacio");
         return ids;
     }
 
@@ -463,6 +484,7 @@ public class CursosActivos {
             case "escopeta" -> activarEscopeta();
             case "reydeloprofundo" -> activarReyDeLoProfundo();
             case "desiertoabrasador" -> activarDesiertoAbrasador();
+            case "tensionmuscular" -> activarTensionMuscular();
             case "intrusoscalavericos" -> activarIntrusosCalavericos();
             case "spiderman" -> activarSpiderman();
             case "enderghast" -> activarEnderGhast();
@@ -475,6 +497,7 @@ public class CursosActivos {
             case "torbellinoigneo" -> activarTorbellinoIgneo();
             case "phantomalfa" -> activarPhantomAlfa();
             case "cegueraabisal" -> activarCegueraAbisal();
+            case "falladimensional" -> activarFallaDimensional();
             case "permadeath" -> activarPermadeath();
             case "apocalipsis6", "apocalipsistotal" -> activarApocalipsisMinecraftTotal();
             case "lunasangre", "bloodmoon" -> activarLunaDeSangre();
@@ -483,6 +506,8 @@ public class CursosActivos {
             case "elverdugo", "verdugo" -> activarElVerdugo();
             case "maresacidos" -> activarMaresAcidos();
             case "parecequevallover" -> activarPareceQueVaALlover();
+            case "anomaliagravitacional" -> activarAnomaliaGravitacional();
+            case "corrupcionvacio" -> activarCorrupcionVacio();
         }
     }
 
@@ -501,7 +526,7 @@ public class CursosActivos {
             lista.add(Component.literal("  §1☠ WARDENS:§r Los Wardens ahora pueden aparecer naturalmente en el Deep Dark."));
         }
         if (cuevasTenebrosas) {
-            lista.add(Component.literal("  §8🌑 CUEVAS TENEBROSAS:§r Recibes Oscuridad por debajo de Y=0 (se reduce al portar un farol en la mano secundaria como fuente de luz)."));
+            lista.add(Component.literal("  §8🌑 CUEVAS TENEBROSAS:§r Recibes Oscuridad por debajo de Y=0 (se anula con faroles o se atenúa con antorchas en cualquier mano)."));
         }
         if (comidaEchada) {
             lista.add(Component.literal("  §2🍖 COMIDA ECHADA A PERDER:§r 5% de probabilidad de recibir Infestado por 15s al comer alimentos (excepto dorados o cocinados)."));
@@ -621,7 +646,10 @@ public class CursosActivos {
             lista.add(Component.literal("  §3👁 REY DE LO PROFUNDO:§r El Elder Guardian tiene 100 de vida y su rayo aplica Debilidad acumulativa (+1 por golpe) por 20s."));
         }
         if (desiertoAbrasador) {
-            lista.add(Component.literal("  §6☀ DESIERTO ABRASADOR:§r Permanecer 15s en el desierto causa insolación (1 corazón cada 2s y partículas de sudor)."));
+            lista.add(Component.literal("  §6☀ DESIERTO ABRASADOR:§r Permanecer en el desierto causa insolación (1 corazón cada 2s). Se reinicia con agua o al beber, y se evita con casco (gastando durabilidad)."));
+        }
+        if (tensionMuscular) {
+            lista.add(Component.literal("  §c🏹 TENSIÓN MUSCULAR:§r Tensar arco/ballesta >3s provoca fatiga, lentitud, debilidad II y temblores de puntería hasta soltar el arma."));
         }
         if (intrusosCalavericos) {
             lista.add(Component.literal("  §8💀 INTRUSOS CALAVÉRICOS:§r Wither Skeletons aparecen de noche en el Overworld con Diamante Prot IV, Espada Filo V, Velocidad I y Fuerza II."));
@@ -659,6 +687,9 @@ public class CursosActivos {
         if (cegueraAbisal) {
             lista.add(Component.literal("  §8👁 CEGUERA ABISAL:§r En el End o Deep Dark, cualquier golpe de un monstruo aplica Ceguera y Oscuridad por 8s incorregibles con leche."));
         }
+        if (fallaDimensional) {
+            lista.add(Component.literal("  §4🔥 FALLA DIMENSIONAL:§r Cruzar un portal del Nether (ida o vuelta) tiene un 15% de sobrecargar el portal e invocar 2 Blazes agresivos."));
+        }
         if (permadeath) {
             lista.add(Component.literal("  §4§l☠ PERMADEATH:§r Se ha eliminado la regeneración pasiva de vida."));
         }
@@ -682,6 +713,12 @@ public class CursosActivos {
         }
         if (pareceQueVaALlover) {
             lista.add(Component.literal("  §e§l⚡ PARECE QUE VA´ LLOVER:§r Tormentas eléctricas frecuentes y riesgo de rayos al portar armadura o herramientas metálicas."));
+        }
+        if (anomaliaGravitacional) {
+            lista.add(Component.literal("  §5🪐 ANOMALÍA GRAVITACIONAL:§r En el End el empuje recibido se triplica y saltar deja al jugador en caída lenta por 3 segundos."));
+        }
+        if (corrupcionVacio) {
+            lista.add(Component.literal("  §d§l🌌 CORRUPCIÓN DEL VACÍO:§r Golpes de Enderman o proyectiles de Shulker desactivan toda tu armadura durante 5 segundos."));
         }
         return lista;
     }
@@ -731,6 +768,7 @@ public class CursosActivos {
         escopeta = false;
         reyDeLoProfundo = false;
         desiertoAbrasador = false;
+        tensionMuscular = false;
         intrusosCalavericos = false;
         spiderman = false;
         enderGhast = false;
@@ -743,6 +781,7 @@ public class CursosActivos {
         torbellinoIgneo = false;
         phantomAlfa = false;
         cegueraAbisal = false;
+        fallaDimensional = false;
         permadeath = false;
         apocalipsisMinecraftTotal = false;
         maldicionLunaDeSangre = false;
@@ -751,6 +790,8 @@ public class CursosActivos {
         elVerdugo = false;
         maresAcidos = false;
         pareceQueVaALlover = false;
+        anomaliaGravitacional = false;
+        corrupcionVacio = false;
         isBloodMoonActive = false;
         ultimoDiaBloodMoon = -1L;
         isEclipseActive = false;

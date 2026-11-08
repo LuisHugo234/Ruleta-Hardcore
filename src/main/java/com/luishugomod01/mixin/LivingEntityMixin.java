@@ -1,5 +1,6 @@
 package com.luishugomod01.mixin;
 
+import com.luishugomod01.Ruleta_Hardcore;
 import com.luishugomod01.ruleta.CursosActivos;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
@@ -22,12 +23,15 @@ import net.minecraft.world.entity.animal.chicken.Chicken;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.ElderGuardian;
+import net.minecraft.world.entity.monster.Enderman;
 import net.minecraft.world.entity.monster.Ghast;
 import net.minecraft.world.entity.monster.Monster;
+import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.monster.Silverfish;
 import net.minecraft.world.entity.monster.Vex;
 import net.minecraft.world.entity.monster.piglin.PiglinBrute;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.ShulkerBullet;
 import net.minecraft.world.entity.projectile.hurtingprojectile.LargeFireball;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -63,6 +67,9 @@ public abstract class LivingEntityMixin {
 
     @Unique
     private long ruleta$cegueraAbisalExpiry = 0L;
+
+    @Unique
+    private long ruleta$corrupcionVacioExpiry = 0L;
 
     @Inject(method = "onClimbable", at = @At("HEAD"), cancellable = true)
     private void ruleta$escalarParedes(CallbackInfoReturnable<Boolean> cir) {
@@ -142,24 +149,20 @@ public abstract class LivingEntityMixin {
             player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 400, nextAmplifier));
         }
 
-        // El Verdugo (Nivel 6): Piglin Bruto con golpe crítico desarma temporalmente al jugador (suelta el arma)
+        // El Verdugo (Nivel 6): Piglin Bruto desarma al jugador al golpearlo (sin necesidad de críticos, sin mensaje en pantalla ni chat)
         if (CursosActivos.isElVerdugo() && cir.getReturnValueZ()
                 && damageSource.getEntity() instanceof PiglinBrute brute && brute.entityTags().contains("piglin_verdugo")
                 && self instanceof ServerPlayer sp) {
-            boolean esCritico = (brute.fallDistance > 0.0f && !brute.onGround()) || ThreadLocalRandom.current().nextFloat() < 0.35f;
-            if (esCritico) {
+            ItemStack held = sp.getMainHandItem();
+            if (!held.isEmpty()) {
                 level.sendParticles(ParticleTypes.CRIT, sp.getX(), sp.getY() + 1.0, sp.getZ(), 20, 0.3, 0.4, 0.3, 0.15);
                 level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.2f, 0.8f);
                 level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.PIGLIN_BRUTE_ANGRY, SoundSource.HOSTILE, 1.2f, 0.9f);
-                ItemStack held = sp.getMainHandItem();
-                if (!held.isEmpty()) {
-                    ItemEntity dropped = new ItemEntity(level, sp.getX(), sp.getY() + 0.5, sp.getZ(), held.copy());
-                    dropped.setDefaultPickUpDelay();
-                    level.addFreshEntity(dropped);
-                    sp.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
-                    sp.getCooldowns().addCooldown(held, 60);
-                    sp.sendSystemMessage(Component.literal("§4§l⚔ ¡DESARMADO! §c¡El Verdugo ha conectado un golpe crítico y te ha desarmado!"));
-                }
+                ItemEntity dropped = new ItemEntity(level, sp.getX(), sp.getY() + 0.5, sp.getZ(), held.copy());
+                dropped.setDefaultPickUpDelay();
+                level.addFreshEntity(dropped);
+                sp.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+                sp.getCooldowns().addCooldown(held, 60);
             }
         }
 
@@ -172,6 +175,19 @@ public abstract class LivingEntityMixin {
                 sp.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 160, 0, false, true, true));
                 sp.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 160, 0, false, true, true));
                 this.ruleta$cegueraAbisalExpiry = level.getGameTime() + 160L;
+            }
+        }
+
+        // Corrupción del Vacío (Nivel 6): golpe de Enderman o proyectil de Shulker desactiva la armadura por 5s
+        if (CursosActivos.isCorrupcionVacio() && cir.getReturnValueZ() && self instanceof ServerPlayer sp) {
+            boolean deVacio = damageSource.getEntity() instanceof Enderman
+                    || damageSource.getEntity() instanceof Shulker
+                    || damageSource.getDirectEntity() instanceof ShulkerBullet;
+            if (deVacio) {
+                this.ruleta$corrupcionVacioExpiry = level.getGameTime() + 100L;
+                level.sendParticles(ParticleTypes.PORTAL, sp.getX(), sp.getY() + 1.0, sp.getZ(), 35, 0.35, 0.5, 0.35, 0.2);
+                level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.SHULKER_BULLET_HIT, SoundSource.PLAYERS, 1.2f, 0.5f);
+                sp.sendSystemMessage(Component.literal("§5§l☠ ¡CORRUPCIÓN DEL VACÍO! §dTu armadura ha quedado completamente inutilizada por 5 segundos..."), true);
             }
         }
     }
@@ -253,6 +269,11 @@ public abstract class LivingEntityMixin {
             if (self instanceof ServerPlayer sp) {
                 sp.sendOverlayMessage(Component.literal("§8§l¡La Ceguera Abisal no puede disiparse con leche!").withStyle(ChatFormatting.DARK_RED));
             }
+        }
+
+        // Desierto Abrasador: el efecto de insolación se reinicia al beber agua / pociones o leche
+        if (CursosActivos.isDesiertoAbrasador() && (consumed == Items.POTION || consumed == Items.MILK_BUCKET) && self instanceof Player player) {
+            Ruleta_Hardcore.reiniciarInsolacion(player.getUUID());
         }
     }
 
@@ -371,6 +392,59 @@ public abstract class LivingEntityMixin {
                 }
             }
             cir.setReturnValue(false);
+        }
+    }
+
+    // Creepers Escondidos (Nivel 3): no sueltan drops ni experiencia al morir
+    @Inject(method = "dropAllDeathLoot", at = @At("HEAD"), cancellable = true)
+    private void ruleta$cancelCreeperEscondidoLoot(ServerLevel level, DamageSource damageSource, CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self.entityTags().contains("creeper_escondido")) {
+            ci.cancel();
+        }
+    }
+
+    @Inject(method = "shouldDropExperience", at = @At("HEAD"), cancellable = true)
+    private void ruleta$cancelCreeperEscondidoXp(CallbackInfoReturnable<Boolean> cir) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (self.entityTags().contains("creeper_escondido")) {
+            cir.setReturnValue(false);
+        }
+    }
+
+    // Corrupción del Vacío (Nivel 6): anulación de armadura y absorción
+    @Inject(method = "getArmorValue", at = @At("HEAD"), cancellable = true)
+    private void ruleta$anularArmaduraCorrupcion(CallbackInfoReturnable<Integer> cir) {
+        if (CursosActivos.isCorrupcionVacio() && this.ruleta$corrupcionVacioExpiry > ((LivingEntity) (Object) this).level().getGameTime()) {
+            cir.setReturnValue(0);
+        }
+    }
+
+    @Inject(method = "getDamageAfterArmorAbsorb", at = @At("HEAD"), cancellable = true)
+    private void ruleta$anularAbsorcionCorrupcion(DamageSource damageSource, float damage, CallbackInfoReturnable<Float> cir) {
+        if (CursosActivos.isCorrupcionVacio() && this.ruleta$corrupcionVacioExpiry > ((LivingEntity) (Object) this).level().getGameTime()) {
+            cir.setReturnValue(damage);
+        }
+    }
+
+    // Anomalía Gravitacional (Nivel 6): triplica el knockback en el End
+    @ModifyVariable(method = "knockback(DDDLnet/minecraft/world/damagesource/DamageSource;FZ)V", at = @At("HEAD"), argsOnly = true, ordinal = 0)
+    private double ruleta$triplicarKnockbackEnEnd(double strength) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (CursosActivos.isAnomaliaGravitacional() && self instanceof ServerPlayer
+                && self.level().dimension().equals(Level.END)) {
+            return strength * 3.0;
+        }
+        return strength;
+    }
+
+    // Anomalía Gravitacional (Nivel 6): saltar en el End aplica caída lenta por 3 segundos
+    @Inject(method = "jumpFromGround", at = @At("HEAD"))
+    private void ruleta$anomaliaSalto(CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
+        if (CursosActivos.isAnomaliaGravitacional() && self instanceof ServerPlayer sp
+                && sp.level().dimension().equals(Level.END)) {
+            sp.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 60, 0, false, false, true));
         }
     }
 }

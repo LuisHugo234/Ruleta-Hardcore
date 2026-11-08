@@ -89,7 +89,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarApocalipsisZombie());
 
         registrar("cuevastenebrosas", NivelRuleta.NIVEL_1, "Cuevas Tenebrosas",
-                "Recibes Oscuridad por debajo de la capa 0 (se reduce al portar un farol en la mano secundaria como fuente de luz).",
+                "Recibes Oscuridad por debajo de la capa 0 (se anula con faroles o se atenúa con antorchas en cualquier mano).",
                 (level, player) -> CursosActivos.activarCuevasTenebrosas());
 
         registrar("comidaechada", NivelRuleta.NIVEL_1, "Comida Echada a Perder",
@@ -238,6 +238,10 @@ public class CatalogoCastigos {
                 "Los Zombies Ahogados tienen 10% de probabilidad de aparecer montados en un Nautilo o Delfín.",
                 (level, player) -> CursosActivos.activarMonturaAcuatica());
 
+        registrar("desiertoabrasador", NivelRuleta.NIVEL_3, "Desierto Abrasador",
+                "Permanecer en el desierto acumula insolación (1 corazón cada 2s). Se reinicia con agua o al beber, y se evita con casco (gastando durabilidad).",
+                (level, player) -> CursosActivos.activarDesiertoAbrasador());
+
         // --- NIVEL 4 ---
         registrar("danocolateral", NivelRuleta.NIVEL_4, "Daño Colateral",
                 "Las Ender Pearls hacen x3 su daño original e ignoran armadura.",
@@ -263,13 +267,13 @@ public class CatalogoCastigos {
                 "El Elder Guardian posee 100 de vida y su rayo da Debilidad I (+1 por cada golpe recibido) por 20 segundos.",
                 (level, player) -> CursosActivos.activarReyDeLoProfundo());
 
-        registrar("desiertoabrasador", NivelRuleta.NIVEL_4, "Desierto Abrasador",
-                "Permanecer 15 segundos en el desierto acumula Insolación, causando 1 corazón de daño cada 2 segundos y partículas de agua.",
-                (level, player) -> CursosActivos.activarDesiertoAbrasador());
-
         registrar("ataqueslimes", NivelRuleta.NIVEL_4, "Ataque a los Slimes",
                 "5% de probabilidad de que aparezca un Slime Gigante en pantanos con x2.5 de daño de un slime grande.",
                 (level, player) -> CursosActivos.activarAtaqueSlimes());
+
+        registrar("tensionmuscular", NivelRuleta.NIVEL_4, "Tensión Muscular",
+                "Mantener tensado el arco o la ballesta por más de 3 segundos seguidos fatiga los brazos del jugador, provocando temblores de puntería, lentitud al caminar y Debilidad II hasta soltar el arma.",
+                (level, player) -> CursosActivos.activarTensionMuscular());
 
         // --- NIVEL 5 ---
         registrar("intrusoscalavericos", NivelRuleta.NIVEL_5, "Intrusos Calavéricos",
@@ -312,6 +316,10 @@ public class CatalogoCastigos {
                 "En el End y Deep Dark, cualquier golpe de un monstruo aplica Ceguera y Oscuridad por 8s sin poder curarse con leche.",
                 (level, player) -> CursosActivos.activarCegueraAbisal());
 
+        registrar("falladimensional", NivelRuleta.NIVEL_5, "Falla Dimensional",
+                "Al cruzar un portal del Nether hacia el Nether o de vuelta al Overworld, hay un 15% de probabilidad de que el portal sufra una sobrecarga que invoca instantáneamente 2 Blazes agresivos junto al marco.",
+                (level, player) -> CursosActivos.activarFallaDimensional());
+
         // --- NIVEL 6 ---
         registrar("permadeath", NivelRuleta.NIVEL_6, "PERMADEATH",
                 "Se elimina permanentemente la regeneración pasiva de vida natural.",
@@ -347,5 +355,13 @@ public class CatalogoCastigos {
         registrar("parecequevallover", NivelRuleta.NIVEL_6, "Parece que va´ llover",
                 "Tormentas frecuentes con probabilidad base de 15% de ser alcanzado por rayos si portas armadura o herramientas metálicas. Aviso de 10s con estática para despojarte de metales.",
                 (level, player) -> CursosActivos.activarPareceQueVaALlover());
+
+        registrar("anomaliagravitacional", NivelRuleta.NIVEL_6, "Anomalía Gravitacional",
+                "En la dimensión del End, todo empuje recibido por proyectiles o ataques de monstruos se triplica, y saltar deja al jugador flotando en caída lenta durante 3 segundos, quedando indefenso en el aire.",
+                (level, player) -> CursosActivos.activarAnomaliaGravitacional());
+
+        registrar("corrupcionvacio", NivelRuleta.NIVEL_6, "Corrupción del Vacío",
+                "Cualquier golpe recibido de un Enderman o proyectil de Shulker desactiva por completo la protección de tu armadura durante 5 segundos (recibiendo daño como si estuvieras desnudo).",
+                (level, player) -> CursosActivos.activarCorrupcionVacio());
     }
 }
