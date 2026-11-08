@@ -84,17 +84,9 @@ public class CatalogoCastigos {
                 "Al arrojar una Ender Pearl hay un 5% de probabilidad de spawnear un Creeper.",
                 (level, player) -> CursosActivos.activarCreepersEnPerla());
 
-        registrar("fuegofatuo", NivelRuleta.NIVEL_1, "Fuego Fatuo",
-                "Necesitas armadura completa en el Nether o arderás hasta morir.",
-                (level, player) -> CursosActivos.activarFuegoFatuo());
-
         registrar("apocalipsis", NivelRuleta.NIVEL_1, "¿Apocalipsis Minecraft?",
                 "50% de los zombies escalan paredes como arañas y son inmunes al sol.",
                 (level, player) -> CursosActivos.activarApocalipsisZombie());
-
-        registrar("wardens", NivelRuleta.NIVEL_1, "Wardens en Deep Dark",
-                "Los Wardens ahora pueden aparecer naturalmente en el Deep Dark.",
-                (level, player) -> CursosActivos.activarWardensDeepDark());
 
         registrar("cuevastenebrosas", NivelRuleta.NIVEL_1, "Cuevas Tenebrosas",
                 "Recibes Oscuridad por debajo de la capa 0 (se reduce al portar un farol en la mano secundaria como fuente de luz).",
@@ -120,9 +112,13 @@ public class CatalogoCastigos {
                 "Los Breeze ahora disparan 6 Wind Charges en ráfaga (como los Blazes).",
                 (level, player) -> CursosActivos.activarCorrientesAereas());
 
-        registrar("invasionazul", NivelRuleta.NIVEL_1, "Invasión Azul",
-                "Los Breeze ahora pueden spawnear en todos los biomas del Overworld (de día) con un 20% de probabilidad.",
-                (level, player) -> CursosActivos.activarInvasionAzul());
+        registrar("contaminacioncruzada", NivelRuleta.NIVEL_1, "Contaminación Cruzada",
+                "Los alimentos crudos dan Hambre II y Veneno I al consumirlos.",
+                (level, player) -> CursosActivos.activarContaminacionCruzada());
+
+        registrar("paranoianocturna", NivelRuleta.NIVEL_1, "Paranoia Nocturna",
+                "Permanecer con nivel de luz 0 por >15s provoca pasos falsos y Ceguera I por 2 segundos cada 40 segundos.",
+                (level, player) -> CursosActivos.activarParanoiaNocturna());
 
         // --- NIVEL 2 ---
         registrar("speedpers", NivelRuleta.NIVEL_2, "Speedpers",
@@ -138,7 +134,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarMuerteEspinosa());
 
         registrar("cucarachaplateada", NivelRuleta.NIVEL_2, "Cucaracha Plateada",
-                "Los lepismas otorgan Lentitud II por 5 segundos al golpear al jugador.",
+                "Los lepismas otorgan Lentitud II por 5 segundos al golpearte y alertan a otros lepismas en un radio de 12 bloques.",
                 (level, player) -> CursosActivos.activarCucarachaPlateada());
 
         registrar("abejasasesinas", NivelRuleta.NIVEL_2, "Abejas Asesinas",
@@ -158,7 +154,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarResistenciaFisica());
 
         registrar("escudopesado", NivelRuleta.NIVEL_2, "Escudo Pesado",
-                "Usar el escudo para bloquear ataques consume el doble de barra de comida.",
+                "Usar el escudo consume el doble de barra de comida y se deshabilita al recibir 5 golpes seguidos en 10 segundos.",
                 (level, player) -> CursosActivos.activarEscudoPesado());
 
         registrar("wingardiumleviosa", NivelRuleta.NIVEL_2, "Wingardium Leviosa",
@@ -170,8 +166,28 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarLavaActiva());
 
         registrar("webones", NivelRuleta.NIVEL_2, "Webones",
-                "Existe un 50% de probabilidad de que los aldeanos al crecer sean Nitwit (verdes).",
+                "Existe un 25% de probabilidad de que los aldeanos al crecer sean Nitwit (verdes).",
                 (level, player) -> CursosActivos.activarWebones());
+
+        registrar("fuegofatuo", NivelRuleta.NIVEL_2, "Fuego Fatuo",
+                "Necesitas armadura completa en el Nether o arderás hasta morir.",
+                (level, player) -> CursosActivos.activarFuegoFatuo());
+
+        registrar("wardens", NivelRuleta.NIVEL_2, "Wardens en Deep Dark",
+                "Los Wardens ahora pueden aparecer naturalmente en el Deep Dark.",
+                (level, player) -> CursosActivos.activarWardensDeepDark());
+
+        registrar("invasionazul", NivelRuleta.NIVEL_2, "Invasión Azul",
+                "Los Breeze pueden spawnear de día en todos los biomas del Overworld (15% de probabilidad, máx. 3 en 32 bloques).",
+                (level, player) -> CursosActivos.activarInvasionAzul());
+
+        registrar("infestacionminera", NivelRuleta.NIVEL_2, "Infestación Minera",
+                "En las paredes de las Mineshafts se pueden generar bloques de lepisma.",
+                (level, player) -> CursosActivos.activarInfestacionMinera());
+
+        registrar("mineriainestable", NivelRuleta.NIVEL_2, "Minería Inestable",
+                "5% de probabilidad al romper minerales de provocar una explosión pequeña sin destruir bloques.",
+                (level, player) -> CursosActivos.activarMineriaInestable());
 
         // --- NIVEL 3 ---
         registrar("errortotemico", NivelRuleta.NIVEL_3, "Error Totémico",
@@ -190,10 +206,6 @@ public class CatalogoCastigos {
                 "Los tridentes de los Ahogados tienen Empalamiento V y Conductividad.",
                 (level, player) -> CursosActivos.activarEnergiaPoseica());
 
-        registrar("infestacionminera", NivelRuleta.NIVEL_3, "Infestación Minera",
-                "En las paredes de las Mineshafts se pueden generar bloques de lepisma.",
-                (level, player) -> CursosActivos.activarInfestacionMinera());
-
         registrar("muerteinstantanea", NivelRuleta.NIVEL_3, "Muerte Instantánea",
                 "Todos los botones, trampillas, puertas y puertas de valla de madera hacen 1x10^9 de daño al usarlos.",
                 (level, player) -> CursosActivos.activarMuerteInstantanea());
@@ -205,10 +217,6 @@ public class CatalogoCastigos {
         registrar("magmacontacto", NivelRuleta.NIVEL_3, "Magma al Contacto",
                 "Los bloques de magma hacen 1x10^9 de daño al tocarlos directamente por cualquier ángulo.",
                 (level, player) -> CursosActivos.activarMagmaContacto());
-
-        registrar("contaminacioncruzada", NivelRuleta.NIVEL_3, "Contaminación Cruzada",
-                "Los alimentos crudos dan Hambre II y Veneno I al consumirlos.",
-                (level, player) -> CursosActivos.activarContaminacionCruzada());
 
         registrar("sinoxigeno", NivelRuleta.NIVEL_3, "Sin Oxígeno",
                 "Ahora el oxígeno cuando te sumerges en el agua se agota el triple de rápido.",
@@ -222,6 +230,14 @@ public class CatalogoCastigos {
                 "El Illusioner aparece (25%) junto a raids, outposts y patrullas con Arco Retroceso X, Poder III y Resistencia III.",
                 (level, player) -> CursosActivos.activarAdivinaQuien());
 
+        registrar("creepersescondidos", NivelRuleta.NIVEL_3, "Creepers Escondidos",
+                "Al romper bloques de pasto hay 20% de probabilidad de spawnear un mini-creeper cabezón con 1/3 de su daño explosivo.",
+                (level, player) -> CursosActivos.activarCreepersEscondidos());
+
+        registrar("monturaacuatica", NivelRuleta.NIVEL_3, "Montura Acuática",
+                "Los Zombies Ahogados tienen 10% de probabilidad de aparecer montados en un Nautilo o Delfín.",
+                (level, player) -> CursosActivos.activarMonturaAcuatica());
+
         // --- NIVEL 4 ---
         registrar("danocolateral", NivelRuleta.NIVEL_4, "Daño Colateral",
                 "Las Ender Pearls hacen x3 su daño original e ignoran armadura.",
@@ -230,10 +246,6 @@ public class CatalogoCastigos {
         registrar("ultrafundido", NivelRuleta.NIVEL_4, "Ultra Fundido",
                 "El daño por fuego se multiplica por 10.",
                 (level, player) -> CursosActivos.activarUltraFundido());
-
-        registrar("poderenlamano", NivelRuleta.NIVEL_4, "Poder en la Mano",
-                "Los Piglins Brutos poseen un hacha de diamante con Filo V.",
-                (level, player) -> CursosActivos.activarPoderEnLaMano());
 
         registrar("contaminacion", NivelRuleta.NIVEL_4, "¿Contaminación?",
                 "Por encima de la capa 160 hay una niebla y humo verde que hace daño de Veneno V.",
@@ -255,6 +267,10 @@ public class CatalogoCastigos {
                 "Permanecer 15 segundos en el desierto acumula Insolación, causando 1 corazón de daño cada 2 segundos y partículas de agua.",
                 (level, player) -> CursosActivos.activarDesiertoAbrasador());
 
+        registrar("ataqueslimes", NivelRuleta.NIVEL_4, "Ataque a los Slimes",
+                "5% de probabilidad de que aparezca un Slime Gigante en pantanos con x2.5 de daño de un slime grande.",
+                (level, player) -> CursosActivos.activarAtaqueSlimes());
+
         // --- NIVEL 5 ---
         registrar("intrusoscalavericos", NivelRuleta.NIVEL_5, "Intrusos Calavéricos",
                 "Wither Skeletons con armadura diamante y espada Filo V aparecen de noche.",
@@ -272,25 +288,29 @@ public class CatalogoCastigos {
                 "Los Shulkers explotan 3 segundos después de morir como una TNT.",
                 (level, player) -> CursosActivos.activarKaBoom());
 
-        registrar("ataqueslimes", NivelRuleta.NIVEL_5, "Ataque a los Slimes",
-                "5% de probabilidad de que aparezca un Slime Gigante en pantanos con x2.5 de daño de un slime grande.",
-                (level, player) -> CursosActivos.activarAtaqueSlimes());
-
         registrar("gigaendermite", NivelRuleta.NIVEL_5, "Giga-Endermite",
-                "En el End hay 5% de probabilidad de un Endermite Gigante con 250 de vida, x2 de daño y sin empuje.",
+                "En el End hay 5% de probabilidad de un Endermite Gigante con 250 de vida, x2 de daño, sin empuje y con embestida.",
                 (level, player) -> CursosActivos.activarGigaEndermite());
 
         registrar("megahoglin", NivelRuleta.NIVEL_5, "Mega Hoglin",
                 "En el Nether hay 5% de probabilidad de un Hoglin Gigante con 300 de vida, x2 de daño y Lentitud.",
                 (level, player) -> CursosActivos.activarMegaHoglin());
 
-        registrar("creepersescondidos", NivelRuleta.NIVEL_5, "Creepers Escondidos",
-                "Al romper bloques de pasto hay 20% de probabilidad de spawnear un mini-creeper cabezón con 1/3 de su daño explosivo.",
-                (level, player) -> CursosActivos.activarCreepersEscondidos());
-
         registrar("creepercosmico", NivelRuleta.NIVEL_5, "Creeper Cósmico",
                 "Cerca de las End Cities puede aparecer (15%) un Creeper Eléctrico con radio de explosión de 30 bloques.",
                 (level, player) -> CursosActivos.activarCreeperCosmico());
+
+        registrar("torbellinoigneo", NivelRuleta.NIVEL_5, "Torbellino Ígneo",
+                "Los proyectiles de los Blazes empujan fuertemente y crean un charco de lava y fuego de 3x3 temporal (8s).",
+                (level, player) -> CursosActivos.activarTorbellinoIgneo());
+
+        registrar("phantomalfa", NivelRuleta.NIVEL_5, "Phantom Alfa",
+                "Phantoms x2.5 escala, 60 HP, inmunes al sol y onda sónica en picada que inflige 3 corazones ignorando armadura.",
+                (level, player) -> CursosActivos.activarPhantomAlfa());
+
+        registrar("cegueraabisal", NivelRuleta.NIVEL_5, "Ceguera Abisal",
+                "En el End y Deep Dark, cualquier golpe de un monstruo aplica Ceguera y Oscuridad por 8s sin poder curarse con leche.",
+                (level, player) -> CursosActivos.activarCegueraAbisal());
 
         // --- NIVEL 6 ---
         registrar("permadeath", NivelRuleta.NIVEL_6, "PERMADEATH",
@@ -312,12 +332,20 @@ public class CatalogoCastigos {
                 "5% de probabilidad de Luna de Sangre: sin camas, hordas masivas y mobs con hasta 3 efectos potentes aleatorios.",
                 (level, player) -> CursosActivos.activarLunaDeSangre());
 
-        registrar("monturaacuatica", NivelRuleta.NIVEL_6, "Montura Acuática",
-                "Los Zombies Ahogados tienen 10% de probabilidad de aparecer montados en un Nautilo o Delfín.",
-                (level, player) -> CursosActivos.activarMonturaAcuatica());
-
         registrar("eclipsesolar", NivelRuleta.NIVEL_6, "Eclipse Solar",
                 "Probabilidad de Eclipse Solar con Strays con Lanza de Diamante (Filo II) en Phantoms, Brujas en Murciélagos y Creakings con Velocidad II.",
                 (level, player) -> CursosActivos.activarEclipseSolar());
+
+        registrar("elverdugo", NivelRuleta.NIVEL_6, "El Verdugo (Piglin Executioner)",
+                "15% de Piglins Brutos aparecen gigantes (x1.5), 80 HP, Hacha de Netherite Filo VI y sus golpes críticos desarman al jugador.",
+                (level, player) -> CursosActivos.activarElVerdugo());
+
+        registrar("maresacidos", NivelRuleta.NIVEL_6, "Mares Ácidos",
+                "Todo cuerpo de agua en Overworld es verde corrosivo: sumergirse daña 2 corazones/s y triplica el desgaste de armadura.",
+                (level, player) -> CursosActivos.activarMaresAcidos());
+
+        registrar("parecequevallover", NivelRuleta.NIVEL_6, "Parece que va´ llover",
+                "Tormentas frecuentes con probabilidad base de 15% de ser alcanzado por rayos si portas armadura o herramientas metálicas. Aviso de 10s con estática para despojarte de metales.",
+                (level, player) -> CursosActivos.activarPareceQueVaALlover());
     }
 }

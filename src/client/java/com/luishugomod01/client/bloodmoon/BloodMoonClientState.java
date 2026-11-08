@@ -19,6 +19,7 @@ public final class BloodMoonClientState {
     private static volatile boolean serverEclipseActive = false;
     private static volatile boolean serverContaminacionActive = false;
     private static volatile boolean serverCuevasTenebrosasActive = false;
+    private static volatile boolean serverMaresAcidosActive = false;
     private static boolean fadeOutLatch = false;
     private static boolean eclipseFadeOutLatch = false;
 
@@ -37,11 +38,12 @@ public final class BloodMoonClientState {
 
     private BloodMoonClientState() {}
 
-    public static void updateFromPayload(boolean active, boolean eclipseActive, boolean contaminacionActive, boolean cuevasTenebrosasActive) {
+    public static void updateFromPayload(boolean active, boolean eclipseActive, boolean contaminacionActive, boolean cuevasTenebrosasActive, boolean maresAcidosActive) {
         setServerActive(active);
         setServerEclipseActive(eclipseActive);
         serverContaminacionActive = contaminacionActive;
         serverCuevasTenebrosasActive = cuevasTenebrosasActive;
+        serverMaresAcidosActive = maresAcidosActive;
     }
 
     public static void setServerEclipseActive(boolean active) {
@@ -93,6 +95,10 @@ public final class BloodMoonClientState {
 
     public static boolean isCuevasTenebrosasActive() {
         return serverCuevasTenebrosasActive;
+    }
+
+    public static boolean isMaresAcidosActive() {
+        return serverMaresAcidosActive;
     }
 
     /**

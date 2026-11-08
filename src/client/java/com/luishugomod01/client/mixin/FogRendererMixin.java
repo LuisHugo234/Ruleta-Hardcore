@@ -47,6 +47,21 @@ public abstract class FogRendererMixin {
             CallbackInfoReturnable<FogData> cir
     ) {
         FogType fogType = this.getFogType(camera);
+
+        // Mares Ácidos (Nivel 6): El agua en el Overworld se vuelve verde corrosiva
+        if (fogType == FogType.WATER && BloodMoonClientState.isMaresAcidosActive()
+                && level.dimension().equals(Level.OVERWORLD)) {
+            FogData fogData = cir.getReturnValue();
+            fogData.environmentalStart = 0.0f;
+            fogData.environmentalEnd = 14.0f;
+            fogData.renderDistanceStart = 0.0f;
+            fogData.renderDistanceEnd = 14.0f;
+            fogData.color.x = 0.08f;
+            fogData.color.y = 0.72f;
+            fogData.color.z = 0.14f;
+            return;
+        }
+
         if (fogType != FogType.ATMOSPHERIC && fogType != FogType.NONE) {
             return;
         }

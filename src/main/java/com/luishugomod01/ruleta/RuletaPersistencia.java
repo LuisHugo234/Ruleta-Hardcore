@@ -13,6 +13,8 @@ import net.minecraft.world.level.storage.LevelResource;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
+import java.util.UUID;
 
 public class RuletaPersistencia {
 
@@ -48,6 +50,12 @@ public class RuletaPersistencia {
             root.putBoolean("MundoConfigurado", CursosActivos.isMundoConfigurado());
             root.putBoolean("RuletaAutomatica", CursosActivos.isRuletaAutomatica());
             root.putInt("VidasIniciales", CursosActivos.getVidasIniciales());
+
+            CompoundTag rayosTag = new CompoundTag();
+            for (Map.Entry<UUID, Integer> entry : Ruleta_Hardcore.getRayosImpactados().entrySet()) {
+                rayosTag.putInt(entry.getKey().toString(), entry.getValue());
+            }
+            root.put("RayosImpactados", rayosTag);
 
             NbtIo.writeCompressed(root, file);
         } catch (Exception e) {
@@ -86,6 +94,14 @@ public class RuletaPersistencia {
             CursosActivos.setMundoConfigurado(root.getBooleanOr("MundoConfigurado", false));
             CursosActivos.setRuletaAutomatica(root.getBooleanOr("RuletaAutomatica", true));
             CursosActivos.setVidasIniciales(root.getIntOr("VidasIniciales", 3));
+
+            CompoundTag rayosTag = root.getCompoundOrEmpty("RayosImpactados");
+            for (String key : rayosTag.keySet()) {
+                try {
+                    UUID uuid = UUID.fromString(key);
+                    Ruleta_Hardcore.getRayosImpactados().put(uuid, rayosTag.getIntOr(key, 0));
+                } catch (IllegalArgumentException ignored) {}
+            }
 
             if (CursosActivos.isPermadeath()) {
                 for (var lvl : server.getAllLevels()) {

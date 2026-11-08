@@ -35,7 +35,8 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
                         payload.active(),
                         payload.eclipseActive(),
                         payload.contaminacionActive(),
-                        payload.cuevasTenebrosasActive()
+                        payload.cuevasTenebrosasActive(),
+                        payload.maresAcidosActive()
                 );
             });
         });

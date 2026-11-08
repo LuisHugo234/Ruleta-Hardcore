@@ -130,9 +130,20 @@ public class Ruleta_Hardcore implements ModInitializer {
     private static EntityType<?> BREEZE_TYPE_CACHE = null;
     private static EntityType<?> ILLUSIONER_TYPE_CACHE = null;
     private static EntityType<?> CREAKING_TYPE_CACHE = null;
+    private static EntityType<?> LIGHTNING_BOLT_TYPE_CACHE = null;
 
     private static final Map<UUID, Integer> TICKS_EXPOSICION_NIEVE = new HashMap<>();
     private static final Map<UUID, Integer> TICKS_INSOLACION_DESIERTO = new HashMap<>();
+    private static final Map<UUID, Long> ULTIMA_EXPLOSION_MINERIA = new HashMap<>();
+    private static final Map<UUID, Integer> TICKS_OSCURIDAD_PARANOIA = new HashMap<>();
+    private static final Map<UUID, Long> ULTIMA_PARANOIA_NOTIFICACION = new HashMap<>();
+    private static final Map<UUID, Long> ULTIMA_ONDA_PHANTOM_ALFA = new HashMap<>();
+    private static final Map<UUID, Integer> TICKS_AVISO_RAYO = new HashMap<>();
+    private static final Map<UUID, Integer> RAYOS_IMPACTADOS = new HashMap<>();
+
+    public static Map<UUID, Integer> getRayosImpactados() {
+        return RAYOS_IMPACTADOS;
+    }
 
     @Override
     public void onInitialize() {
@@ -221,6 +232,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("wingardiumleviosa").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "wingardiumleviosa")))
                     .then(Commands.literal("lavaactiva").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "lavaactiva")))
                     .then(Commands.literal("webones").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "webones")))
+                    .then(Commands.literal("mineriainestable").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "mineriainestable")))
                     .then(Commands.literal("errortotemico").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "errortotemico")))
                     .then(Commands.literal("artesmaritimos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "artesmaritimos")))
                     .then(Commands.literal("boogiewoogie").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "boogiewoogie")))
@@ -235,12 +247,12 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("adivinaquien").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "adivinaquien")))
                     .then(Commands.literal("danocolateral").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "danocolateral")))
                     .then(Commands.literal("ultrafundido").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "ultrafundido")))
-                    .then(Commands.literal("poderenlamano").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "poderenlamano")))
                     .then(Commands.literal("contaminacion").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "contaminacion")))
                     .then(Commands.literal("congelacionprofunda").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "congelacionprofunda")))
                     .then(Commands.literal("escopeta").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "escopeta")))
                     .then(Commands.literal("reydeloprofundo").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "reydeloprofundo")))
                     .then(Commands.literal("desiertoabrasador").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "desiertoabrasador")))
+                    .then(Commands.literal("paranoianocturna").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "paranoianocturna")))
                     .then(Commands.literal("intrusoscalavericos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "intrusoscalavericos")))
                     .then(Commands.literal("spiderman").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "spiderman")))
                     .then(Commands.literal("enderghast").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "enderghast")))
@@ -250,11 +262,17 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("megahoglin").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "megahoglin")))
                     .then(Commands.literal("creepersescondidos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creepersescondidos")))
                     .then(Commands.literal("creepercosmico").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creepercosmico")))
+                    .then(Commands.literal("torbellinoigneo").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "torbellinoigneo")))
+                    .then(Commands.literal("phantomalfa").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "phantomalfa")))
+                    .then(Commands.literal("cegueraabisal").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "cegueraabisal")))
                     .then(Commands.literal("permadeath").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "permadeath")))
                     .then(Commands.literal("apocalipsis6").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "apocalipsis6")))
                     .then(Commands.literal("lunasangre").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "lunasangre")))
                     .then(Commands.literal("monturaacuatica").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "monturaacuatica")))
-                    .then(Commands.literal("eclipsesolar").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "eclipsesolar"))))
+                    .then(Commands.literal("eclipsesolar").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "eclipsesolar")))
+                    .then(Commands.literal("elverdugo").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "elverdugo")))
+                    .then(Commands.literal("maresacidos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "maresacidos")))
+                    .then(Commands.literal("parecequevallover").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "parecequevallover"))))
                 .then(Commands.literal("bloodmoon")
                     .then(Commands.literal("iniciar").executes(ctx -> {
                         var srv = ctx.getSource().getServer();
@@ -411,6 +429,23 @@ public class Ruleta_Hardcore implements ModInitializer {
                         }
                     }
                 }
+                // Minería Inestable (Nivel 2): 5% al romper mineral de provocar una explosión pequeña sin destruir bloques (con enfriamiento de 5s)
+                if (CursosActivos.isMineriaInestable() && esBloqueMineral(state)) {
+                    long now = serverLevel.getGameTime();
+                    long lastExplosion = ULTIMA_EXPLOSION_MINERIA.getOrDefault(player.getUUID(), -1000L);
+                    if (now - lastExplosion >= 100L && ThreadLocalRandom.current().nextFloat() < 0.05f) {
+                        ULTIMA_EXPLOSION_MINERIA.put(player.getUUID(), now);
+                        serverLevel.explode(
+                                null,
+                                pos.getX() + 0.5,
+                                pos.getY() + 0.5,
+                                pos.getZ() + 0.5,
+                                2.0f,
+                                false,
+                                Level.ExplosionInteraction.NONE
+                        );
+                    }
+                }
             }
         });
 
@@ -485,7 +520,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                     CursosActivos.isBloodMoonActive(),
                     CursosActivos.isEclipseActive(),
                     CursosActivos.isContaminacion(),
-                    CursosActivos.isCuevasTenebrosas()
+                    CursosActivos.isCuevasTenebrosas(),
+                    CursosActivos.isMaresAcidos()
             ));
 
             if (player instanceof VidasJugadorAccessor accessor) {
@@ -566,8 +602,11 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (entity instanceof Raider raider && !(entity instanceof Illusioner) && !(entity instanceof Witch) && CursosActivos.isAdivinaQuien()) {
                 evaluarSpawnIllusionerAcompaniante(raider, level);
             }
-            if (entity instanceof PiglinBrute brute && CursosActivos.isPoderEnLaMano()) {
-                equiparPoderEnLaMano(brute, level);
+            if (entity instanceof PiglinBrute brute && CursosActivos.isElVerdugo()) {
+                evaluarVerdugo(brute, level);
+            }
+            if (entity instanceof Phantom phantom && CursosActivos.isPhantomAlfa()) {
+                evaluarPhantomAlfa(phantom);
             }
             if (entity instanceof ElderGuardian elderGuardian && CursosActivos.isReyDeLoProfundo()) {
                 aplicarReyDeLoProfundo(elderGuardian);
@@ -647,7 +686,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Invasión Azul (Nivel 1): Los Breeze pueden spawnear de día en todos los biomas del Overworld con 20% de probabilidad
+            // Invasión Azul (Nivel 2): Los Breeze pueden spawnear de día en todos los biomas del Overworld (15% probabilidad, máx. 3 en 32 bloques)
             if (CursosActivos.isInvasionAzul() && currentTick % 80 == 0) {
                 EntityType<?> breezeType = getBreezeType();
                 if (breezeType != null) {
@@ -657,10 +696,10 @@ public class Ruleta_Hardcore implements ModInitializer {
                         ServerLevel sLvl = (ServerLevel) player.level();
                         if (!sLvl.isBrightOutside() || sLvl.getDifficulty() == Difficulty.PEACEFUL) continue;
 
-                        var nearbyBreezes = sLvl.getEntitiesOfClass(Breeze.class, player.getBoundingBox().inflate(64.0), Entity::isAlive);
+                        var nearbyBreezes = sLvl.getEntitiesOfClass(Breeze.class, player.getBoundingBox().inflate(32.0), Entity::isAlive);
                         if (nearbyBreezes.size() >= 3) continue;
 
-                        if (ThreadLocalRandom.current().nextFloat() < 0.20f) {
+                        if (ThreadLocalRandom.current().nextFloat() < 0.15f) {
                             intentarSpawnearBreezeDia(sLvl, player, breezeType);
                         }
                     }
@@ -934,6 +973,73 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
+            // Paranoia Nocturna (Nivel 1): Nivel de luz 0 por >15s -> pasos/siseos a la espalda y Ceguera I por 2s cada 40s
+            if (CursosActivos.isParanoiaNocturna() && currentTick % 20 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) {
+                        TICKS_OSCURIDAD_PARANOIA.remove(player.getUUID());
+                        continue;
+                    }
+                    ServerLevel sLvl = (ServerLevel) player.level();
+                    BlockPos pos = player.blockPosition();
+                    int blockLight = sLvl.getBrightness(LightLayer.BLOCK, pos);
+                    int skyLight = Math.max(0, sLvl.getBrightness(LightLayer.SKY, pos) - sLvl.getSkyDarken());
+                    int totalLight = Math.max(blockLight, skyLight);
+
+                    int acumulados = TICKS_OSCURIDAD_PARANOIA.getOrDefault(player.getUUID(), 0);
+                    if (totalLight == 0) {
+                        acumulados = Math.min(2400, acumulados + 20);
+                    } else {
+                        acumulados = Math.max(0, acumulados - 40);
+                    }
+                    TICKS_OSCURIDAD_PARANOIA.put(player.getUUID(), acumulados);
+
+                    if (acumulados >= 300) {
+                        long lastTrigger = ULTIMA_PARANOIA_NOTIFICACION.getOrDefault(player.getUUID(), -1000L);
+                        if (sLvl.getGameTime() - lastTrigger >= 800L) {
+                            ULTIMA_PARANOIA_NOTIFICACION.put(player.getUUID(), sLvl.getGameTime());
+                            player.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 40, 0, false, false, true));
+
+                            Vec3 look = player.getLookAngle();
+                            double sx = player.getX() - look.x * 2.5;
+                            double sy = player.getY();
+                            double sz = player.getZ() - look.z * 2.5;
+                            if (ThreadLocalRandom.current().nextBoolean()) {
+                                sLvl.playSound(null, sx, sy, sz, SoundEvents.CREEPER_PRIMED, SoundSource.HOSTILE, 1.3f, 0.95f);
+                            } else {
+                                sLvl.playSound(null, sx, sy, sz, SoundEvents.ZOMBIE_STEP, SoundSource.HOSTILE, 1.5f, 0.8f);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Mares Ácidos (Nivel 6): Agua corrosiva en Overworld (2 corazones/s y desgaste x3 de armadura)
+            if (CursosActivos.isMaresAcidos() && currentTick % 20 == 0) {
+                EquipmentSlot[] armorSlots = {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                    if (player.level().dimension().equals(Level.OVERWORLD) && (player.isInWater() || player.isUnderWater())) {
+                        ServerLevel sLvl = (ServerLevel) player.level();
+                        player.hurtServer(sLvl, sLvl.damageSources().magic(), 4.0f);
+                        for (EquipmentSlot slot : armorSlots) {
+                            ItemStack piece = player.getItemBySlot(slot);
+                            if (!piece.isEmpty() && piece.isDamageableItem()) {
+                                int newDmg = piece.getDamageValue() + 3;
+                                if (newDmg >= piece.getMaxDamage()) {
+                                    player.setItemSlot(slot, ItemStack.EMPTY);
+                                    sLvl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.0f, 1.0f);
+                                } else {
+                                    piece.setDamageValue(newDmg);
+                                }
+                            }
+                        }
+                        sLvl.sendParticles(ParticleTypes.ITEM_SLIME, player.getX(), player.getY() + 0.6, player.getZ(), 14, 0.35, 0.45, 0.35, 0.05);
+                        sLvl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.LAVA_EXTINGUISH, SoundSource.PLAYERS, 0.65f, 1.3f);
+                    }
+                }
+            }
+
             // Escopeta (Nivel 4): Pillagers con Multishot VI, Carga Rápida II y Perforación V
             if (CursosActivos.isEscopeta() && currentTick % 40 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
@@ -945,14 +1051,122 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Poder en la Mano (Nivel 4): Piglins Brutos con Hacha de Diamante Filo V
-            if (CursosActivos.isPoderEnLaMano() && currentTick % 40 == 0) {
+            // El Verdugo (Nivel 6): Piglins Brutos gigantes y letales
+            if (CursosActivos.isElVerdugo() && currentTick % 40 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof PiglinBrute brute && !brute.entityTags().contains("poder_mano_equipado")) {
-                            equiparPoderEnLaMano(brute, lvl);
+                        if (entity instanceof PiglinBrute brute && !brute.entityTags().contains("piglin_verdugo_evaluado")) {
+                            evaluarVerdugo(brute, lvl);
                         }
                     }
+                }
+            }
+
+            // Phantom Alfa (Nivel 5): evaluar Phantoms y ataque sónico en picada
+            if (CursosActivos.isPhantomAlfa() && currentTick % 10 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Phantom phantom && phantom.isAlive()) {
+                            if (!phantom.entityTags().contains("phantom_alfa_evaluado")) {
+                                evaluarPhantomAlfa(phantom);
+                            }
+                            if (phantom.entityTags().contains("phantom_alfa")) {
+                                ejecutarOndaPhantomAlfa(phantom, lvl, currentTick);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Parece que va´ llover (Nivel 6): Tormentas frecuentes y rayos atraídos por armadura y herramientas metálicas
+            if (CursosActivos.isPareceQueVaALlover()) {
+                ServerLevel overworld = server.overworld();
+                // Aumentar la frecuencia de tormentas eléctricas si está despejado
+                if (currentTick % 900 == 0 && !overworld.isThundering()) {
+                    if (ThreadLocalRandom.current().nextFloat() < 0.20f) {
+                        server.getCommands().performPrefixedCommand(server.createCommandSourceStack().withSuppressedOutput(), "weather thunder 6000");
+                        server.getPlayerList().broadcastSystemMessage(
+                                Component.literal("§8⚡ El cielo se oscurece con truenos retumbantes... Parece que va´ llover..."), false);
+                    }
+                }
+
+                // Durante tormenta eléctrica en el Overworld
+                if (overworld.isThundering()) {
+                    for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                        if (!player.isAlive() || player.isCreative() || player.isSpectator()) {
+                            TICKS_AVISO_RAYO.remove(player.getUUID());
+                            continue;
+                        }
+                        if (!player.level().dimension().equals(Level.OVERWORLD)) continue;
+
+                        UUID pid = player.getUUID();
+                        ServerLevel sLvl = (ServerLevel) player.level();
+                        boolean cieloAbierto = sLvl.canSeeSky(player.blockPosition());
+                        boolean tieneMetal = tieneConductorEquipado(player);
+
+                        if (TICKS_AVISO_RAYO.containsKey(pid)) {
+                            int remaining = TICKS_AVISO_RAYO.get(pid);
+                            // Si se despojó completamente de la armadura y no sostiene metales, se cancela el rayo
+                            if (!tieneMetal) {
+                                TICKS_AVISO_RAYO.remove(pid);
+                                player.sendSystemMessage(Component.literal("§a⚡ La carga eléctrica se ha disipado a tierra..."), true);
+                                sLvl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.FIRE_EXTINGUISH, SoundSource.PLAYERS, 0.8f, 1.2f);
+                                continue;
+                            }
+
+                            // Contador de aviso previo de 10s (200 ticks) con partículas de estática
+                            remaining--;
+                            if (remaining > 0) {
+                                TICKS_AVISO_RAYO.put(pid, remaining);
+                                if (currentTick % 2 == 0) {
+                                    sLvl.sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                                            player.getX(), player.getY() + 1.0, player.getZ(),
+                                            6, 0.35, 0.55, 0.35, 0.05);
+                                }
+                                if (remaining % 20 == 0) {
+                                    int segs = remaining / 20;
+                                    player.sendSystemMessage(
+                                            Component.literal("§c⚡ ¡Rayo inminente en " + segs + "s! ¡Quítate la armadura y suelta herramientas metálicas!"), true);
+                                    sLvl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.BEE_STING, SoundSource.PLAYERS, 0.7f, 0.5f);
+                                }
+                            } else {
+                                // Expiraron los 10 segundos y sigue con metales: impacto fulminante
+                                TICKS_AVISO_RAYO.remove(pid);
+                                EntityType<?> boltType = getLightningBoltType();
+                                if (boltType != null) {
+                                    Entity bolt = boltType.create(sLvl, EntitySpawnReason.EVENT);
+                                    if (bolt != null) {
+                                        bolt.setPos(player.getX(), player.getY(), player.getZ());
+                                        sLvl.addFreshEntity(bolt);
+                                    }
+                                }
+                                int previos = RAYOS_IMPACTADOS.getOrDefault(pid, 0);
+                                RAYOS_IMPACTADOS.put(pid, previos + 1);
+                            }
+                        } else {
+                            // Evaluación periódica de selección cada 200 ticks (10s)
+                            if (currentTick % 200 == 0 && cieloAbierto && tieneMetal) {
+                                int previos = RAYOS_IMPACTADOS.getOrDefault(pid, 0);
+                                float prob;
+                                if (previos == 0) {
+                                    prob = 0.15f; // 15% base
+                                } else if (previos == 1) {
+                                    prob = 0.45f; // +30% tras el primer impacto
+                                } else {
+                                    prob = Math.min(0.95f, 0.45f + (previos - 1) * 0.05f); // +5% acumulativo adicional
+                                }
+
+                                if (ThreadLocalRandom.current().nextFloat() < prob) {
+                                    TICKS_AVISO_RAYO.put(pid, 200); // 10s de aviso previo
+                                    player.sendSystemMessage(
+                                            Component.literal("§e⚡ ¡La estática eriza tu piel! ¡Quítate la armadura y suelta las herramientas de metal!"), true);
+                                    sLvl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER, 0.4f, 1.8f);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    TICKS_AVISO_RAYO.clear();
                 }
             }
 
@@ -984,6 +1198,18 @@ public class Ruleta_Hardcore implements ModInitializer {
                     for (Entity entity : lvl.getAllEntities()) {
                         if (entity instanceof Hoglin hoglin && hoglin.isAlive() && hoglin.entityTags().contains("mega_hoglin")) {
                             hoglin.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 0));
+                        }
+                    }
+                }
+            }
+
+            // Giga-Endermite (Nivel 5): ataque anunciado y embestida/salto hacia el jugador
+            if (CursosActivos.isGigaEndermite() && currentTick % 20 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Endermite endermite && endermite.isAlive()
+                                && endermite.entityTags().contains("giga_endermite")) {
+                            ejecutarAtaqueGigaEndermite(endermite, lvl, currentTick);
                         }
                     }
                 }
@@ -1320,7 +1546,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                 CursosActivos.isBloodMoonActive(),
                 CursosActivos.isEclipseActive(),
                 CursosActivos.isContaminacion(),
-                CursosActivos.isCuevasTenebrosas()
+                CursosActivos.isCuevasTenebrosas(),
+                CursosActivos.isMaresAcidos()
         );
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             ServerPlayNetworking.send(player, payload);
@@ -1777,18 +2004,74 @@ public class Ruleta_Hardcore implements ModInitializer {
         }
     }
 
-    public static void equiparPoderEnLaMano(PiglinBrute brute, ServerLevel level) {
-        if (brute.entityTags().contains("poder_mano_equipado")) return;
-        brute.addTag("poder_mano_equipado");
+    public static void evaluarVerdugo(PiglinBrute brute, ServerLevel level) {
+        if (brute.entityTags().contains("piglin_verdugo_evaluado")) return;
+        brute.addTag("piglin_verdugo_evaluado");
 
-        ItemStack axe = new ItemStack(Items.DIAMOND_AXE);
-        level.registryAccess().lookup(Registries.ENCHANTMENT).ifPresent(reg -> {
-            reg.get(Enchantments.SHARPNESS).ifPresent(sharpnessHolder -> {
-                axe.enchant(sharpnessHolder, 5);
+        if (ThreadLocalRandom.current().nextFloat() < 0.15f) {
+            brute.addTag("piglin_verdugo");
+            brute.setCustomName(Component.literal("§4El Verdugo"));
+            brute.setCustomNameVisible(true);
+
+            AttributeInstance scaleAttr = brute.getAttribute(Attributes.SCALE);
+            if (scaleAttr != null) {
+                scaleAttr.setBaseValue(1.5);
+            }
+            AttributeInstance hpAttr = brute.getAttribute(Attributes.MAX_HEALTH);
+            if (hpAttr != null) {
+                hpAttr.setBaseValue(80.0);
+                brute.setHealth(80.0f);
+            }
+
+            ItemStack axe = new ItemStack(Items.NETHERITE_AXE);
+            level.registryAccess().lookup(Registries.ENCHANTMENT).ifPresent(reg -> {
+                reg.get(Enchantments.SHARPNESS).ifPresent(sharpnessHolder -> {
+                    axe.enchant(sharpnessHolder, 6);
+                });
             });
-        });
-        brute.setItemSlot(EquipmentSlot.MAINHAND, axe);
-        brute.setDropChance(EquipmentSlot.MAINHAND, 0.05f);
+            brute.setItemSlot(EquipmentSlot.MAINHAND, axe);
+            brute.setDropChance(EquipmentSlot.MAINHAND, 0.08f);
+        }
+    }
+
+    public static void evaluarPhantomAlfa(Phantom phantom) {
+        if (phantom.entityTags().contains("phantom_alfa_evaluado")) return;
+        phantom.addTag("phantom_alfa_evaluado");
+        phantom.addTag("phantom_alfa");
+        phantom.addTag("eclipse_inmune_sol");
+        phantom.setCustomName(Component.literal("§cPhantom Alfa"));
+        phantom.setCustomNameVisible(true);
+
+        AttributeInstance scaleAttr = phantom.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(2.5);
+        }
+        AttributeInstance hpAttr = phantom.getAttribute(Attributes.MAX_HEALTH);
+        if (hpAttr != null) {
+            hpAttr.setBaseValue(60.0);
+            phantom.setHealth(60.0f);
+        }
+    }
+
+    public static void ejecutarOndaPhantomAlfa(Phantom phantom, ServerLevel level, long currentTick) {
+        if (phantom.getDeltaMovement().y > -0.05) return;
+        long lastWave = ULTIMA_ONDA_PHANTOM_ALFA.getOrDefault(phantom.getUUID(), -1000L);
+        if (currentTick - lastWave < 100L) return;
+
+        List<Player> targets = level.getEntitiesOfClass(
+                Player.class,
+                phantom.getBoundingBox().inflate(12.0),
+                p -> p.isAlive() && !p.isCreative() && !p.isSpectator()
+        );
+        if (targets.isEmpty()) return;
+
+        ULTIMA_ONDA_PHANTOM_ALFA.put(phantom.getUUID(), currentTick);
+        level.sendParticles(ParticleTypes.SONIC_BOOM, phantom.getX(), phantom.getY(), phantom.getZ(), 1, 0, 0, 0, 0);
+        level.playSound(null, phantom.getX(), phantom.getY(), phantom.getZ(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 1.5f, 1.0f);
+
+        for (Player target : targets) {
+            target.hurtServer(level, level.damageSources().sonicBoom(phantom), 6.0f);
+        }
     }
 
     public static void prepararEnderGhast(Ghast ghast, ServerLevel level) {
@@ -1824,6 +2107,24 @@ public class Ruleta_Hardcore implements ModInitializer {
                 );
             }
         }
+    }
+
+    public static boolean tieneConductorEquipado(ServerPlayer player) {
+        for (EquipmentSlot slot : new EquipmentSlot[]{EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET}) {
+            if (!player.getItemBySlot(slot).isEmpty()) {
+                return true;
+            }
+        }
+        return esHerramientaConductora(player.getMainHandItem()) || esHerramientaConductora(player.getOffhandItem());
+    }
+
+    public static boolean esHerramientaConductora(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        String path = BuiltInRegistries.ITEM.getKey(stack.getItem()).getPath();
+        return path.startsWith("iron_") || path.startsWith("golden_") || path.startsWith("gold_")
+                || path.startsWith("diamond_") || path.startsWith("netherite_")
+                || path.contains("shears") || path.contains("trident") || path.contains("mace")
+                || path.contains("shield");
     }
 
     public static void evaluarSlimePantano(Slime slime, ServerLevel level) {
@@ -1917,6 +2218,69 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (kbAttr != null) {
             kbAttr.setBaseValue(1.0);
         }
+    }
+
+    public static void ejecutarAtaqueGigaEndermite(Endermite endermite, ServerLevel level, long currentTick) {
+        LivingEntity target = endermite.getTarget();
+        if (target == null || !target.isAlive() || (target instanceof Player p && (p.isCreative() || p.isSpectator()))) {
+            target = level.getNearestPlayer(
+                    endermite.getX(), endermite.getY(), endermite.getZ(),
+                    28.0,
+                    e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+            );
+            if (target != null) {
+                endermite.setTarget(target);
+            }
+        }
+        if (target == null) return;
+
+        double dx = target.getX() - endermite.getX();
+        double dy = target.getY() - endermite.getY();
+        double dz = target.getZ() - endermite.getZ();
+        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist < 2.5 || dist > 20.0) return;
+
+        long phase = currentTick % 80;
+        if (phase == 40) {
+            // Fase de anuncio del ataque: partículas de energía del vacío y sonido de carga
+            level.sendParticles(
+                    ParticleTypes.REVERSE_PORTAL,
+                    endermite.getX(), endermite.getY() + 1.0, endermite.getZ(),
+                    35, 0.8, 0.8, 0.8, 0.15
+            );
+            level.playSound(
+                    null, endermite.getX(), endermite.getY(), endermite.getZ(),
+                    SoundEvents.ENDERMAN_SCREAM, SoundSource.HOSTILE, 1.4f, 0.55f
+            );
+        } else if (phase == 0) {
+            // Fase de embestida / salto anunciado hacia el jugador
+            double vx = (dx / dist) * 1.35;
+            double vy = Math.max(0.42, Math.min(0.75, (dy / dist) * 0.6 + 0.45));
+            double vz = (dz / dist) * 1.35;
+            endermite.setDeltaMovement(vx, vy, vz);
+            level.sendParticles(
+                    ParticleTypes.PORTAL,
+                    endermite.getX(), endermite.getY() + 0.8, endermite.getZ(),
+                    40, 0.6, 0.6, 0.6, 0.25
+            );
+            level.playSound(
+                    null, endermite.getX(), endermite.getY(), endermite.getZ(),
+                    SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.5f, 0.7f
+            );
+        }
+    }
+
+    private static boolean esBloqueMineral(BlockState state) {
+        return state.is(Blocks.COAL_ORE) || state.is(Blocks.DEEPSLATE_COAL_ORE)
+                || state.is(Blocks.IRON_ORE) || state.is(Blocks.DEEPSLATE_IRON_ORE)
+                || state.is(Blocks.COPPER_ORE) || state.is(Blocks.DEEPSLATE_COPPER_ORE)
+                || state.is(Blocks.GOLD_ORE) || state.is(Blocks.DEEPSLATE_GOLD_ORE) || state.is(Blocks.NETHER_GOLD_ORE)
+                || state.is(Blocks.REDSTONE_ORE) || state.is(Blocks.DEEPSLATE_REDSTONE_ORE)
+                || state.is(Blocks.EMERALD_ORE) || state.is(Blocks.DEEPSLATE_EMERALD_ORE)
+                || state.is(Blocks.LAPIS_ORE) || state.is(Blocks.DEEPSLATE_LAPIS_ORE)
+                || state.is(Blocks.DIAMOND_ORE) || state.is(Blocks.DEEPSLATE_DIAMOND_ORE)
+                || state.is(Blocks.NETHER_QUARTZ_ORE)
+                || state.is(Blocks.ANCIENT_DEBRIS);
     }
 
     public static void evaluarMegaHoglin(Hoglin hoglin, ServerLevel level) {
@@ -2434,6 +2798,15 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .orElse(null);
         }
         return CREAKING_TYPE_CACHE;
+    }
+
+    private static EntityType<?> getLightningBoltType() {
+        if (LIGHTNING_BOLT_TYPE_CACHE == null) {
+            LIGHTNING_BOLT_TYPE_CACHE = BuiltInRegistries.ENTITY_TYPE
+                    .getOptional(Identifier.fromNamespaceAndPath("minecraft", "lightning_bolt"))
+                    .orElse(null);
+        }
+        return LIGHTNING_BOLT_TYPE_CACHE;
     }
 
     private static void intentarSpawnearBreezeDia(ServerLevel level, ServerPlayer player, EntityType<?> breezeType) {

@@ -10,11 +10,12 @@ public record BloodMoonSyncPayload(
         boolean active,
         boolean eclipseActive,
         boolean contaminacionActive,
-        boolean cuevasTenebrosasActive
+        boolean cuevasTenebrosasActive,
+        boolean maresAcidosActive
 ) implements CustomPacketPayload {
 
     public BloodMoonSyncPayload(boolean active) {
-        this(active, false, false, false);
+        this(active, false, false, false, false);
     }
 
     public static final CustomPacketPayload.Type<BloodMoonSyncPayload> TYPE =
@@ -25,6 +26,7 @@ public record BloodMoonSyncPayload(
             ByteBufCodecs.BOOL, BloodMoonSyncPayload::eclipseActive,
             ByteBufCodecs.BOOL, BloodMoonSyncPayload::contaminacionActive,
             ByteBufCodecs.BOOL, BloodMoonSyncPayload::cuevasTenebrosasActive,
+            ByteBufCodecs.BOOL, BloodMoonSyncPayload::maresAcidosActive,
             BloodMoonSyncPayload::new
     );
 

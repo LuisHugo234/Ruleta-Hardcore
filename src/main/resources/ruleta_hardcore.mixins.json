@@ -16,7 +16,8 @@
 		"WitchMixin",
 		"LavaFluidMixin",
 		"VillagerMixin",
-		"CreeperMixin"
+		"CreeperMixin",
+		"SmallFireballMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

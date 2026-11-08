@@ -32,7 +32,7 @@ public abstract class VillagerMixin {
         }
         Villager self = (Villager) (Object) this;
         if (!self.isBaby() && self.level() instanceof ServerLevel serverLevel) {
-            if (ThreadLocalRandom.current().nextFloat() < 0.50f) {
+            if (ThreadLocalRandom.current().nextFloat() < 0.25f) {
                 this.setVillagerData(this.getVillagerData().withProfession(serverLevel.registryAccess(), VillagerProfession.NITWIT));
                 this.refreshBrain(serverLevel);
             }

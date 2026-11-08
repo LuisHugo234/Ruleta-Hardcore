@@ -1,7 +1,9 @@
 package com.luishugomod01.mixin;
 
 import com.luishugomod01.ruleta.CursosActivos;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -14,18 +16,24 @@ import net.minecraft.world.damagesource.DamageTypes;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.animal.chicken.Chicken;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.ElderGuardian;
 import net.minecraft.world.entity.monster.Ghast;
+import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Silverfish;
 import net.minecraft.world.entity.monster.Vex;
+import net.minecraft.world.entity.monster.piglin.PiglinBrute;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.hurtingprojectile.LargeFireball;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biomes;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -49,6 +57,12 @@ public abstract class LivingEntityMixin {
 
     @Unique
     private boolean ruleta$lastUsedWasFood;
+
+    @Unique
+    private final java.util.ArrayDeque<Long> ruleta$shieldHitTicks = new java.util.ArrayDeque<>();
+
+    @Unique
+    private long ruleta$cegueraAbisalExpiry = 0L;
 
     @Inject(method = "onClimbable", at = @At("HEAD"), cancellable = true)
     private void ruleta$escalarParedes(CallbackInfoReturnable<Boolean> cir) {
@@ -103,10 +117,20 @@ public abstract class LivingEntityMixin {
             }
         }
 
-        // Cucaracha Plateada: los lepismas otorgan Lentitud II por 5s (100 ticks) al golpear al jugador
+        // Cucaracha Plateada: los lepismas otorgan Lentitud II por 5s (100 ticks) al golpear al jugador y alertan a otros lepismas a un máximo de 12 bloques
         if (CursosActivos.isCucarachaPlateada() && cir.getReturnValueZ()
                 && self instanceof Player player && damageSource.getEntity() instanceof Silverfish) {
             player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 100, 1));
+            List<Silverfish> nearbySilverfish = level.getEntitiesOfClass(
+                    Silverfish.class,
+                    player.getBoundingBox().inflate(12.0),
+                    Entity::isAlive
+            );
+            for (Silverfish sf : nearbySilverfish) {
+                if (sf.getTarget() == null || !sf.getTarget().isAlive()) {
+                    sf.setTarget(player);
+                }
+            }
         }
 
         // Rey de lo Profundo (Nivel 4): el Elder Guardian aplica Debilidad I (+1 por cada golpe recibido por el rayo) por 20s (400 ticks)
@@ -116,6 +140,39 @@ public abstract class LivingEntityMixin {
             MobEffectInstance currentWeakness = player.getEffect(MobEffects.WEAKNESS);
             int nextAmplifier = (currentWeakness != null) ? Math.min(254, currentWeakness.getAmplifier() + 1) : 0;
             player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 400, nextAmplifier));
+        }
+
+        // El Verdugo (Nivel 6): Piglin Bruto con golpe crítico desarma temporalmente al jugador (suelta el arma)
+        if (CursosActivos.isElVerdugo() && cir.getReturnValueZ()
+                && damageSource.getEntity() instanceof PiglinBrute brute && brute.entityTags().contains("piglin_verdugo")
+                && self instanceof ServerPlayer sp) {
+            boolean esCritico = (brute.fallDistance > 0.0f && !brute.onGround()) || ThreadLocalRandom.current().nextFloat() < 0.35f;
+            if (esCritico) {
+                level.sendParticles(ParticleTypes.CRIT, sp.getX(), sp.getY() + 1.0, sp.getZ(), 20, 0.3, 0.4, 0.3, 0.15);
+                level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.2f, 0.8f);
+                level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.PIGLIN_BRUTE_ANGRY, SoundSource.HOSTILE, 1.2f, 0.9f);
+                ItemStack held = sp.getMainHandItem();
+                if (!held.isEmpty()) {
+                    ItemEntity dropped = new ItemEntity(level, sp.getX(), sp.getY() + 0.5, sp.getZ(), held.copy());
+                    dropped.setDefaultPickUpDelay();
+                    level.addFreshEntity(dropped);
+                    sp.setItemSlot(EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+                    sp.getCooldowns().addCooldown(held, 60);
+                    sp.sendSystemMessage(Component.literal("§4§l⚔ ¡DESARMADO! §c¡El Verdugo ha conectado un golpe crítico y te ha desarmado!"));
+                }
+            }
+        }
+
+        // Ceguera Abisal (Nivel 5): En el End o Deep Dark, cualquier golpe de un mob hostil aplica Ceguera y Oscuridad por 8s
+        if (CursosActivos.isCegueraAbisal() && cir.getReturnValueZ()
+                && self instanceof ServerPlayer sp && damageSource.getEntity() instanceof Monster) {
+            boolean enEnd = sp.level().dimension().equals(Level.END);
+            boolean enDeepDark = sp.level().getBiome(sp.blockPosition()).is(Biomes.DEEP_DARK);
+            if (enEnd || enDeepDark) {
+                sp.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, 160, 0, false, true, true));
+                sp.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 160, 0, false, true, true));
+                this.ruleta$cegueraAbisalExpiry = level.getGameTime() + 160L;
+            }
         }
     }
 
@@ -127,6 +184,23 @@ public abstract class LivingEntityMixin {
             int currentFood = sp.getFoodData().getFoodLevel();
             sp.getFoodData().setFoodLevel(Math.max(0, currentFood - 2));
             sp.causeFoodExhaustion(4.0f);
+
+            // Deshabilitar el escudo al recibir 5 golpes seguidos en un rango de 10 segundos (200 ticks)
+            long now = level.getGameTime();
+            while (!this.ruleta$shieldHitTicks.isEmpty() && now - this.ruleta$shieldHitTicks.peekFirst() > 200L) {
+                this.ruleta$shieldHitTicks.pollFirst();
+            }
+            this.ruleta$shieldHitTicks.addLast(now);
+            if (this.ruleta$shieldHitTicks.size() >= 5) {
+                this.ruleta$shieldHitTicks.clear();
+                ItemStack blockingStack = sp.getItemBlockingWith();
+                if (blockingStack == null || blockingStack.isEmpty()) {
+                    blockingStack = new ItemStack(Items.SHIELD);
+                }
+                sp.getCooldowns().addCooldown(blockingStack, 100);
+                sp.stopUsingItem();
+                level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.SHIELD_BREAK, SoundSource.PLAYERS, 1.0f, 0.9f);
+            }
         }
     }
 
@@ -169,6 +243,16 @@ public abstract class LivingEntityMixin {
         if (CursosActivos.isContaminacionCruzada() && ruleta$esAlimentoCrudo(consumed)) {
             self.addEffect(new MobEffectInstance(MobEffects.HUNGER, 400, 1));
             self.addEffect(new MobEffectInstance(MobEffects.POISON, 160, 0));
+        }
+
+        // Ceguera Abisal: la leche no puede disipar la Ceguera y Oscuridad mientras sigan activas
+        if (CursosActivos.isCegueraAbisal() && consumed == Items.MILK_BUCKET && this.ruleta$cegueraAbisalExpiry > self.level().getGameTime()) {
+            int remaining = (int) (this.ruleta$cegueraAbisalExpiry - self.level().getGameTime());
+            self.addEffect(new MobEffectInstance(MobEffects.BLINDNESS, remaining, 0, false, true, true));
+            self.addEffect(new MobEffectInstance(MobEffects.DARKNESS, remaining, 0, false, true, true));
+            if (self instanceof ServerPlayer sp) {
+                sp.sendOverlayMessage(Component.literal("§8§l¡La Ceguera Abisal no puede disiparse con leche!").withStyle(ChatFormatting.DARK_RED));
+            }
         }
     }
 
