@@ -120,6 +120,26 @@ public class CatalogoCastigos {
                 "Permanecer con nivel de luz 0 por >15s provoca pasos falsos y Ceguera I por 2 segundos cada 40 segundos.",
                 (level, player) -> CursosActivos.activarParanoiaNocturna());
 
+        registrar("refuerzospodridos", NivelRuleta.NIVEL_1, "Refuerzos Podridos",
+                "Al morir un zombi, tiene un 10% de probabilidad de invocar un zombi bebé.",
+                (level, player) -> CursosActivos.activarRefuerzosPodridos());
+
+        registrar("maldicionyunque", NivelRuleta.NIVEL_1, "La Maldición del Yunque",
+                "Los yunques tienen un 10% de probabilidad de generar una pequeña explosión al romperse por desgaste.",
+                (level, player) -> CursosActivos.activarMaldicionYunque());
+
+        registrar("inventariopesado", NivelRuleta.NIVEL_1, "Inventario Pesado",
+                "Si tienes el inventario completamente lleno (cada slot con al menos un ítem), no puedes correr.",
+                (level, player) -> CursosActivos.activarInventarioPesado());
+
+        registrar("caidabrutal", NivelRuleta.NIVEL_1, "Caída Brutal",
+                "El daño por caída aumenta un 25%, sin importar la armadura que lleves.",
+                (level, player) -> CursosActivos.activarCaidaBrutal());
+
+        registrar("ojosenlaoscuridad", NivelRuleta.NIVEL_1, "Ojos en la Oscuridad",
+                "Los Enderman pueden volverse agresivos si te acercas a menos de 3 bloques, incluso sin mirarlos.",
+                (level, player) -> CursosActivos.activarOjosEnLaOscuridad());
+
         // --- NIVEL 2 ---
         registrar("speedpers", NivelRuleta.NIVEL_2, "Speedpers",
                 "Todos los Creepers del Overworld (excepto Creepers Escondidos) tienen Velocidad II permanente.",
@@ -189,6 +209,14 @@ public class CatalogoCastigos {
                 "5% de probabilidad al romper minerales de provocar una explosión pequeña sin destruir bloques.",
                 (level, player) -> CursosActivos.activarMineriaInestable());
 
+        registrar("telaranaalfallo", NivelRuleta.NIVEL_2, "Telaraña al Fallo",
+                "Cuando una araña salta con éxito sobre el cuerpo de un jugador, coloca un bloque temporal de telaraña pegajosa en sus pies que dura 2.5 segundos antes de desvanecerse.",
+                (level, player) -> CursosActivos.activarTelaranaAlFallo());
+
+        registrar("brujareflejante", NivelRuleta.NIVEL_2, "Bruja Reflejante",
+                "Las brujas tienen un 30% de probabilidad de repeler proyectiles: cualquier flecha o tridente que le disparen rebota en un escudo mágico visible y sale disparado de vuelta hacia el jugador.",
+                (level, player) -> CursosActivos.activarBrujaReflejante());
+
         // --- NIVEL 3 ---
         registrar("errortotemico", NivelRuleta.NIVEL_3, "Error Totémico",
                 "Los Tótems de Inmortalidad tienen un 2% de probabilidad de fallar.",
@@ -242,6 +270,14 @@ public class CatalogoCastigos {
                 "Permanecer en el desierto acumula insolación (1 corazón cada 2s). Se reinicia con agua o al beber, y se evita con casco (gastando durabilidad).",
                 (level, player) -> CursosActivos.activarDesiertoAbrasador());
 
+        registrar("pykete", NivelRuleta.NIVEL_3, "Pykete",
+                "Los tridentes arrojados por los ahogados tienen un hilo espectral atado: si impactan al jugador, además del daño, lo arrastran 5 bloques hacia el ahogado, jalándolo hacia lo profundo del agua.",
+                (level, player) -> CursosActivos.activarPykete());
+
+        registrar("fragmentacionhelada", NivelRuleta.NIVEL_3, "Fragmentación Helada",
+                "Al morir un Stray (esqueleto del bioma helado), su cuerpo se quiebra en una ráfaga de esquirlas congeladas que transforma el suelo en un radio de 4 bloques en hielo resbaladizo e inflige el efecto de Congelación Profunda inmediata a quien esté cerca.",
+                (level, player) -> CursosActivos.activarFragmentacionHelada());
+
         // --- NIVEL 4 ---
         registrar("danocolateral", NivelRuleta.NIVEL_4, "Daño Colateral",
                 "Las Ender Pearls hacen x3 su daño original e ignoran armadura.",
@@ -268,7 +304,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarReyDeLoProfundo());
 
         registrar("ataqueslimes", NivelRuleta.NIVEL_4, "Ataque a los Slimes",
-                "5% de probabilidad de que aparezca un Slime Gigante en pantanos con x2.5 de daño de un slime grande.",
+                "5% de probabilidad de que aparezca un Slime Gigante en los biomas de pantano con x2.5 de daño de un slime grande y un mega salto.",
                 (level, player) -> CursosActivos.activarAtaqueSlimes());
 
         registrar("tensionmuscular", NivelRuleta.NIVEL_4, "Tensión Muscular",
@@ -285,7 +321,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarSpiderman());
 
         registrar("enderghast", NivelRuleta.NIVEL_5, "Ender Ghast",
-                "El Ghast se vuelve más agresivo y sus proyectiles tienen un radio de explosión de 20 bloques.",
+                "El Ghast se vuelve mas agresivo y sus proyectiles hacen un x3 el daño explosivo.",
                 (level, player) -> CursosActivos.activarEnderGhast());
 
         registrar("kaboom", NivelRuleta.NIVEL_5, "KA-BOOM",
@@ -301,7 +337,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarMegaHoglin());
 
         registrar("creepercosmico", NivelRuleta.NIVEL_5, "Creeper Cósmico",
-                "Cerca de las End Cities puede aparecer (15%) un Creeper Eléctrico con radio de explosión de 30 bloques.",
+                "En el End puede aparecer (15%) un Creeper Eléctrico lentísimo con radio de explosión de 30 bloques y un centro de gravedad mayor que te arrastra hacia él en un radio de 30 bloques.",
                 (level, player) -> CursosActivos.activarCreeperCosmico());
 
         registrar("torbellinoigneo", NivelRuleta.NIVEL_5, "Torbellino Ígneo",
@@ -319,6 +355,10 @@ public class CatalogoCastigos {
         registrar("falladimensional", NivelRuleta.NIVEL_5, "Falla Dimensional",
                 "Al cruzar un portal del Nether hacia el Nether o de vuelta al Overworld, hay un 15% de probabilidad de que el portal sufra una sobrecarga que invoca instantáneamente 2 Blazes agresivos junto al marco.",
                 (level, player) -> CursosActivos.activarFallaDimensional());
+
+        registrar("multicreeper", NivelRuleta.NIVEL_5, "Multicreeper",
+                "Si un Creeper recibe daño de un arma cuerpo a cuerpo y sobrevive al golpe, tiene un 30% de probabilidad de dividirse instantáneamente en 2 mini-creepers con temporizador de mecha ultracorto (1 segundo) cuyas explosiones no dañan a creepers.",
+                (level, player) -> CursosActivos.activarMulticreeper());
 
         // --- NIVEL 6 ---
         registrar("permadeath", NivelRuleta.NIVEL_6, "PERMADEATH",
@@ -348,10 +388,6 @@ public class CatalogoCastigos {
                 "15% de Piglins Brutos aparecen gigantes (x1.5), 80 HP, Hacha de Netherite Filo VI y sus golpes críticos desarman al jugador.",
                 (level, player) -> CursosActivos.activarElVerdugo());
 
-        registrar("maresacidos", NivelRuleta.NIVEL_6, "Mares Ácidos",
-                "Todo cuerpo de agua en Overworld es verde corrosivo: sumergirse daña 2 corazones/s y triplica el desgaste de armadura.",
-                (level, player) -> CursosActivos.activarMaresAcidos());
-
         registrar("parecequevallover", NivelRuleta.NIVEL_6, "Parece que va´ llover",
                 "Tormentas frecuentes con probabilidad base de 15% de ser alcanzado por rayos si portas armadura o herramientas metálicas. Aviso de 10s con estática para despojarte de metales.",
                 (level, player) -> CursosActivos.activarPareceQueVaALlover());
@@ -363,5 +399,9 @@ public class CatalogoCastigos {
         registrar("corrupcionvacio", NivelRuleta.NIVEL_6, "Corrupción del Vacío",
                 "Cualquier golpe recibido de un Enderman o proyectil de Shulker desactiva por completo la protección de tu armadura durante 5 segundos (recibiendo daño como si estuvieras desnudo).",
                 (level, player) -> CursosActivos.activarCorrupcionVacio());
+
+        registrar("creeperantimateria", NivelRuleta.NIVEL_6, "Creeper de Implosión Antimateria",
+                "Existe una probabilidad pequeña de que aparezca un Creeper negro con partículas moradas del End. Al detonar, crea un vórtice gravitacional que succiona violentamente en un radio de 18 bloques durante 2.5 segundos antes de colapsar.",
+                (level, player) -> CursosActivos.activarCreeperAntimateria());
     }
 }

@@ -19,7 +19,7 @@ public abstract class CreeperModelMixin {
 
     @Inject(method = "setupAnim(Lnet/minecraft/client/renderer/entity/state/CreeperRenderState;)V", at = @At("TAIL"))
     private void ruleta$cabezaDobleCreepersEscondidos(CreeperRenderState state, CallbackInfo ci) {
-        if (state.scale > 0.01f && state.scale < 0.55f) {
+        if (state.scale > 0.01f && state.scale < 0.45f) {
             this.head.xScale = 2.0f;
             this.head.yScale = 2.0f;
             this.head.zScale = 2.0f;

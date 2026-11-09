@@ -17,7 +17,8 @@
 		"LavaFluidMixin",
 		"VillagerMixin",
 		"CreeperMixin",
-		"SmallFireballMixin"
+		"SmallFireballMixin",
+		"AnvilMenuMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

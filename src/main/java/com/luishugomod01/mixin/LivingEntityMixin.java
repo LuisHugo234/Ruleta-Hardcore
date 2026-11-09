@@ -30,6 +30,7 @@ import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.monster.Silverfish;
 import net.minecraft.world.entity.monster.Vex;
 import net.minecraft.world.entity.monster.piglin.PiglinBrute;
+import net.minecraft.world.entity.monster.spider.Spider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
 import net.minecraft.world.entity.projectile.hurtingprojectile.LargeFireball;
@@ -79,10 +80,23 @@ public abstract class LivingEntityMixin {
         }
     }
 
+    @Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)
+    private void ruleta$inmunidadCreeperMulticreeper(ServerLevel level, DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> cir) {
+        if ((Object) this instanceof Creeper && damageSource.is(DamageTypeTags.IS_EXPLOSION)
+                && damageSource.getEntity() instanceof Creeper sourceCreeper
+                && sourceCreeper.entityTags().contains("mini_multicreeper")) {
+            cir.setReturnValue(false);
+        }
+    }
+
     @ModifyVariable(method = "hurtServer", at = @At("HEAD"), argsOnly = true)
     private float ruleta$multiplicarDanoEntrante(float amount, ServerLevel level, DamageSource damageSource) {
         if (CursosActivos.isDanoColateral() && damageSource.is(DamageTypes.ENDER_PEARL)) {
             amount *= 3.0f;
+        }
+        if (CursosActivos.isCaidaBrutal() && (Object) this instanceof Player
+                && damageSource.is(DamageTypeTags.IS_FALL)) {
+            amount *= 1.25f;
         }
         if (CursosActivos.isMuerteEspinosa() && damageSource.is(DamageTypes.CACTUS)) {
             amount = 1.0E9f;
@@ -188,6 +202,24 @@ public abstract class LivingEntityMixin {
                 level.sendParticles(ParticleTypes.PORTAL, sp.getX(), sp.getY() + 1.0, sp.getZ(), 35, 0.35, 0.5, 0.35, 0.2);
                 level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.SHULKER_BULLET_HIT, SoundSource.PLAYERS, 1.2f, 0.5f);
                 sp.sendSystemMessage(Component.literal("§5§l☠ ¡CORRUPCIÓN DEL VACÍO! §dTu armadura ha quedado completamente inutilizada por 5 segundos..."), true);
+            }
+        }
+
+        // Telaraña al Fallo (Nivel 2): araña salta/impacta sobre el jugador y coloca telaraña temporal por 2.5s
+        if (CursosActivos.isTelaranaAlFallo() && cir.getReturnValueZ()
+                && self instanceof ServerPlayer sp && damageSource.getEntity() instanceof Spider) {
+            Ruleta_Hardcore.colocarTelaranaTemporal(level, sp.blockPosition());
+        }
+
+        // Multicreeper (Nivel 5): Creeper sobrevive a golpe cuerpo a cuerpo -> 30% de dividirse en 2 mini-creepers (mecha 1s)
+        if (CursosActivos.isMulticreeper() && cir.getReturnValueZ()
+                && self instanceof Creeper creeper && creeper.isAlive()
+                && !creeper.entityTags().contains("mini_multicreeper")
+                && damageSource.getDirectEntity() instanceof Player player
+                && !damageSource.is(DamageTypeTags.IS_PROJECTILE)
+                && !damageSource.is(DamageTypeTags.IS_EXPLOSION)) {
+            if (ThreadLocalRandom.current().nextFloat() < 0.30f) {
+                Ruleta_Hardcore.dividirMulticreeper(level, creeper, player);
             }
         }
     }
@@ -337,12 +369,16 @@ public abstract class LivingEntityMixin {
         if (CursosActivos.isDanoColateral() && damageSource.is(DamageTypes.ENDER_PEARL)) {
             cir.setReturnValue(damage);
         }
+        if (CursosActivos.isCaidaBrutal() && (Object) this instanceof Player && damageSource.is(DamageTypeTags.IS_FALL)) {
+            cir.setReturnValue(damage);
+        }
     }
 
     @Inject(method = "getDamageAfterMagicAbsorb", at = @At("HEAD"), cancellable = true)
     private void ruleta$ignorarEncantamientosArmaduraEnderPearl(DamageSource damageSource, float damage,
             CallbackInfoReturnable<Float> cir) {
-        if (CursosActivos.isDanoColateral() && damageSource.is(DamageTypes.ENDER_PEARL)) {
+        if ((CursosActivos.isDanoColateral() && damageSource.is(DamageTypes.ENDER_PEARL))
+                || (CursosActivos.isCaidaBrutal() && (Object) this instanceof Player && damageSource.is(DamageTypeTags.IS_FALL))) {
             LivingEntity self = (LivingEntity) (Object) this;
             if (self.hasEffect(MobEffects.RESISTANCE) && !damageSource.is(DamageTypeTags.BYPASSES_RESISTANCE)) {
                 var effect = self.getEffect(MobEffects.RESISTANCE);
@@ -352,6 +388,15 @@ public abstract class LivingEntityMixin {
                 }
             }
             cir.setReturnValue(damage);
+        }
+    }
+
+    @Inject(method = "setSprinting", at = @At("HEAD"), cancellable = true)
+    private void ruleta$bloquearCorrerInventarioPesado(boolean sprinting, CallbackInfo ci) {
+        if (sprinting && CursosActivos.isInventarioPesado() && (Object) this instanceof Player player
+                && !player.isCreative() && !player.isSpectator() && Ruleta_Hardcore.tieneInventarioLleno(player)) {
+            player.setSprinting(false);
+            ci.cancel();
         }
     }
 

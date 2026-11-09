@@ -8,7 +8,8 @@
 		"LightmapRenderStateExtractorMixin",
 		"FogRendererMixin",
 		"DeathScreenMixin",
-		"CreeperModelMixin"
+		"CreeperModelMixin",
+		"CreeperRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

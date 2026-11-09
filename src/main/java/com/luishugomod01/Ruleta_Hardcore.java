@@ -42,6 +42,7 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -62,6 +63,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.memory.MemoryModuleType;
@@ -144,6 +146,9 @@ public class Ruleta_Hardcore implements ModInitializer {
     private static final Map<UUID, Integer> TICKS_AVISO_RAYO = new HashMap<>();
     private static final Map<UUID, Integer> RAYOS_IMPACTADOS = new HashMap<>();
     private static final Map<UUID, Boolean> JUGADORES_SUELO_PREVIO = new HashMap<>();
+
+    public record VorticeAntimateria(ServerLevel level, double x, double y, double z, long tickFin) {}
+    private static final List<VorticeAntimateria> VORTICES_ANTIMATERIA = new ArrayList<>();
 
     public static Map<UUID, Integer> getRayosImpactados() {
         return RAYOS_IMPACTADOS;
@@ -281,7 +286,18 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("tensionmuscular").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "tensionmuscular")))
                     .then(Commands.literal("falladimensional").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "falladimensional")))
                     .then(Commands.literal("anomaliagravitacional").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "anomaliagravitacional")))
-                    .then(Commands.literal("corrupcionvacio").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "corrupcionvacio"))))
+                    .then(Commands.literal("corrupcionvacio").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "corrupcionvacio")))
+                    .then(Commands.literal("refuerzospodridos").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "refuerzospodridos")))
+                    .then(Commands.literal("maldicionyunque").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "maldicionyunque")))
+                    .then(Commands.literal("inventariopesado").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "inventariopesado")))
+                    .then(Commands.literal("caidabrutal").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "caidabrutal")))
+                    .then(Commands.literal("ojosenlaoscuridad").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "ojosenlaoscuridad")))
+                    .then(Commands.literal("telaranaalfallo").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "telaranaalfallo")))
+                    .then(Commands.literal("brujareflejante").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "brujareflejante")))
+                    .then(Commands.literal("pykete").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "pykete")))
+                    .then(Commands.literal("fragmentacionhelada").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "fragmentacionhelada")))
+                    .then(Commands.literal("multicreeper").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "multicreeper")))
+                    .then(Commands.literal("creeperantimateria").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creeperantimateria"))))
                 .then(Commands.literal("bloodmoon")
                     .then(Commands.literal("iniciar").executes(ctx -> {
                         var srv = ctx.getSource().getServer();
@@ -362,6 +378,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                     CursosActivos.limpiar();
                     CatalogoCastigos.reiniciar();
                     RuletaPersistencia.limpiar(srv);
+                    VORTICES_ANTIMATERIA.clear();
                     sincronizarLunaSangreClientes(srv);
                     for (ServerLevel lvl : srv.getAllLevels()) {
                         lvl.getGameRules().set(GameRules.NATURAL_HEALTH_REGENERATION, true, srv);
@@ -525,6 +542,29 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
+            // Refuerzos Podridos (Nivel 1): Al morir un zombi, 10% de probabilidad de invocar un zombi bebé
+            if (CursosActivos.isRefuerzosPodridos() && entity instanceof Zombie zombie && !zombie.isBaby()
+                    && zombie.level() instanceof ServerLevel serverLevel) {
+                if (ThreadLocalRandom.current().nextFloat() < 0.10f) {
+                    var created = zombie.getType().create(serverLevel, EntitySpawnReason.EVENT);
+                    if (created instanceof Zombie baby) {
+                        baby.snapTo(zombie.getX(), zombie.getY(), zombie.getZ(), zombie.getYRot(), 0.0f);
+                        baby.setBaby(true);
+                        if (zombie.getTarget() != null && zombie.getTarget().isAlive()) {
+                            baby.setTarget(zombie.getTarget());
+                        }
+                        serverLevel.addFreshEntity(baby);
+                        serverLevel.sendParticles(ParticleTypes.SOUL, zombie.getX(), zombie.getY() + 0.5, zombie.getZ(), 15, 0.3, 0.3, 0.3, 0.04);
+                        serverLevel.playSound(null, zombie.getX(), zombie.getY(), zombie.getZ(), SoundEvents.ZOMBIE_INFECT, SoundSource.HOSTILE, 1.2f, 1.3f);
+                    }
+                }
+            }
+
+            // Fragmentación Helada (Nivel 3): Al morir un Stray, transforma el suelo en hielo (4 bloques) e inflige Congelación Profunda
+            if (CursosActivos.isFragmentacionHelada() && entity instanceof Stray stray && stray.level() instanceof ServerLevel serverLevel) {
+                ejecutarFragmentacionHelada(stray, serverLevel);
+            }
+
             if (CursosActivos.isKaBoom() && entity instanceof Shulker shulker && shulker.level() instanceof ServerLevel serverLevel) {
                 double ex = shulker.getX();
                 double ey = shulker.getY() + 0.5;
@@ -667,6 +707,9 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (CursosActivos.isCreeperCosmico() && level.dimension().equals(Level.END)
                     && (entity instanceof Shulker || entity.getType() == getEndermanType())) {
                 evaluarSpawnCreeperCosmico(entity, level);
+            }
+            if (entity instanceof Creeper creeper && CursosActivos.isCreeperAntimateria()) {
+                evaluarCreeperAntimateria(creeper);
             }
             if (entity instanceof Monster monster && CursosActivos.isBloodMoonActive() && level.dimension().equals(Level.OVERWORLD)) {
                 aplicarBuffsLunaDeSangre(monster);
@@ -1699,6 +1742,201 @@ public class Ruleta_Hardcore implements ModInitializer {
                     }
                 }
             }
+
+            // Inventario Pesado (Nivel 1): Impide correr si todos los huecos del inventario están ocupados
+            if (CursosActivos.isInventarioPesado() && currentTick % 5 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                    if (tieneInventarioLleno(player)) {
+                        if (player.isSprinting()) {
+                            player.setSprinting(false);
+                        }
+                        player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 15, 0, true, false, true));
+                    }
+                }
+            }
+
+            // Ojos en la Oscuridad (Nivel 1): Endermans se vuelven hostiles a menos de 3 bloques sin mirarlos
+            if (CursosActivos.isOjosEnLaOscuridad() && currentTick % 10 == 0) {
+                EntityType<?> endermanType = getEndermanType();
+                if (endermanType != null) {
+                    for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                        if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                        ServerLevel sLvl = (ServerLevel) player.level();
+                        List<Mob> nearbyEndermen = sLvl.getEntitiesOfClass(
+                                Mob.class,
+                                player.getBoundingBox().inflate(3.0),
+                                e -> e.isAlive() && e.getType() == endermanType && e.distanceToSqr(player) <= 9.0
+                        );
+                        for (Mob enderman : nearbyEndermen) {
+                            if (enderman.getTarget() != player) {
+                                enderman.setTarget(player);
+                                if (enderman instanceof NeutralMob neutral) {
+                                    neutral.startPersistentAngerTimer();
+                                }
+                                sLvl.playSound(null, enderman.getX(), enderman.getY(), enderman.getZ(),
+                                        SoundEvents.ENDERMAN_STARE, SoundSource.HOSTILE, 1.0f, 1.0f);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Ataque a los Slimes (Nivel 4): Mega Salto periódico de los Slimes Gigantes de pantano
+            if (CursosActivos.isAtaqueSlimes() && currentTick % 60 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Slime slime && slime.isAlive()
+                                && slime.entityTags().contains("slime_gigante_pantano")
+                                && slime.onGround()) {
+                            Player nearest = lvl.getNearestPlayer(
+                                    slime.getX(), slime.getY(), slime.getZ(),
+                                    32.0,
+                                    e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+                            );
+                            double vx = slime.getDeltaMovement().x;
+                            double vz = slime.getDeltaMovement().z;
+                            if (nearest != null) {
+                                double dx = nearest.getX() - slime.getX();
+                                double dz = nearest.getZ() - slime.getZ();
+                                double horiz = Math.sqrt(dx * dx + dz * dz);
+                                if (horiz > 0.01) {
+                                    vx = (dx / horiz) * 0.95;
+                                    vz = (dz / horiz) * 0.95;
+                                }
+                            }
+                            slime.setDeltaMovement(vx, 1.45, vz);
+                            lvl.getChunkSource().sendToTrackingPlayers(slime, new ClientboundSetEntityMotionPacket(slime));
+                            lvl.playSound(null, slime.getX(), slime.getY(), slime.getZ(),
+                                    SoundEvents.SLIME_JUMP, SoundSource.HOSTILE, 2.0f, 0.5f);
+                            lvl.sendParticles(ParticleTypes.ITEM_SLIME,
+                                    slime.getX(), slime.getY() + 0.5, slime.getZ(),
+                                    35, 1.5, 0.4, 1.5, 0.15);
+                        }
+                    }
+                }
+            }
+
+            // Creeper Cósmico (Nivel 5): Atracción gravitacional en un radio de 30 bloques
+            if (CursosActivos.isCreeperCosmico() && currentTick % 2 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Creeper creeper && creeper.isAlive()
+                                && creeper.entityTags().contains("creeper_cosmico")) {
+                            lvl.sendParticles(ParticleTypes.PORTAL,
+                                    creeper.getX(), creeper.getY() + 1.0, creeper.getZ(),
+                                    8, 0.6, 0.8, 0.6, 0.2);
+                            List<Entity> pulled = lvl.getEntities(
+                                    creeper,
+                                    creeper.getBoundingBox().inflate(30.0),
+                                    e -> e.isAlive() && !e.isSpectator()
+                                            && !(e instanceof Player p && p.isCreative())
+                                            && !(e instanceof Creeper c && c.entityTags().contains("creeper_cosmico"))
+                                            && e.distanceToSqr(creeper) <= 900.0
+                            );
+                            for (Entity target : pulled) {
+                                double dx = creeper.getX() - target.getX();
+                                double dy = (creeper.getY() + 0.5) - target.getY();
+                                double dz = creeper.getZ() - target.getZ();
+                                double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                                if (dist > 0.5) {
+                                    double strength = 0.08 + (1.0 - Math.min(1.0, dist / 30.0)) * 0.10;
+                                    target.setDeltaMovement(target.getDeltaMovement().add(
+                                            (dx / dist) * strength,
+                                            (dy / dist) * (strength * 0.5),
+                                            (dz / dist) * strength
+                                    ));
+                                    if (target instanceof ServerPlayer sp) {
+                                        sp.connection.send(new ClientboundSetEntityMotionPacket(sp));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Creeper de Implosión Antimateria (Nivel 6): Partículas moradas del End y evaluación
+            if (CursosActivos.isCreeperAntimateria() && currentTick % 4 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Creeper creeper && creeper.isAlive()) {
+                            if (!creeper.entityTags().contains("creeper_antimateria_evaluado")) {
+                                evaluarCreeperAntimateria(creeper);
+                            }
+                            if (creeper.entityTags().contains("creeper_antimateria")) {
+                                lvl.sendParticles(ParticleTypes.PORTAL,
+                                        creeper.getX(), creeper.getY() + 0.9, creeper.getZ(),
+                                        10, 0.35, 0.6, 0.35, 0.15);
+                                lvl.sendParticles(ParticleTypes.REVERSE_PORTAL,
+                                        creeper.getX(), creeper.getY() + 0.9, creeper.getZ(),
+                                        6, 0.3, 0.5, 0.3, 0.04);
+                                lvl.sendParticles(ParticleTypes.WITCH,
+                                        creeper.getX(), creeper.getY() + 0.5, creeper.getZ(),
+                                        4, 0.25, 0.4, 0.25, 0.01);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Procesamiento de Vórtices de Implosión Antimateria activos (2.5s = 50 ticks de succión + colapso letal)
+            if (!VORTICES_ANTIMATERIA.isEmpty()) {
+                var iter = VORTICES_ANTIMATERIA.iterator();
+                while (iter.hasNext()) {
+                    VorticeAntimateria v = iter.next();
+                    ServerLevel lvl = v.level();
+                    if (currentTick < v.tickFin()) {
+                        lvl.sendParticles(ParticleTypes.REVERSE_PORTAL, v.x(), v.y() + 1.0, v.z(), 35, 1.8, 1.8, 1.8, 0.35);
+                        lvl.sendParticles(ParticleTypes.PORTAL, v.x(), v.y() + 1.0, v.z(), 40, 2.5, 2.5, 2.5, 0.6);
+                        lvl.sendParticles(ParticleTypes.SQUID_INK, v.x(), v.y() + 1.0, v.z(), 12, 0.6, 0.6, 0.6, 0.05);
+                        if (currentTick % 5 == 0) {
+                            lvl.playSound(null, v.x(), v.y(), v.z(), SoundEvents.PORTAL_TRIGGER, SoundSource.HOSTILE, 1.6f, 0.5f);
+                        }
+
+                        AABB area = new AABB(v.x() - 18.0, v.y() - 18.0, v.z() - 18.0, v.x() + 18.0, v.y() + 18.0, v.z() + 18.0);
+                        List<Entity> succionados = lvl.getEntities((Entity) null, area,
+                                e -> e.isAlive() && !e.isSpectator() && !(e instanceof Player p && p.isCreative()));
+                        for (Entity target : succionados) {
+                            double dx = v.x() - target.getX();
+                            double dy = (v.y() + 0.5) - target.getY();
+                            double dz = v.z() - target.getZ();
+                            double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                            if (dist <= 18.0 && dist > 0.25) {
+                                double pull = 0.22 + (1.0 - (dist / 18.0)) * 0.28;
+                                target.setDeltaMovement(
+                                        target.getDeltaMovement().x * 0.4 + (dx / dist) * pull,
+                                        target.getDeltaMovement().y * 0.4 + (dy / dist) * pull,
+                                        target.getDeltaMovement().z * 0.4 + (dz / dist) * pull
+                                );
+                                if (target instanceof ServerPlayer sp) {
+                                    sp.connection.send(new ClientboundSetEntityMotionPacket(sp));
+                                }
+                            }
+                        }
+                    } else {
+                        iter.remove();
+                        lvl.sendParticles(ParticleTypes.SONIC_BOOM, v.x(), v.y() + 1.0, v.z(), 3, 0.5, 0.5, 0.5, 0.0);
+                        lvl.sendParticles(ParticleTypes.EXPLOSION_EMITTER, v.x(), v.y() + 1.0, v.z(), 4, 1.0, 1.0, 1.0, 0.0);
+                        lvl.sendParticles(ParticleTypes.WITCH, v.x(), v.y() + 1.0, v.z(), 120, 2.5, 2.5, 2.5, 0.15);
+                        lvl.playSound(null, v.x(), v.y(), v.z(), SoundEvents.WARDEN_SONIC_BOOM, SoundSource.HOSTILE, 2.5f, 0.6f);
+                        lvl.playSound(null, v.x(), v.y(), v.z(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 2.5f, 0.5f);
+
+                        AABB collapseArea = new AABB(v.x() - 12.0, v.y() - 12.0, v.z() - 12.0, v.x() + 12.0, v.y() + 12.0, v.z() + 12.0);
+                        List<LivingEntity> victims = lvl.getEntitiesOfClass(LivingEntity.class, collapseArea,
+                                e -> e.isAlive() && !e.isSpectator() && !(e instanceof Player p && p.isCreative()));
+                        for (LivingEntity victim : victims) {
+                            double dist = Math.sqrt(victim.distanceToSqr(v.x(), v.y(), v.z()));
+                            if (dist <= 6.0) {
+                                victim.hurtServer(lvl, lvl.damageSources().fellOutOfWorld(), 150.0f);
+                            } else if (dist <= 12.0) {
+                                float dmg = (float) (45.0 * (1.0 - (dist - 6.0) / 6.0));
+                                victim.hurtServer(lvl, lvl.damageSources().magic(), Math.max(10.0f, dmg));
+                            }
+                        }
+                    }
+                }
+            }
         });
     }
 
@@ -2310,7 +2548,7 @@ public class Ruleta_Hardcore implements ModInitializer {
 
             AttributeInstance scaleAttr = slime.getAttribute(Attributes.SCALE);
             if (scaleAttr != null) {
-                scaleAttr.setBaseValue(3.0);
+                scaleAttr.setBaseValue(4.5);
             }
             AttributeInstance healthAttr = slime.getAttribute(Attributes.MAX_HEALTH);
             if (healthAttr != null) {
@@ -2525,13 +2763,6 @@ public class Ruleta_Hardcore implements ModInitializer {
 
         if (!level.dimension().equals(Level.END)) return;
 
-        if (!level.structureManager().getStructureWithPieceAt(
-                refEntity.blockPosition(),
-                holder -> holder.is(BuiltinStructures.END_CITY)
-        ).isValid()) {
-            return;
-        }
-
         var nearbyCosmicos = level.getEntitiesOfClass(
                 Creeper.class,
                 refEntity.getBoundingBox().inflate(48.0),
@@ -2546,6 +2777,12 @@ public class Ruleta_Hardcore implements ModInitializer {
                 if (created instanceof Creeper creeper) {
                     creeper.snapTo(refEntity.getX(), refEntity.getY(), refEntity.getZ(), refEntity.getYRot(), 0.0f);
                     creeper.addTag("creeper_cosmico");
+                    creeper.addTag("creeper_antimateria_evaluado");
+                    AttributeInstance speedAttr = creeper.getAttribute(Attributes.MOVEMENT_SPEED);
+                    if (speedAttr != null) {
+                        speedAttr.setBaseValue(0.05);
+                    }
+                    creeper.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, MobEffectInstance.INFINITE_DURATION, 3, false, false));
                     if (creeper instanceof CreeperCustomAccessor accessor) {
                         accessor.ruleta$setPowered(true);
                         // En Creeper#explodeCreeper, cuando isPowered() es true, el radio se multiplica por 2.0f -> 15 * 2 = 30 bloques
@@ -2555,6 +2792,155 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
         }
+    }
+
+    public static boolean tieneInventarioLleno(Player player) {
+        return player.getInventory().getFreeSlot() == -1;
+    }
+
+    public static void colocarTelaranaTemporal(ServerLevel level, BlockPos pos) {
+        BlockState current = level.getBlockState(pos);
+        if (!current.isAir() && !current.canBeReplaced()) {
+            pos = pos.above();
+            current = level.getBlockState(pos);
+            if (!current.isAir() && !current.canBeReplaced()) {
+                return;
+            }
+        }
+        final BlockPos targetPos = pos.immutable();
+        level.setBlock(targetPos, Blocks.COBWEB.defaultBlockState(), Block.UPDATE_ALL);
+        level.playSound(null, targetPos.getX() + 0.5, targetPos.getY() + 0.5, targetPos.getZ() + 0.5,
+                SoundEvents.SPIDER_AMBIENT, SoundSource.HOSTILE, 1.0f, 1.4f);
+        MinecraftServer srv = level.getServer();
+        if (srv != null) {
+            programarTarea(srv.getTickCount() + 50, () -> {
+                if (level.isLoaded(targetPos) && level.getBlockState(targetPos).is(Blocks.COBWEB)) {
+                    level.removeBlock(targetPos, false);
+                    level.sendParticles(ParticleTypes.POOF,
+                            targetPos.getX() + 0.5, targetPos.getY() + 0.5, targetPos.getZ() + 0.5,
+                            8, 0.25, 0.25, 0.25, 0.02);
+                }
+            });
+        }
+    }
+
+    public static void dividirMulticreeper(ServerLevel level, Creeper original, Player attacker) {
+        EntityType<?> creeperType = getCreeperType();
+        if (creeperType == null) return;
+
+        level.sendParticles(ParticleTypes.SNEEZE,
+                original.getX(), original.getY() + 0.8, original.getZ(),
+                25, 0.4, 0.5, 0.4, 0.05);
+        level.playSound(null, original.getX(), original.getY(), original.getZ(),
+                SoundEvents.SLIME_SQUISH, SoundSource.HOSTILE, 1.4f, 1.3f);
+
+        for (int i = 0; i < 2; i++) {
+            Entity created = creeperType.create(level, EntitySpawnReason.EVENT);
+            if (created instanceof Creeper mini) {
+                double angle = (i == 0 ? 0.0 : Math.PI) + ThreadLocalRandom.current().nextDouble() * 0.6;
+                double ox = Math.cos(angle) * 0.65;
+                double oz = Math.sin(angle) * 0.65;
+                mini.snapTo(original.getX() + ox, original.getY(), original.getZ() + oz,
+                        original.getYRot(), 0.0f);
+                mini.addTag("mini_multicreeper");
+                mini.addTag("creeper_antimateria_evaluado");
+
+                AttributeInstance scaleAttr = mini.getAttribute(Attributes.SCALE);
+                if (scaleAttr != null) {
+                    scaleAttr.setBaseValue(0.55);
+                }
+                AttributeInstance speedAttr = mini.getAttribute(Attributes.MOVEMENT_SPEED);
+                if (speedAttr != null) {
+                    speedAttr.setBaseValue(0.34);
+                }
+                if (mini instanceof CreeperCustomAccessor accessor) {
+                    accessor.ruleta$setMaxSwell(20); // 1 segundo de mecha ultracorta
+                    accessor.ruleta$setExplosionRadius(2);
+                }
+                mini.setTarget(attacker);
+                mini.ignite();
+                mini.setDeltaMovement(ox * 0.35, 0.28, oz * 0.35);
+                level.addFreshEntity(mini);
+            }
+        }
+    }
+
+    public static void ejecutarFragmentacionHelada(Stray stray, ServerLevel level) {
+        BlockPos center = stray.blockPosition();
+        level.sendParticles(ParticleTypes.SNOWFLAKE,
+                stray.getX(), stray.getY() + 1.0, stray.getZ(),
+                80, 2.2, 0.8, 2.2, 0.15);
+        level.playSound(null, stray.getX(), stray.getY(), stray.getZ(),
+                SoundEvents.GLASS_BREAK, SoundSource.HOSTILE, 1.8f, 0.6f);
+        level.playSound(null, stray.getX(), stray.getY(), stray.getZ(),
+                SoundEvents.PLAYER_HURT_FREEZE, SoundSource.HOSTILE, 1.5f, 0.8f);
+
+        for (int dx = -4; dx <= 4; dx++) {
+            for (int dz = -4; dz <= 4; dz++) {
+                if (dx * dx + dz * dz > 16) continue;
+                for (int dy = 2; dy >= -2; dy--) {
+                    BlockPos pos = center.offset(dx, dy, dz);
+                    if (!level.isLoaded(pos)) continue;
+                    BlockState state = level.getBlockState(pos);
+                    BlockState above = level.getBlockState(pos.above());
+                    if (!state.isAir() && !state.is(Blocks.BEDROCK)
+                            && state.isFaceSturdy(level, pos, Direction.UP)
+                            && (above.isAir() || above.canBeReplaced())) {
+                        level.setBlock(pos, Blocks.PACKED_ICE.defaultBlockState(), Block.UPDATE_CLIENTS);
+                        break;
+                    }
+                }
+            }
+        }
+
+        List<LivingEntity> nearby = level.getEntitiesOfClass(
+                LivingEntity.class,
+                stray.getBoundingBox().inflate(4.5),
+                e -> e != stray && e.isAlive() && !e.isSpectator()
+                        && !(e instanceof Stray)
+                        && !(e instanceof Player p && p.isCreative())
+                        && e.distanceToSqr(stray) <= 20.25
+        );
+        for (LivingEntity target : nearby) {
+            target.setTicksFrozen(Math.max(target.getTicksFrozen(), target.getTicksRequiredToFreeze() + 160));
+            target.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 100, 2));
+            target.hurtServer(level, level.damageSources().freeze(), 4.0f);
+        }
+    }
+
+    public static void evaluarCreeperAntimateria(Creeper creeper) {
+        if (creeper.entityTags().contains("creeper_antimateria_evaluado")) return;
+        creeper.addTag("creeper_antimateria_evaluado");
+
+        if (creeper.entityTags().contains("creeper_cosmico")
+                || creeper.entityTags().contains("creeper_escondido")
+                || creeper.entityTags().contains("mini_multicreeper")) {
+            return;
+        }
+
+        // Probabilidad rara (8%) en cualquier bioma
+        if (ThreadLocalRandom.current().nextFloat() < 0.08f) {
+            creeper.addTag("creeper_antimateria");
+            AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
+            if (scaleAttr != null) {
+                // Escala 1.08 detectada por CreeperRendererMixin para renderizar la textura negra de Antimateria
+                scaleAttr.setBaseValue(1.08);
+            }
+            AttributeInstance healthAttr = creeper.getAttribute(Attributes.MAX_HEALTH);
+            if (healthAttr != null) {
+                healthAttr.setBaseValue(40.0);
+                creeper.setHealth(40.0f);
+            }
+        }
+    }
+
+    public static void iniciarVorticeAntimateria(ServerLevel level, double x, double y, double z) {
+        MinecraftServer srv = level.getServer();
+        if (srv == null) return;
+        long tickFin = srv.getTickCount() + 50; // 2.5 segundos (50 ticks) de succión violenta
+        VORTICES_ANTIMATERIA.add(new VorticeAntimateria(level, x, y, z, tickFin));
+        level.playSound(null, x, y, z, SoundEvents.END_PORTAL_SPAWN, SoundSource.HOSTILE, 2.0f, 0.5f);
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, x, y + 1.0, z, 80, 1.5, 1.5, 1.5, 0.4);
     }
 
     public static void aplicarBuffsLunaDeSangre(Monster monster) {
