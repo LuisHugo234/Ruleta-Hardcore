@@ -723,6 +723,91 @@ public class CursosActivos {
         return lista;
     }
 
+    public static List<com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo> obtenerMaldicionesActivasDetalladas() {
+        List<com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo> lista = new ArrayList<>();
+        // Nivel 1
+        if (creepersEnPerla) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Espejismo de Ender Pearl", "5% de probabilidad de que aparezca un Creeper al lanzar una Ender Pearl."));
+        if (apocalipsisZombie) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "¿Apocalipsis Minecraft?", "50% de los zombies escalan paredes como arañas y son inmunes al sol."));
+        if (cuevasTenebrosas) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Cuevas Tenebrosas", "Recibes Oscuridad por debajo de Y=0 (se anula con farol o atenúa con antorcha)."));
+        if (comidaEchada) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Comida Echada a Perder", "5% de probabilidad de recibir Infestado por 15s al comer comida cruda/normal."));
+        if (cuccosSalvajes) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Cuccos Salvajes", "Los pollos tienen 15 de vida y te atacan quitando 1 corazón por golpe."));
+        if (cadaveresPisados) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Cadáveres Pisados", "Pisar arena de almas otorga el efecto de Debilidad I."));
+        if (vacaExplosiva) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Vaca Explosiva", "Las vacas tienen un 1% de probabilidad de explotar al morir."));
+        if (corrientesAereas) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Corrientes Aéreas", "Los Breeze disparan ráfagas de 6 Wind Charges continuas."));
+        if (contaminacionCruzada) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Contaminación Cruzada", "Consumir alimentos crudos otorga Hambre II y Veneno I."));
+        if (paranoiaNocturna) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Paranoia Nocturna", "Estar con nivel de luz 0 por >15s provoca sonidos falsos y Ceguera I."));
+
+        // Nivel 2
+        if (speedpers) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Speedpers", "Todos los Creepers del Overworld tienen Velocidad II permanente."));
+        if (filoMortal) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Filo Mortal", "Todos los zombies empuñan espadas de hierro con Filo III."));
+        if (muerteEspinosa) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Muerte Espinosa", "Todos los cactus infligen 1x10^9 de daño al contacto."));
+        if (cucarachaPlateada) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Cucaracha Plateada", "Lepismas dan Lentitud II por 5s y alertan a otros en 12 bloques."));
+        if (abejasAsesinas) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Abejas Asesinas", "Las abejas son agresivas e infligen Descomposición II por 5 segundos."));
+        if (cargaPesada) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Carga Pesada", "Los Ravagers tienen Lentitud II, 150 corazones de vida y x1.5 su daño base."));
+        if (vexGrandes) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Vex Grandes", "Los Vex son el doble de grandes y el doble de fuertes."));
+        if (resistenciaFisica) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Resistencia Física", "Los Vindicadores tienen Resistencia I y Resistencia al Fuego."));
+        if (escudoPesado) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Escudo Pesado", "Usar el escudo consume el doble de comida y se deshabilita con 5 golpes seguidos."));
+        if (wingardiumLeviosa) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Wingardium Leviosa", "Las brujas te pueden arrojar pociones de Levitación XV por 1 segundo."));
+        if (lavaActiva) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Lava Activa", "La lava en el Overworld se mueve con la misma velocidad que en el Nether."));
+        if (webones) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Webones", "25% de probabilidad de que los aldeanos al crecer sean Nitwit (verdes)."));
+        if (fuegoFatuo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Fuego Fatuo", "Necesitas armadura completa en el Nether o arderás hasta morir."));
+        if (wardensDeepDark) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Wardens en Deep Dark", "Los Wardens pueden aparecer naturalmente en el Deep Dark."));
+        if (invasionAzul) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Invasión Azul", "Los Breeze pueden aparecer de día en biomas del Overworld (15%)."));
+        if (infestacionMinera) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Infestación Minera", "En las paredes de las Mineshafts se generan bloques de lepisma."));
+        if (mineriaInestable) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Minería Inestable", "5% de probabilidad de pequeña explosión sin destruir bloques al minar."));
+
+        // Nivel 3
+        if (errorTotemico) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Error Totémico", "Los Tótems de Inmortalidad tienen un 2% de probabilidad de fallar."));
+        if (artesMaritimos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Artes Marítimos", "Todos los Zombies Ahogados aparecen armados con Tridentes."));
+        if (boogieWoogie) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Boogie Woogie", "Los esqueletos intercambian posición contigo cuando su flecha te impacta."));
+        if (energiaPoseica) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Energía Poseica", "Los tridentes de los Ahogados tienen Empalamiento V y Conductividad."));
+        if (muerteInstantanea) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Muerte Instantánea", "Botones, trampillas, puertas y puertas de valla de madera hacen 1x10^9 de daño."));
+        if (manzanaRegeneradora) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Manzanas Regeneradoras", "Las manzanas doradas comunes no otorgan el efecto de Absorción."));
+        if (magmaContacto) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Magma al Contacto", "Los bloques de magma hacen 1x10^9 de daño al tocarlos por cualquier ángulo."));
+        if (sinOxigeno) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Sin Oxígeno", "El oxígeno bajo el agua se consume el triple de rápido."));
+        if (fallaMecanica) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Falla Mecánica", "Gólems miden x1.8, ganan fuerza/velocidad y con <25% de vida atacan a todos."));
+        if (adivinaQuien) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Adivina Quién Ha Vuelto", "El Illusioner aparece en raids y outposts con Arco Retroceso X y Resistencia III."));
+        if (creepersEscondidos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Creepers Escondidos", "Al romper pasto hay 20% de probabilidad de spawnear un mini-creeper."));
+        if (monturaAcuatica) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Montura Acuática", "Los Zombies Ahogados tienen 10% de probabilidad de montar Delfín o Nautilo."));
+        if (desiertoAbrasador) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Desierto Abrasador", "Permanecer en el desierto acumula insolación progresiva a menos que lleves casco."));
+
+        // Nivel 4
+        if (danoColateral) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Daño Colateral", "Las Ender Pearls hacen x3 su daño original e ignoran armadura."));
+        if (ultraFundido) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Ultra Fundido", "El daño por fuego se multiplica por 10."));
+        if (contaminacion) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "¿Contaminación?", "Por encima de la capa 160 hay niebla verde que inflige Veneno V."));
+        if (congelacionProfunda) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Congelación Profunda", "Estar en nieve sin calor por >15s reduce velocidad a la mitad y causa daño."));
+        if (escopeta) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Escopeta", "Pillagers armados con Multidisparo VI, Carga Rápida II y Perforación V."));
+        if (reyDeLoProfundo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Rey de lo Profundo", "Elder Guardian con 100 HP y rayo acumulativo de Debilidad."));
+        if (ataqueSlimes) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Ataque a los Slimes", "5% de probabilidad de Slime Gigante en pantanos con x2.5 de daño."));
+        if (tensionMuscular) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Tensión Muscular", "Tensar arco/ballesta >3s provoca fatiga, temblor de puntería y Debilidad II."));
+
+        // Nivel 5
+        if (intrusosCalavericos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Intrusos Calavéricos", "Wither Skeletons con armadura de diamante y Filo V aparecen de noche."));
+        if (spiderman) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "¿Spiderman?", "Todas las arañas tienen Fuerza II, Velocidad II, Invisibilidad y Regeneración."));
+        if (enderGhast) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Ender Ghast", "Ghasts hiperagresivos con radio de explosión de 20 bloques."));
+        if (kaBoom) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "KA-BOOM", "Los Shulkers explotan 3 segundos después de morir como una TNT."));
+        if (gigaEndermite) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Giga-Endermite", "Endermite Gigante en el End con 250 HP, embestida y sin retroceso."));
+        if (megaHoglin) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Mega Hoglin", "Hoglin Gigante en el Nether con 300 HP y x2 de daño base."));
+        if (creeperCosmico) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Creeper Cósmico", "Creeper Eléctrico en End Cities con radio de explosión de 30 bloques."));
+        if (torbellinoIgneo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Torbellino Ígneo", "Proyectiles de Blazes empujan y crean charcos temporales de lava y fuego."));
+        if (phantomAlfa) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Phantom Alfa", "Phantoms gigantes (x2.5), 60 HP, onda sónica que inflige 3 corazones."));
+        if (cegueraAbisal) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Ceguera Abisal", "Golpes en End y Deep Dark aplican Ceguera y Oscuridad sin poder curarse."));
+        if (fallaDimensional) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Falla Dimensional", "15% de probabilidad al cruzar portal del Nether de invocar 2 Blazes agresivos."));
+
+        // Nivel 6
+        if (permadeath) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "PERMADEATH", "Se elimina permanentemente la regeneración natural de salud."));
+        if (apocalipsisMinecraftTotal) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "¡Apocalipsis Minecraft !!!!", "Zombies se apilan en torres, huelen sangre y acuden al ruido al picar."));
+        if (maldicionLunaDeSangre) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Luna de Sangre", "Hordas masivas de monstruos con hasta 3 efectos potenciados e insomnio forzado."));
+        if (eclipseSolar) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Eclipse Solar", "Eclipse diurno con Strays en Phantoms, Brujas en Murciélagos y Creakings."));
+        if (elVerdugo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "El Verdugo", "Piglins Brutos gigantes con Hacha de Netherite Filo VI y capacidad de desarmar."));
+        if (maresAcidos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Mares Ácidos", "Océanos corrosivos: sumergirse causa daño continuo y desgasta la armadura."));
+        if (pareceQueVaALlover) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Parece que va´ llover", "Tormentas eléctricas con riesgo de caída de rayos al portar metales."));
+        if (anomaliaGravitacional) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Anomalía Gravitacional", "Empuje triplicado en el End y saltos dejan al jugador en caída lenta por 3s."));
+        if (corrupcionVacio) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Corrupción del Vacío", "Golpes de Enderman o proyectiles de Shulker anulan la armadura por 5s."));
+
+        return lista;
+    }
+
     public static void limpiar() {
         creepersEnPerla = false;
         fuegoFatuo = false;

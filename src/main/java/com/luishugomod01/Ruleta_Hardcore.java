@@ -1,6 +1,7 @@
 package com.luishugomod01;
 
 import com.luishugomod01.network.AbrirMenuAdminPayload;
+import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.GuardarConfigAdminPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
@@ -155,6 +156,7 @@ public class Ruleta_Hardcore implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(RuletaAnimacionPayload.TYPE, RuletaAnimacionPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BloodMoonSyncPayload.TYPE, BloodMoonSyncPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AbrirMenuAdminPayload.TYPE, AbrirMenuAdminPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(AbrirMenuEstadoPayload.TYPE, AbrirMenuEstadoPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(VidasSyncPayload.TYPE, VidasSyncPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(GuardarConfigAdminPayload.TYPE, GuardarConfigAdminPayload.STREAM_CODEC);
 
@@ -326,18 +328,26 @@ public class Ruleta_Hardcore implements ModInitializer {
                     })))
                 .then(Commands.literal("estado").executes(ctx -> {
                     var source = ctx.getSource();
-                    if (!CursosActivos.hayMaldicionesActivas() && !CursosActivos.isBloodMoonActive() && !CursosActivos.isEclipseActive()) {
-                        source.sendSuccess(() -> Component.literal("§a[PermaRuleta] No hay ninguna maldición activa en el mundo."), false);
+                    ServerPlayer sp = source.getPlayer();
+                    if (sp != null) {
+                        var lista = CursosActivos.obtenerMaldicionesActivasDetalladas();
+                        boolean bloodMoon = CursosActivos.isBloodMoonActive();
+                        boolean eclipse = CursosActivos.isEclipseActive();
+                        ServerPlayNetworking.send(sp, new AbrirMenuEstadoPayload(lista, bloodMoon, eclipse));
                     } else {
-                        source.sendSuccess(() -> Component.literal("§6§l[PermaRuleta] Maldiciones activas:"), false);
-                        for (Component c : CursosActivos.obtenerMensajesMaldicionesActivas()) {
-                            source.sendSuccess(() -> c, false);
-                        }
-                        if (CursosActivos.isBloodMoonActive()) {
-                            source.sendSuccess(() -> Component.literal("  §4§l☾ ESTADO ACTUAL:§c ¡LUNA DE SANGRE EN CURSO ESTA NOCHE!"), false);
-                        }
-                        if (CursosActivos.isEclipseActive()) {
-                            source.sendSuccess(() -> Component.literal("  §5§l☼ ESTADO ACTUAL:§d ¡ECLIPSE SOLAR EN CURSO ESTE DÍA!"), false);
+                        if (!CursosActivos.hayMaldicionesActivas() && !CursosActivos.isBloodMoonActive() && !CursosActivos.isEclipseActive()) {
+                            source.sendSuccess(() -> Component.literal("§a[PermaRuleta] No hay ninguna maldición activa en el mundo."), false);
+                        } else {
+                            source.sendSuccess(() -> Component.literal("§6§l[PermaRuleta] Maldiciones activas:"), false);
+                            for (Component c : CursosActivos.obtenerMensajesMaldicionesActivas()) {
+                                source.sendSuccess(() -> c, false);
+                            }
+                            if (CursosActivos.isBloodMoonActive()) {
+                                source.sendSuccess(() -> Component.literal("  §4§l☾ ESTADO ACTUAL:§c ¡LUNA DE SANGRE EN CURSO ESTA NOCHE!"), false);
+                            }
+                            if (CursosActivos.isEclipseActive()) {
+                                source.sendSuccess(() -> Component.literal("  §5§l☼ ESTADO ACTUAL:§d ¡ECLIPSE SOLAR EN CURSO ESTE DÍA!"), false);
+                            }
                         }
                     }
                     return 1;
@@ -2806,15 +2816,15 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     public static float calcularAnguloRuleta(NivelRuleta nivel) {
         float midAngle;
-        float maxJitter;
+        float maxJitter = 22.0f;
         switch (nivel) {
-            case NIVEL_1 -> { midAngle = 63.0f;  maxJitter = 30.0f; }
-            case NIVEL_2 -> { midAngle = 171.0f; maxJitter = 22.0f; }
-            case NIVEL_3 -> { midAngle = 248.4f; maxJitter = 16.0f; }
-            case NIVEL_4 -> { midAngle = 302.4f; maxJitter = 10.0f; }
-            case NIVEL_5 -> { midAngle = 336.6f; maxJitter = 5.0f;  }
-            case NIVEL_6 -> { midAngle = 354.6f; maxJitter = 2.2f;  }
-            default      -> { midAngle = 63.0f;  maxJitter = 0.0f;  }
+            case NIVEL_1 -> midAngle = 30.0f;  // [0°, 60°] - Verde
+            case NIVEL_2 -> midAngle = 90.0f;  // [60°, 120°] - Amarillo
+            case NIVEL_3 -> midAngle = 150.0f; // [120°, 180°] - Naranja
+            case NIVEL_4 -> midAngle = 210.0f; // [180°, 240°] - Salmón / Coral
+            case NIVEL_5 -> midAngle = 270.0f; // [240°, 300°] - Magenta / Púrpura
+            case NIVEL_6 -> midAngle = 330.0f; // [300°, 360°] - Rojo Carmesí
+            default      -> midAngle = 30.0f;
         }
         float jitter = (ThreadLocalRandom.current().nextFloat() - 0.5f) * 2.0f * maxJitter;
         float targetOnWheel = (midAngle + jitter) % 360.0f;

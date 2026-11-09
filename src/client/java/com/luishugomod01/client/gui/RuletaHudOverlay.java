@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -21,6 +22,25 @@ public class RuletaHudOverlay implements HudElement {
             Ruleta_Hardcore.id("textures/gui/ruleta_disco.png");
     private static final Identifier TEXTURE_AGUJA =
             Ruleta_Hardcore.id("textures/gui/ruleta_aguja.png");
+
+    // Matriz de texturas para la animación de barrido horario al detenerse estilo DEDsafio 4
+    // TEXTURAS_BARRIDO[nivel - 1][paso - 1] (pasos 1 a 4 intermedios, paso 5 [índice 4] es el disco 100% monocromático)
+    private static final Identifier[][] TEXTURAS_BARRIDO = new Identifier[6][5];
+    static {
+        for (int lvl = 1; lvl <= 6; lvl++) {
+            for (int step = 1; step <= 4; step++) {
+                TEXTURAS_BARRIDO[lvl - 1][step - 1] =
+                        Ruleta_Hardcore.id("textures/gui/ruleta_disco_nivel_" + lvl + "_paso_" + step + ".png");
+            }
+            TEXTURAS_BARRIDO[lvl - 1][4] =
+                    Ruleta_Hardcore.id("textures/gui/ruleta_disco_nivel_" + lvl + ".png");
+        }
+    }
+
+    private static final Identifier SPRITE_HEART_CONTAINER =
+            Identifier.withDefaultNamespace("hud/heart/container_hardcore");
+    private static final Identifier SPRITE_HEART_FULL =
+            Identifier.withDefaultNamespace("hud/heart/hardcore_full");
 
     private static RuletaAnimacionPayload payloadActual = null;
     private static long startTime = 0L;
@@ -61,8 +81,8 @@ public class RuletaHudOverlay implements HudElement {
         float eased = 1.0f - (float) Math.pow(1.0 - progress, 3.5);
         float currentAngle = payloadActual.targetAngle() * eased;
 
-        // Clics rítmicos de audio al cruzar remaches
-        int pegInterval = 20;
+        // Clics rítmicos de audio al cruzar remaches (el nuevo disco tiene 24 remaches exteriores = cada 15°)
+        int pegInterval = 15;
         int currentPeg = (int) (currentAngle / pegInterval);
         if (currentPeg > lastPegIndex) {
             lastPegIndex = currentPeg;
@@ -96,42 +116,82 @@ public class RuletaHudOverlay implements HudElement {
         int width = extractor.guiWidth();
         int height = extractor.guiHeight();
 
-        // 1. RULETA FLOTANTE LIMPIA EN EL CENTRO
-        // Se muestra mientras gira y permanece 1.5s detenida en el gajo ganador
-        boolean mostrarRueda = !landed || (now - landedTime < 1500L);
+        boolean mostrarRueda = !landed || (now - landedTime < 2000L);
         if (mostrarRueda) {
-            int wheelDiameter = 160;
-            int centerX = width / 2;
-            int centerY = height / 2;
-            int wheelLeft = centerX - wheelDiameter / 2;
-            int wheelTop = centerY - wheelDiameter / 2;
+            float totalScale = 1.0f;
+            float totalOffsetY = 0.0f;
 
-            // Disco giratorio
-            extractor.pose().pushMatrix();
-            extractor.pose().rotateAbout((float) Math.toRadians(currentAngle), centerX, centerY);
-            extractor.blit(TEXTURE_DISCO, wheelLeft, wheelTop, wheelLeft + wheelDiameter, wheelTop + wheelDiameter, 0.0f, 1.0f, 0.0f, 1.0f);
-            extractor.pose().popMatrix();
-
-            // Aguja con oscilación física al pasar por remaches
-            int needleW = 24;
-            int needleH = 38;
-            int needleX = centerX - needleW / 2;
-            int needleY = wheelTop - 24;
-            int needlePivotX = centerX;
-            int needlePivotY = needleY + 5;
-
-            float needleAngle = 0.0f;
-            if (progress < 1.0f) {
-                float pegFraction = (currentAngle % pegInterval) / (float) pegInterval;
-                needleAngle = (float) Math.sin(pegFraction * Math.PI) * 7.5f;
+            // Animacion elastica: entrada, impacto al caer y salida
+            if (elapsed < 500L) {
+                float p = (float) elapsed / 500.0f;
+                if (p < 0.6f) {
+                    float sub = p / 0.6f;
+                    totalScale = (float) Math.sin(sub * Math.PI * 0.5) * 1.25f;
+                    totalOffsetY = -18.0f * (float) Math.sin(sub * Math.PI);
+                } else {
+                    float sub = (p - 0.6f) / 0.4f;
+                    totalScale = 1.0f + 0.25f * (float) Math.cos(sub * Math.PI * 0.5) * (1.0f - sub);
+                    totalOffsetY = 6.0f * (float) Math.sin(sub * Math.PI) * (1.0f - sub);
+                }
+            } else if (landed) {
+                long elapsedLanded = now - landedTime;
+                if (elapsedLanded < 250L) {
+                    float p = (float) elapsedLanded / 250.0f;
+                    totalScale += 0.10f * (float) Math.sin(p * Math.PI) * (1.0f - p);
+                    totalOffsetY -= 6.0f * (float) Math.sin(p * Math.PI) * (1.0f - p);
+                } else if (elapsedLanded >= 1700L && elapsedLanded < 2000L) {
+                    float p = (float) (elapsedLanded - 1700L) / 300.0f;
+                    if (p < 0.25f) {
+                        totalScale += 0.08f * (float) Math.sin((p / 0.25f) * Math.PI);
+                    } else {
+                        float sub = (p - 0.25f) / 0.75f;
+                        totalScale *= Math.max(0.0f, 1.0f - sub * sub);
+                        totalOffsetY -= 12.0f * sub;
+                    }
+                }
             }
 
-            extractor.pose().pushMatrix();
-            if (needleAngle != 0.0f) {
-                extractor.pose().rotateAbout((float) Math.toRadians(needleAngle), needlePivotX, needlePivotY);
+            if (totalScale > 0.001f) {
+                int wheelDiameter = 160;
+                int centerX = width / 2;
+                int centerY = height / 2;
+                int wheelLeft = centerX - wheelDiameter / 2;
+                int wheelTop = centerY - wheelDiameter / 2;
+
+                extractor.pose().pushMatrix();
+                extractor.pose().translate(centerX, centerY + totalOffsetY);
+                extractor.pose().scale(totalScale, totalScale);
+                extractor.pose().translate(-centerX, -centerY);
+
+                Identifier texturaDisco = obtenerTexturaDisco(payloadActual, landed, now);
+
+                extractor.pose().pushMatrix();
+                extractor.pose().rotateAbout((float) Math.toRadians(currentAngle), centerX, centerY);
+                extractor.blit(texturaDisco, wheelLeft, wheelTop, wheelLeft + wheelDiameter, wheelTop + wheelDiameter, 0.0f, 1.0f, 0.0f, 1.0f);
+                extractor.pose().popMatrix();
+
+                int needleW = 24;
+                int needleH = 38;
+                int needleX = centerX - needleW / 2;
+                int needleY = wheelTop - 12;
+                int needlePivotX = centerX;
+                int needlePivotY = needleY + 8;
+
+                float needleAngle = 0.0f;
+                if (progress < 1.0f) {
+                    float pegFraction = (currentAngle % pegInterval) / (float) pegInterval;
+                    needleAngle = (float) Math.sin(pegFraction * Math.PI) * 7.5f;
+                }
+
+                extractor.pose().pushMatrix();
+                if (needleAngle != 0.0f) {
+                    extractor.pose().rotateAbout((float) Math.toRadians(needleAngle), needlePivotX, needlePivotY);
+                }
+                extractor.blit(TEXTURE_AGUJA, needleX, needleY, needleX + needleW, needleY + needleH, 0.0f, 1.0f, 0.0f, 1.0f);
+                extractor.pose().popMatrix();
+
+                extractor.pose().popMatrix();
             }
-            extractor.blit(TEXTURE_AGUJA, needleX, needleY, needleX + needleW, needleY + needleH, 0.0f, 1.0f, 0.0f, 1.0f);
-            extractor.pose().popMatrix();
         }
 
         // 2. MENSAJE EN PANTALLA ARRIBA A LA IZQUIERDA POR 10 SEGUNDOS TRAS CAER
@@ -181,18 +241,111 @@ public class RuletaHudOverlay implements HudElement {
         int restantes = VidasClientState.getVidasRestantes();
         int maximas = VidasClientState.getVidasMaximas();
 
-        String colorVidas = restantes <= 1 ? "§4§l" : (restantes == 2 ? "§6§l" : "§a§l");
-        Component texto = Component.literal("§c♥ Vidas: " + colorVidas + restantes + "§7/" + maximas);
+        int screenWidth = extractor.guiWidth();
+        int centerX = screenWidth / 2;
 
-        int textW = mc.font.width(texto);
-        int pad = 4;
-        int boxW = textW + pad * 2;
-        int boxH = 16;
-        int boxX = extractor.guiWidth() - boxW - 8;
-        int boxY = extractor.guiHeight() - boxH - 8;
+        double guiScale = mc.getWindow().getGuiScale();
+        if (guiScale <= 0) guiScale = 1.0;
 
-        extractor.fill(boxX, boxY, boxX + boxW, boxY + boxH, 0x88000000);
-        extractor.fill(boxX, boxY, boxX + 2, boxY + boxH, restantes <= 1 ? 0xFFFF2222 : 0xFFFFAA00);
-        extractor.text(mc.font, texto, boxX + pad + 2, boxY + 4, 0xFFFFFFFF, true);
+        int topY = Math.max(8, (int) Math.round(10.0 / guiScale * 2.0));
+
+        long now = System.currentTimeMillis();
+
+        int tensionOffsetX = 0;
+        int tensionOffsetY = 0;
+        if (restantes == 1) {
+            long beatCycle = now % 800L;
+            if (beatCycle < 80L || (beatCycle >= 130L && beatCycle < 210L)) {
+                tensionOffsetY = -1;
+            } else {
+                tensionOffsetX = (int) Math.round(Math.sin(now * 0.04) * 0.7);
+            }
+        }
+
+        if (maximas <= 5) {
+            // Escala visual fija estilo Extremo 3 (~34px en pantalla independiente del GuiScale)
+            int heartW = Math.max(10, (int) Math.round(34.0 / guiScale));
+            int heartH = heartW;
+            int gap = Math.max(2, (int) Math.round(5.0 / guiScale));
+            int spacing = heartW + gap;
+            int totalW = maximas * spacing - gap;
+            int startX = centerX - totalW / 2;
+
+            for (int i = 0; i < maximas; i++) {
+                int hx = startX + i * spacing;
+                int hy = topY;
+
+                if (restantes == 1 && i == 0) {
+                    hx += tensionOffsetX;
+                    hy += tensionOffsetY;
+                }
+
+                extractor.blitSprite(RenderPipelines.GUI_TEXTURED, SPRITE_HEART_CONTAINER, hx, hy, heartW, heartH);
+
+                if (i < restantes) {
+                    extractor.blitSprite(RenderPipelines.GUI_TEXTURED, SPRITE_HEART_FULL, hx, hy, heartW, heartH);
+                }
+            }
+        } else {
+            int heartW = Math.max(18, (int) Math.round(48.0 / guiScale));
+            int heartH = heartW;
+            int hx = centerX - heartW / 2 + (restantes == 1 ? tensionOffsetX : 0);
+            int hy = topY + (restantes == 1 ? tensionOffsetY : 0);
+
+            extractor.blitSprite(RenderPipelines.GUI_TEXTURED, SPRITE_HEART_CONTAINER, hx, hy, heartW, heartH);
+
+            if (restantes > 0) {
+                extractor.blitSprite(RenderPipelines.GUI_TEXTURED, SPRITE_HEART_FULL, hx, hy, heartW, heartH);
+            }
+
+            String vidasStr = String.valueOf(restantes);
+            int numW = mc.font.width(vidasStr);
+            int textX = centerX - numW / 2 + (restantes == 1 ? tensionOffsetX : 0);
+            int textY = hy + (heartH / 2) - 4;
+
+            int textColor;
+            if (restantes <= 1) {
+                textColor = ((now % 400L) < 200L) ? 0xFFFF4444 : 0xFFFFFFFF;
+            } else if (restantes == 2) {
+                textColor = 0xFFFFAA00;
+            } else {
+                textColor = 0xFFFFFFFF;
+            }
+            extractor.text(mc.font, vidasStr, textX, textY, textColor, true);
+
+            Component subTexto = Component.literal("§7" + restantes + " / " + maximas);
+            int subW = mc.font.width(subTexto);
+            int subX = centerX - subW / 2;
+            int subY = hy + heartH + 2;
+            extractor.text(mc.font, subTexto, subX, subY, 0xFFFFFFFF, true);
+        }
+    }
+
+    private static int parseNivel(String nivelNombre) {
+        if (nivelNombre == null) return 1;
+        for (int i = 1; i <= 6; i++) {
+            if (nivelNombre.contains(String.valueOf(i))) return i;
+        }
+        return 1;
+    }
+
+    private static Identifier obtenerTexturaDisco(RuletaAnimacionPayload payload, boolean landed, long now) {
+        if (!landed || payload == null || payload.nivelNombre() == null) {
+            return TEXTURE_DISCO;
+        }
+        long elapsedLanded = now - landedTime;
+        long delayMs = 120L;       // Breve pausa estática en el gajo ganador (~120ms)
+        long stepDurationMs = 65L; // Duración de cada avance de gajo hacia la derecha (~65ms)
+
+        if (elapsedLanded < delayMs) {
+            return TEXTURE_DISCO;
+        }
+
+        int lvl = parseNivel(payload.nivelNombre());
+        int stepIndex = (int) ((elapsedLanded - delayMs) / stepDurationMs);
+        if (stepIndex >= 4) {
+            return TEXTURAS_BARRIDO[lvl - 1][4]; // Paso 5: Todo el disco lleno del color ganador
+        }
+        return TEXTURAS_BARRIDO[lvl - 1][stepIndex]; // Pasos 1 a 4: Barrido progresivo a la derecha
     }
 }

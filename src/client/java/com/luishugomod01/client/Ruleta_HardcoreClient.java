@@ -3,9 +3,11 @@ package com.luishugomod01.client;
 import com.luishugomod01.Ruleta_Hardcore;
 import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
 import com.luishugomod01.client.gui.AdminConfigScreen;
+import com.luishugomod01.client.gui.RuletaEstadoScreen;
 import com.luishugomod01.client.gui.RuletaHudOverlay;
 import com.luishugomod01.client.vidas.VidasClientState;
 import com.luishugomod01.network.AbrirMenuAdminPayload;
+import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
 import com.luishugomod01.network.VidasSyncPayload;
@@ -50,6 +52,12 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(AbrirMenuAdminPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 context.client().setScreenAndShow(new AdminConfigScreen(payload.ruletaAutomatica(), payload.vidasIniciales()));
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(AbrirMenuEstadoPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                context.client().setScreenAndShow(new RuletaEstadoScreen(payload.maldiciones(), payload.bloodMoon(), payload.eclipse()));
             });
         });
 
