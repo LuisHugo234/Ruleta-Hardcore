@@ -4,7 +4,9 @@ import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.GuardarConfigAdminPayload;
+import com.luishugomod01.network.MuerteFantasmaPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
+import com.luishugomod01.network.VidasJugadorPayload;
 import com.luishugomod01.network.VidasSyncPayload;
 import com.luishugomod01.ruleta.CatalogoCastigos;
 import com.luishugomod01.ruleta.CreeperCustomAccessor;
@@ -36,6 +38,8 @@ import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.arguments.EntityAnchorArgument;
+import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -44,6 +48,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
+import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -52,9 +57,14 @@ import net.minecraft.server.permissions.Permissions;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Unit;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.Difficulty;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.component.SwingAnimation;
+import net.minecraft.world.entity.projectile.arrow.ThrownTrident;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
@@ -75,6 +85,7 @@ import net.minecraft.world.entity.animal.cow.AbstractCow;
 import net.minecraft.world.entity.animal.golem.IronGolem;
 import net.minecraft.world.entity.monster.Creeper;
 import net.minecraft.world.entity.monster.ElderGuardian;
+import net.minecraft.world.entity.monster.Enderman;
 import net.minecraft.world.entity.monster.breeze.Breeze;
 import net.minecraft.world.entity.monster.creaking.Creaking;
 import net.minecraft.world.entity.monster.Endermite;
@@ -85,6 +96,7 @@ import net.minecraft.world.entity.monster.Ravager;
 import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.monster.Vex;
 import net.minecraft.world.entity.monster.Witch;
+import net.minecraft.world.entity.monster.cubemob.MagmaCube;
 import net.minecraft.world.entity.monster.cubemob.Slime;
 import net.minecraft.world.entity.monster.hoglin.Hoglin;
 import net.minecraft.world.entity.monster.illager.Illusioner;
@@ -97,7 +109,10 @@ import net.minecraft.world.entity.monster.spider.Spider;
 import net.minecraft.world.entity.monster.zombie.Drowned;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.throwableitemprojectile.AbstractThrownPotion;
+import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
 import net.minecraft.world.entity.raid.Raider;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.enchantment.Enchantments;
@@ -121,6 +136,31 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
+    public static final String[] MOBS_CUSTOM = new String[] {
+            "coloso_ruina",
+            "creeper_termonuclear",
+            "creeper_antimateria",
+            "creeper_cosmico",
+            "creeper_fantasma",
+            "creeper_avispon",
+            "creeper_escondido",
+            "mini_creeper",
+            "el_verdugo",
+            "mega_hoglin",
+            "berserker",
+            "nigromante_criptas",
+            "colosal_fusion",
+            "cazador_igneo",
+            "intruso_calaverico",
+            "giga_endermite",
+            "phantom_alfa",
+            "slime_gigante",
+            "cucco_salvaje",
+            "apocalipsis_zombie",
+            "pykete",
+            "sombra_parpadeante"
+    };
+
     private static EntityType<?> CREEPER_TYPE_CACHE = null;
     private static EntityType<?> WARDEN_TYPE_CACHE = null;
     private static EntityType<?> WITHER_SKELETON_TYPE_CACHE = null;
@@ -136,6 +176,7 @@ public class Ruleta_Hardcore implements ModInitializer {
     private static EntityType<?> ILLUSIONER_TYPE_CACHE = null;
     private static EntityType<?> CREAKING_TYPE_CACHE = null;
     private static EntityType<?> LIGHTNING_BOLT_TYPE_CACHE = null;
+    private static EntityType<?> MAGMA_CUBE_TYPE_CACHE = null;
 
     private static final Map<UUID, Integer> TICKS_EXPOSICION_NIEVE = new HashMap<>();
     private static final Map<UUID, Integer> TICKS_INSOLACION_DESIERTO = new HashMap<>();
@@ -146,6 +187,11 @@ public class Ruleta_Hardcore implements ModInitializer {
     private static final Map<UUID, Integer> TICKS_AVISO_RAYO = new HashMap<>();
     private static final Map<UUID, Integer> RAYOS_IMPACTADOS = new HashMap<>();
     private static final Map<UUID, Boolean> JUGADORES_SUELO_PREVIO = new HashMap<>();
+    private static final Map<UUID, Long> DESESTABILIZACION_HOGLIN_EXPIRY = new HashMap<>();
+    private static final Map<UUID, Boolean> COLOSAL_SUELO_PREVIO = new HashMap<>();
+    private static final Map<UUID, Integer> TEMPERATURA_CREEPER_TERMONUCLEAR = new HashMap<>();
+    private static final Map<UUID, Long> ULTIMO_GRITO_ENDERMAN = new HashMap<>();
+    private static final Map<UUID, Long> ULTIMO_PARPADEO_SOMBRA = new HashMap<>();
 
     public record VorticeAntimateria(ServerLevel level, double x, double y, double z, long tickFin) {}
     private static final List<VorticeAntimateria> VORTICES_ANTIMATERIA = new ArrayList<>();
@@ -159,10 +205,12 @@ public class Ruleta_Hardcore implements ModInitializer {
         LOGGER.info("Ruleta Hardcore inicializada correctamente.");
 
         PayloadTypeRegistry.clientboundPlay().register(RuletaAnimacionPayload.TYPE, RuletaAnimacionPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(MuerteFantasmaPayload.TYPE, MuerteFantasmaPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(BloodMoonSyncPayload.TYPE, BloodMoonSyncPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AbrirMenuAdminPayload.TYPE, AbrirMenuAdminPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AbrirMenuEstadoPayload.TYPE, AbrirMenuEstadoPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(VidasSyncPayload.TYPE, VidasSyncPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(VidasJugadorPayload.TYPE, VidasJugadorPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(GuardarConfigAdminPayload.TYPE, GuardarConfigAdminPayload.STREAM_CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(GuardarConfigAdminPayload.TYPE, (payload, context) -> {
@@ -200,7 +248,7 @@ public class Ruleta_Hardcore implements ModInitializer {
         ServerLifecycleEvents.SERVER_STARTED.register(RuletaPersistencia::cargar);
         ServerLifecycleEvents.SERVER_STOPPING.register(RuletaPersistencia::guardar);
 
-        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) ->
+        CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(Commands.literal("ruleta")
                 .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                 .then(Commands.literal("girar")
@@ -297,7 +345,18 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("pykete").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "pykete")))
                     .then(Commands.literal("fragmentacionhelada").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "fragmentacionhelada")))
                     .then(Commands.literal("multicreeper").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "multicreeper")))
-                    .then(Commands.literal("creeperantimateria").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creeperantimateria"))))
+                    .then(Commands.literal("creeperantimateria").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creeperantimateria")))
+                    .then(Commands.literal("gritoprimal").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "gritoprimal")))
+                    .then(Commands.literal("comopedro").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "comopedro")))
+                    .then(Commands.literal("creeperavispon").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creeperavispon")))
+                    .then(Commands.literal("colosalfusion").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "colosalfusion")))
+                    .then(Commands.literal("cazadorigneo").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "cazadorigneo")))
+                    .then(Commands.literal("sombraparpadeante").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "sombraparpadeante")))
+                    .then(Commands.literal("berserker").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "berserker")))
+                    .then(Commands.literal("nigromantecriptas").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "nigromantecriptas")))
+                    .then(Commands.literal("creeperfantasma").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creeperfantasma")))
+                    .then(Commands.literal("creepertermonuclear").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creepertermonuclear")))
+                    .then(Commands.literal("colosoruina").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "colosoruina"))))
                 .then(Commands.literal("bloodmoon")
                     .then(Commands.literal("iniciar").executes(ctx -> {
                         var srv = ctx.getSource().getServer();
@@ -379,6 +438,10 @@ public class Ruleta_Hardcore implements ModInitializer {
                     CatalogoCastigos.reiniciar();
                     RuletaPersistencia.limpiar(srv);
                     VORTICES_ANTIMATERIA.clear();
+                    DESESTABILIZACION_HOGLIN_EXPIRY.clear();
+                    TEMPERATURA_CREEPER_TERMONUCLEAR.clear();
+                    ULTIMO_GRITO_ENDERMAN.clear();
+                    ULTIMO_PARPADEO_SOMBRA.clear();
                     sincronizarLunaSangreClientes(srv);
                     for (ServerLevel lvl : srv.getAllLevels()) {
                         lvl.getGameRules().set(GameRules.NATURAL_HEALTH_REGENERATION, true, srv);
@@ -386,7 +449,43 @@ public class Ruleta_Hardcore implements ModInitializer {
                     ctx.getSource().sendSuccess(() -> Component.literal("§e[PermaRuleta] Se han desactivado todas las maldiciones y reiniciado el catálogo."), true);
                     return 1;
                 }))
-            ));
+                .then(Commands.literal("test_fantasma")
+                    .executes(ctx -> {
+                        ServerPlayer sp = ctx.getSource().getPlayer();
+                        String name = sp != null ? sp.getScoreboardName() : "JugadorPrueba";
+                        MinecraftServer srv = ctx.getSource().getServer();
+                        MuerteFantasmaPayload payload = new MuerteFantasmaPayload(name, 2, CursosActivos.getVidasIniciales(), false);
+                        for (ServerPlayer player : srv.getPlayerList().getPlayers()) {
+                            ServerPlayNetworking.send(player, payload);
+                        }
+                        ctx.getSource().sendSuccess(() -> Component.literal("§a[PermaRuleta] Animación de prueba del fantasma enviada a todos los jugadores."), false);
+                        return 1;
+                    })
+                    .then(Commands.literal("eliminado").executes(ctx -> {
+                        ServerPlayer sp = ctx.getSource().getPlayer();
+                        String name = sp != null ? sp.getScoreboardName() : "JugadorPrueba";
+                        MinecraftServer srv = ctx.getSource().getServer();
+                        MuerteFantasmaPayload payload = new MuerteFantasmaPayload(name, 0, CursosActivos.getVidasIniciales(), true);
+                        for (ServerPlayer player : srv.getPlayerList().getPlayers()) {
+                            ServerPlayNetworking.send(player, payload);
+                        }
+                        ctx.getSource().sendSuccess(() -> Component.literal("§4[PermaRuleta] Animación de prueba de ELIMINACIÓN enviada a todos los jugadores."), false);
+                        return 1;
+                    })))
+                .then(construirComandoRuletaSummon())
+            );
+
+            // Inyección en el comando nativo /summon de Minecraft para admitir /summon <mob_custom> [pos]
+            var nativeSummon = Commands.literal("summon")
+                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER));
+            for (String mob : MOBS_CUSTOM) {
+                nativeSummon.then(Commands.literal(mob)
+                        .executes(ctx -> spawnMobCustom(ctx.getSource(), mob, ctx.getSource().getPosition()))
+                        .then(Commands.argument("pos", Vec3Argument.vec3())
+                                .executes(ctx -> spawnMobCustom(ctx.getSource(), mob, Vec3Argument.getVec3(ctx, "pos")))));
+            }
+            dispatcher.register(nativeSummon);
+        });
 
         // Espejismo de Ender Pearl: 5% de probabilidad de generar un Creeper al lanzar
         UseItemCallback.EVENT.register((player, world, hand) -> {
@@ -420,8 +519,16 @@ public class Ruleta_Hardcore implements ModInitializer {
             }
         });
 
-        // Muerte Instantánea (Nivel 3): usar botones, trampillas, puertas o puertas de valla de madera mata al instante
+        // Muerte Instantánea (Nivel 3) y desestabilización de Mega Hoglin (Nivel 5)
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (CursosActivos.isMegaHoglin() && !player.isCreative() && !player.isSpectator()
+                    && estaDesestabilizadoHoglin(player.getUUID(), world.getGameTime())
+                    && player.getItemInHand(hand).getItem() instanceof BlockItem) {
+                if (!world.isClientSide() && player instanceof ServerPlayer sp) {
+                    sp.sendSystemMessage(Component.literal("§c🐗 ¡Estás desestabilizado por el Mega Hoglin y no puedes colocar bloques!"), true);
+                }
+                return InteractionResult.FAIL;
+            }
             if (!world.isClientSide() && CursosActivos.isMuerteInstantanea()
                     && world instanceof ServerLevel serverLevel
                     && player instanceof ServerPlayer sp
@@ -460,18 +567,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                             if (created instanceof Creeper creeper) {
                                 creeper.snapTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5,
                                         ThreadLocalRandom.current().nextFloat() * 360.0f, 0.0f);
-                                creeper.addTag("creeper_escondido");
-                                AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
-                                if (scaleAttr != null) {
-                                    scaleAttr.setBaseValue(0.35);
-                                }
-                                AttributeInstance speedAttr = creeper.getAttribute(Attributes.MOVEMENT_SPEED);
-                                if (speedAttr != null) {
-                                    speedAttr.setBaseValue(0.38);
-                                }
-                                if (creeper instanceof CreeperCustomAccessor accessor) {
-                                    accessor.ruleta$setExplosionRadius(2);
-                                }
+                                configurarCreeperEscondido(creeper);
                                 creeper.setTarget(player);
                                 serverLevel.addFreshEntity(creeper);
                             }
@@ -511,6 +607,17 @@ public class Ruleta_Hardcore implements ModInitializer {
                 sincronizarVidasJugador(sp);
 
                 MinecraftServer srv = sp.level().getServer();
+                if (srv != null) {
+                    MuerteFantasmaPayload muertePayload = new MuerteFantasmaPayload(
+                            sp.getScoreboardName(),
+                            nuevasVidas,
+                            CursosActivos.getVidasIniciales(),
+                            nuevasVidas <= 0
+                    );
+                    for (ServerPlayer player : srv.getPlayerList().getPlayers()) {
+                        ServerPlayNetworking.send(player, muertePayload);
+                    }
+                }
                 if (nuevasVidas <= 0) {
                     sp.setGameMode(GameType.SPECTATOR);
                     sp.sendSystemMessage(Component.literal("§4§l[PermaRuleta] ☠ ¡Te has quedado sin vidas! Has sido eliminado y ahora estás en modo Espectador permanente."));
@@ -565,6 +672,13 @@ public class Ruleta_Hardcore implements ModInitializer {
                 ejecutarFragmentacionHelada(stray, serverLevel);
             }
 
+            // Colosal de Fusión (Nivel 4): Al morir un Magma Cube colosal, sus crías salen disparadas en arco en todas direcciones como proyectiles de mortero
+            if (entity instanceof MagmaCube magma
+                    && magma.entityTags().contains("colosal_fusion")
+                    && magma.level() instanceof ServerLevel serverLevel) {
+                dispararCriasMorteroColosal(magma, serverLevel);
+            }
+
             if (CursosActivos.isKaBoom() && entity instanceof Shulker shulker && shulker.level() instanceof ServerLevel serverLevel) {
                 double ex = shulker.getX();
                 double ey = shulker.getY() + 0.5;
@@ -583,6 +697,18 @@ public class Ruleta_Hardcore implements ModInitializer {
                     });
                 }
             }
+
+            // Creeper Avispón (Nivel 3): Al morir o ser eliminado, apagar inmediatamente el audio de zumbido
+            if (entity instanceof Creeper creeper && creeper.entityTags().contains("creeper_avispon")) {
+                detenerSonidoCreeperAvispon(creeper, creeper.level());
+            }
+
+            // El Coloso de Ruina (Nivel 6): Al morir, estalla liberando esquirlas volcánicas y humo
+            if (entity instanceof IronGolem golem && golem.entityTags().contains("coloso_ruina") && golem.level() instanceof ServerLevel serverLevel) {
+                serverLevel.sendParticles(ParticleTypes.EXPLOSION_EMITTER, golem.getX(), golem.getY() + 1.5, golem.getZ(), 2, 0.5, 0.5, 0.5, 0.0);
+                serverLevel.sendParticles(ParticleTypes.LAVA, golem.getX(), golem.getY() + 1.5, golem.getZ(), 40, 1.0, 1.0, 1.0, 0.2);
+                serverLevel.playSound(null, golem.getX(), golem.getY(), golem.getZ(), SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 2.5f, 0.5f);
+            }
         });
 
         // Notificación de bienvenida con las maldiciones activas al unirse al servidor
@@ -593,7 +719,10 @@ public class Ruleta_Hardcore implements ModInitializer {
                     CursosActivos.isEclipseActive(),
                     CursosActivos.isContaminacion(),
                     CursosActivos.isCuevasTenebrosas(),
-                    CursosActivos.isMaresAcidos()
+                    CursosActivos.isMaresAcidos(),
+                    CursosActivos.isGritoPrimal(),
+                    CursosActivos.isSombraParpadeante(),
+                    0
             ));
 
             if (player instanceof VidasJugadorAccessor accessor) {
@@ -605,6 +734,16 @@ public class Ruleta_Hardcore implements ModInitializer {
                     player.setGameMode(GameType.SPECTATOR);
                 }
                 sincronizarVidasJugador(player);
+
+                for (ServerPlayer existing : server.getPlayerList().getPlayers()) {
+                    if (existing != player && existing instanceof VidasJugadorAccessor existingAccessor) {
+                        ServerPlayNetworking.send(player, new VidasJugadorPayload(
+                                existing.getUUID(),
+                                existingAccessor.ruleta$getVidas(),
+                                CursosActivos.getVidasIniciales()
+                        ));
+                    }
+                }
             }
 
             if (!CursosActivos.isMundoConfigurado() && esAdministrador(player, server)) {
@@ -625,6 +764,57 @@ public class Ruleta_Hardcore implements ModInitializer {
 
         // Configuración y equipamiento al cargar entidades
         ServerEntityEvents.ENTITY_LOAD.register((entity, level) -> {
+            // Detección directa por NBT tags (para comandos /summon vanilla, generadores o mods externos)
+            if (entity instanceof Creeper creeper) {
+                if (creeper.entityTags().contains("creeper_termonuclear")) {
+                    configurarCreeperTermonuclear(creeper);
+                } else if (creeper.entityTags().contains("creeper_antimateria")) {
+                    configurarCreeperAntimateria(creeper);
+                } else if (creeper.entityTags().contains("creeper_cosmico")) {
+                    configurarCreeperCosmico(creeper);
+                } else if (creeper.entityTags().contains("creeper_fantasma")) {
+                    configurarCreeperFantasma(creeper);
+                } else if (creeper.entityTags().contains("creeper_avispon")) {
+                    configurarCreeperAvispon(creeper);
+                } else if (creeper.entityTags().contains("creeper_escondido")) {
+                    configurarCreeperEscondido(creeper);
+                } else if (creeper.entityTags().contains("mini_multicreeper") || creeper.entityTags().contains("mini_creeper")) {
+                    configurarMiniCreeper(creeper);
+                }
+            } else if (entity instanceof PiglinBrute brute && (brute.entityTags().contains("piglin_verdugo") || brute.entityTags().contains("el_verdugo"))) {
+                configurarElVerdugo(brute, level);
+            } else if (entity instanceof Hoglin hoglin && hoglin.entityTags().contains("mega_hoglin")) {
+                configurarMegaHoglin(hoglin);
+            } else if (entity instanceof Vindicator vindicator && (vindicator.entityTags().contains("berserker_equipado") || vindicator.entityTags().contains("berserker"))) {
+                configurarBerserker(vindicator, level);
+            } else if (entity instanceof Stray stray && (stray.entityTags().contains("nigromante_criptas") || stray.entityTags().contains("nigromante"))) {
+                configurarNigromanteCriptas(stray, level);
+            } else if (entity instanceof MagmaCube magmaCube && magmaCube.entityTags().contains("colosal_fusion")) {
+                configurarColosalFusion(magmaCube);
+            } else if (entity instanceof WitherSkeleton ws) {
+                if (ws.entityTags().contains("cazador_igneo")) {
+                    configurarCazadorIgneo(ws, level);
+                } else if (ws.entityTags().contains("intruso_calaverico_equipado") || ws.entityTags().contains("intruso_calaverico")) {
+                    configurarIntrusoCalaverico(ws, level);
+                }
+            } else if (entity instanceof Endermite endermite && endermite.entityTags().contains("giga_endermite")) {
+                configurarGigaEndermite(endermite);
+            } else if (entity instanceof Phantom phantom && phantom.entityTags().contains("phantom_alfa")) {
+                configurarPhantomAlfa(phantom);
+            } else if (entity instanceof Slime slime && !(entity instanceof MagmaCube) && (slime.entityTags().contains("slime_gigante_pantano") || slime.entityTags().contains("slime_gigante"))) {
+                configurarSlimeGigante(slime);
+            } else if (entity instanceof Chicken chicken && (chicken.entityTags().contains("cucco_salvaje_aplicado") || chicken.entityTags().contains("cucco_salvaje"))) {
+                configurarCuccoSalvaje(chicken);
+            } else if (entity instanceof Zombie zombie && (zombie.entityTags().contains("apoc_mutante") || zombie.entityTags().contains("apocalipsis_zombie"))) {
+                configurarApocalipsisZombie(zombie);
+            } else if (entity instanceof Drowned drowned && (drowned.entityTags().contains("pykete_arponero") || drowned.entityTags().contains("pykete"))) {
+                configurarPykete(drowned);
+            } else if (entity instanceof Enderman enderman && enderman.entityTags().contains("sombra_parpadeante")) {
+                configurarSombraParpadeante(enderman);
+            } else if (entity instanceof IronGolem golem && golem.entityTags().contains("coloso_ruina")) {
+                configurarColosoRuina(golem);
+            }
+
             if (entity instanceof Zombie zombie) {
                 if (CursosActivos.isApocalipsisZombie()) {
                     evaluarZombieApocalipsis(zombie);
@@ -637,7 +827,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
             if (entity instanceof Drowned drowned) {
-                if (CursosActivos.isArtesMaritimos()) {
+                if (CursosActivos.isArtesMaritimos() || CursosActivos.isPykete()) {
                     equiparTridenteArtesMaritimos(drowned);
                 }
                 if (CursosActivos.isEnergiaPoseica()) {
@@ -659,14 +849,23 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (entity instanceof Vex vex && CursosActivos.isVexGrandes()) {
                 aplicarVexGrande(vex);
             }
-            if (entity instanceof Vindicator vindicator && CursosActivos.isResistenciaFisica()) {
-                aplicarResistenciaFisica(vindicator);
+            if (entity instanceof Vindicator vindicator) {
+                if (CursosActivos.isResistenciaFisica()) {
+                    aplicarResistenciaFisica(vindicator);
+                }
+                if (CursosActivos.isBerserker()) {
+                    prepararBerserker(vindicator, level);
+                }
             }
             if (entity instanceof Pillager pillager && CursosActivos.isEscopeta()) {
                 equiparEscopetaPillager(pillager, level);
             }
-            if (entity instanceof IronGolem golem && CursosActivos.isFallaMecanica()) {
-                aplicarFallaMecanica(golem, level);
+            if (entity instanceof IronGolem golem) {
+                if (CursosActivos.isColosoRuina() && !golem.entityTags().contains("coloso_ruina_evaluado")) {
+                    evaluarColosoRuina(golem);
+                } else if (CursosActivos.isFallaMecanica()) {
+                    aplicarFallaMecanica(golem, level);
+                }
             }
             if (entity instanceof Illusioner illusioner && CursosActivos.isAdivinaQuien()) {
                 prepararIllusioner(illusioner, level);
@@ -683,8 +882,19 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (entity instanceof ElderGuardian elderGuardian && CursosActivos.isReyDeLoProfundo()) {
                 aplicarReyDeLoProfundo(elderGuardian);
             }
-            if (entity instanceof WitherSkeleton witherSkeleton && CursosActivos.isIntrusosCalavericos()) {
-                prepararIntrusoCalaverico(witherSkeleton, level);
+            if (entity instanceof WitherSkeleton witherSkeleton) {
+                if (CursosActivos.isIntrusosCalavericos()) {
+                    prepararIntrusoCalaverico(witherSkeleton, level);
+                }
+                if (CursosActivos.isCazadorIgneo()) {
+                    evaluarCazadorIgneo(witherSkeleton, level);
+                }
+            }
+            if (entity instanceof MagmaCube magmaCube && CursosActivos.isColosalFusion()) {
+                evaluarColosalFusion(magmaCube, level);
+            }
+            if (entity instanceof Stray stray && CursosActivos.isNigromanteCriptas()) {
+                evaluarNigromanteCriptas(stray, level);
             }
             if (entity instanceof Spider spider && CursosActivos.isSpiderman()) {
                 aplicarSpiderman(spider);
@@ -692,7 +902,7 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (entity instanceof Ghast ghast && CursosActivos.isEnderGhast()) {
                 prepararEnderGhast(ghast, level);
             }
-            if (entity instanceof Slime slime && CursosActivos.isAtaqueSlimes()) {
+            if (entity instanceof Slime slime && !(entity instanceof MagmaCube) && CursosActivos.isAtaqueSlimes()) {
                 evaluarSlimePantano(slime, level);
             }
             if (entity instanceof Endermite endermite && CursosActivos.isGigaEndermite()) {
@@ -708,8 +918,19 @@ public class Ruleta_Hardcore implements ModInitializer {
                     && (entity instanceof Shulker || entity.getType() == getEndermanType())) {
                 evaluarSpawnCreeperCosmico(entity, level);
             }
-            if (entity instanceof Creeper creeper && CursosActivos.isCreeperAntimateria()) {
-                evaluarCreeperAntimateria(creeper);
+            if (entity instanceof Creeper creeper) {
+                if (CursosActivos.isCreeperAntimateria()) {
+                    evaluarCreeperAntimateria(creeper);
+                }
+                if (CursosActivos.isCreeperFantasma()) {
+                    evaluarCreeperFantasma(creeper);
+                }
+                if (CursosActivos.isCreeperTermonuclear()) {
+                    evaluarCreeperTermonuclear(creeper);
+                }
+                if (CursosActivos.isCreeperAvispon()) {
+                    evaluarCreeperAvispon(creeper);
+                }
             }
             if (entity instanceof Monster monster && CursosActivos.isBloodMoonActive() && level.dimension().equals(Level.OVERWORLD)) {
                 aplicarBuffsLunaDeSangre(monster);
@@ -939,12 +1160,12 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Artes Marítimos (Nivel 3), Energía Poseica (Nivel 3) y Montura Acuática (Nivel 6)
-            if ((CursosActivos.isArtesMaritimos() || CursosActivos.isEnergiaPoseica() || CursosActivos.isMonturaAcuatica()) && currentTick % 40 == 0) {
+            // Artes Marítimos (Nivel 3), Pykete (Nivel 3), Energía Poseica (Nivel 3) y Montura Acuática (Nivel 3)
+            if ((CursosActivos.isArtesMaritimos() || CursosActivos.isPykete() || CursosActivos.isEnergiaPoseica() || CursosActivos.isMonturaAcuatica()) && currentTick % 40 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
                         if (entity instanceof Drowned drowned && drowned.isAlive()) {
-                            if (CursosActivos.isArtesMaritimos()) {
+                            if (CursosActivos.isArtesMaritimos() || CursosActivos.isPykete()) {
                                 equiparTridenteArtesMaritimos(drowned);
                             }
                             if (CursosActivos.isEnergiaPoseica()) {
@@ -953,6 +1174,18 @@ public class Ruleta_Hardcore implements ModInitializer {
                             if (CursosActivos.isMonturaAcuatica()) {
                                 aplicarMonturaAcuatica(drowned, lvl);
                             }
+                        }
+                    }
+                }
+            }
+
+            // Pykete Arponero (Nivel 3): lanzamiento activo de tridentes con cuerda de algas y arrastre
+            if (currentTick % 5 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Drowned drowned && drowned.isAlive()
+                                && (drowned.entityTags().contains("pykete_arponero") || (CursosActivos.isPykete() && drowned.entityTags().contains("artes_maritimos_equipado")))) {
+                            procesarPykete(drowned, lvl, currentTick);
                         }
                     }
                 }
@@ -1238,11 +1471,11 @@ public class Ruleta_Hardcore implements ModInitializer {
             }
 
             // Phantom Alfa (Nivel 5): evaluar Phantoms y ataque sónico en picada
-            if (CursosActivos.isPhantomAlfa() && currentTick % 10 == 0) {
+            if (currentTick % 10 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
                         if (entity instanceof Phantom phantom && phantom.isAlive()) {
-                            if (!phantom.entityTags().contains("phantom_alfa_evaluado")) {
+                            if (CursosActivos.isPhantomAlfa() && !phantom.entityTags().contains("phantom_alfa_evaluado")) {
                                 evaluarPhantomAlfa(phantom);
                             }
                             if (phantom.entityTags().contains("phantom_alfa")) {
@@ -1386,8 +1619,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Mega Hoglin (Nivel 5): mantener Lentitud I activa y romper obstáculos en su persecución
-            if (CursosActivos.isMegaHoglin()) {
+            // Mega Hoglin (Nivel 5): mantener Lentitud I activa, romper obstáculos y embestida lineal con onda expansiva desestabilizadora
+            if (CursosActivos.isMegaHoglin() || currentTick % 4 == 0) {
                 if (currentTick % 60 == 0) {
                     for (ServerLevel lvl : server.getAllLevels()) {
                         for (Entity entity : lvl.getAllEntities()) {
@@ -1406,10 +1639,19 @@ public class Ruleta_Hardcore implements ModInitializer {
                         }
                     }
                 }
+                if (currentTick % 20 == 0) {
+                    for (ServerLevel lvl : server.getAllLevels()) {
+                        for (Entity entity : lvl.getAllEntities()) {
+                            if (entity instanceof Hoglin hoglin && hoglin.isAlive() && hoglin.entityTags().contains("mega_hoglin")) {
+                                ejecutarEmbestidaMegaHoglin(hoglin, lvl, currentTick);
+                            }
+                        }
+                    }
+                }
             }
 
             // Giga-Endermite (Nivel 5): ataque anunciado y embestida/salto hacia el jugador
-            if (CursosActivos.isGigaEndermite() && currentTick % 20 == 0) {
+            if (currentTick % 20 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
                         if (entity instanceof Endermite endermite && endermite.isAlive()
@@ -1857,11 +2099,11 @@ public class Ruleta_Hardcore implements ModInitializer {
             }
 
             // Creeper de Implosión Antimateria (Nivel 6): Partículas moradas del End y evaluación
-            if (CursosActivos.isCreeperAntimateria() && currentTick % 4 == 0) {
+            if (currentTick % 4 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
                         if (entity instanceof Creeper creeper && creeper.isAlive()) {
-                            if (!creeper.entityTags().contains("creeper_antimateria_evaluado")) {
+                            if (CursosActivos.isCreeperAntimateria() && !creeper.entityTags().contains("creeper_antimateria_evaluado")) {
                                 evaluarCreeperAntimateria(creeper);
                             }
                             if (creeper.entityTags().contains("creeper_antimateria")) {
@@ -1937,6 +2179,190 @@ public class Ruleta_Hardcore implements ModInitializer {
                     }
                 }
             }
+
+            // Grito Primal (Nivel 2): cuando un Enderman se enoja con el jugador, lo aturde y deja sordo por 30 segundos
+            if (CursosActivos.isGritoPrimal() && currentTick % 10 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Enderman enderman && enderman.isAlive()
+                                && enderman.getTarget() instanceof ServerPlayer sp
+                                && sp.isAlive() && !sp.isCreative() && !sp.isSpectator()) {
+                            long lastScream = ULTIMO_GRITO_ENDERMAN.getOrDefault(enderman.getUUID(), -2000L);
+                            if (currentTick - lastScream >= 1200L) {
+                                ULTIMO_GRITO_ENDERMAN.put(enderman.getUUID(), currentTick);
+                                aplicarGritoPrimal(sp, lvl);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Como Pedro (Nivel 3): Creepers caminan sobre el agua y su velocidad se multiplica por 3
+            if (CursosActivos.isComoPedro()) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Creeper creeper && creeper.isAlive()) {
+                            procesarCreeperComoPedro(creeper, lvl, currentTick);
+                        }
+                    }
+                }
+            }
+
+            // Colosal de Fusión (Nivel 4): Magma Cubes colosales en el Nether (tamaño 7-8), mega saltos y cráter de magma al aterrizar
+            if (CursosActivos.isColosalFusion() && currentTick % 40 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    if (!lvl.dimension().equals(Level.NETHER)) continue;
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof MagmaCube mc && mc.isAlive() && !mc.entityTags().contains("colosal_fusion_evaluado")) {
+                            evaluarColosalFusion(mc, lvl);
+                        }
+                    }
+                }
+            }
+            if (currentTick % 2 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof MagmaCube mc && mc.isAlive() && mc.entityTags().contains("colosal_fusion")) {
+                            procesarSaltoYCraterColosalFusion(mc, lvl, currentTick);
+                        }
+                    }
+                }
+            }
+
+            // Cazador Ígneo (Nivel 4): 15% de Wither Skeletons en el Nether portan arco con flechas de fuego fatuo azul
+            if (CursosActivos.isCazadorIgneo() && currentTick % 40 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof WitherSkeleton ws && ws.isAlive() && !ws.entityTags().contains("cazador_igneo_evaluado")) {
+                            evaluarCazadorIgneo(ws, lvl);
+                        }
+                    }
+                }
+            }
+
+            // Sombra Parpadeante (Nivel 5): Teletransporte a la espalda al mirarlos y pulso psíquico hacia sus ojos si miras al suelo
+            if (CursosActivos.isSombraParpadeante() && currentTick % 4 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
+                    procesarSombraParpadeanteJugador(player, (ServerLevel) player.level(), currentTick);
+                }
+            }
+
+            // Berserker (Nivel 5): Vindicadores con Hacha de Netherite, casco reforzado y Carrera Frenética (+60% velocidad a <15 bloques)
+            if (currentTick % 10 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Vindicator vindicator && vindicator.isAlive()) {
+                            if (CursosActivos.isBerserker() && !vindicator.entityTags().contains("berserker_equipado")) {
+                                prepararBerserker(vindicator, lvl);
+                            }
+                            if (vindicator.entityTags().contains("berserker_equipado")) {
+                                procesarCarreraFreneticaBerserker(vindicator, lvl);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // El Nigromante de las Criptas (Nivel 5): Stray con túnica y báculo que canaliza rayo gélido e invoca mini-strays con hacha
+            if (CursosActivos.isNigromanteCriptas() && currentTick % 40 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Stray stray && stray.isAlive() && !stray.entityTags().contains("nigromante_evaluado")) {
+                            evaluarNigromanteCriptas(stray, lvl);
+                        }
+                    }
+                }
+            }
+            if (currentTick % 5 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    List<Stray> nigromantes = new ArrayList<>();
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Stray stray && stray.isAlive() && stray.entityTags().contains("nigromante_criptas")) {
+                            nigromantes.add(stray);
+                        }
+                    }
+                    for (Stray nigromante : nigromantes) {
+                        procesarNigromanteCriptas(nigromante, lvl, currentTick);
+                    }
+                }
+            }
+
+            // Creeper Fantasma (Nivel 5): Creeper espectral translúcido inmune a proyectiles
+            if (currentTick % 6 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Creeper creeper && creeper.isAlive()) {
+                            if (CursosActivos.isCreeperFantasma() && !creeper.entityTags().contains("creeper_fantasma_evaluado")) {
+                                evaluarCreeperFantasma(creeper);
+                            }
+                            if (creeper.entityTags().contains("creeper_fantasma")) {
+                                lvl.sendParticles(ParticleTypes.SOUL,
+                                        creeper.getX(), creeper.getY() + 0.9, creeper.getZ(),
+                                        2, 0.25, 0.45, 0.25, 0.01);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Creeper Termonuclear (Nivel 6): Creeper acorazado cuya temperatura sube en combate (>70% quema en 4 bloques, 100% explota)
+            if (currentTick % 5 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    List<Creeper> termonucleares = new ArrayList<>();
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Creeper creeper && creeper.isAlive()) {
+                            if (CursosActivos.isCreeperTermonuclear() && !creeper.entityTags().contains("creeper_termonuclear_evaluado")) {
+                                evaluarCreeperTermonuclear(creeper);
+                            }
+                            if (creeper.entityTags().contains("creeper_termonuclear")) {
+                                termonucleares.add(creeper);
+                            }
+                        }
+                    }
+                    for (Creeper creeper : termonucleares) {
+                        procesarCreeperTermonuclear(creeper, lvl, currentTick);
+                    }
+                }
+            }
+
+            // Creeper Avispón (Nivel 3): Pequeño creeper volador estilo abeja con vuelo zigzagueante
+            if (currentTick % 2 == 0) {
+                for (ServerLevel lvl : server.getAllLevels()) {
+                    List<Creeper> avispones = new ArrayList<>();
+                    for (Entity entity : lvl.getAllEntities()) {
+                        if (entity instanceof Creeper creeper && creeper.isAlive()) {
+                            if (CursosActivos.isCreeperAvispon() && !creeper.entityTags().contains("creeper_avispon_evaluado")) {
+                                evaluarCreeperAvispon(creeper);
+                            }
+                            if (creeper.entityTags().contains("creeper_avispon")) {
+                                avispones.add(creeper);
+                            }
+                        }
+                    }
+                    for (Creeper creeper : avispones) {
+                        procesarCreeperAvispon(creeper, lvl, currentTick);
+                    }
+                }
+            }
+
+            // El Coloso de Ruina (Nivel 6): Golem titánico de basalto con golpe sísmico y anti-torres
+            for (ServerLevel lvl : server.getAllLevels()) {
+                List<IronGolem> colosos = new ArrayList<>();
+                for (Entity entity : lvl.getAllEntities()) {
+                    if (entity instanceof IronGolem golem && golem.isAlive()) {
+                        if (CursosActivos.isColosoRuina() && !golem.entityTags().contains("coloso_ruina_evaluado")) {
+                            evaluarColosoRuina(golem);
+                        }
+                        if (golem.entityTags().contains("coloso_ruina")) {
+                            colosos.add(golem);
+                        }
+                    }
+                }
+                for (IronGolem coloso : colosos) {
+                    procesarColosoRuina(coloso, lvl, currentTick);
+                }
+            }
         });
     }
 
@@ -1947,7 +2373,10 @@ public class Ruleta_Hardcore implements ModInitializer {
                 CursosActivos.isEclipseActive(),
                 CursosActivos.isContaminacion(),
                 CursosActivos.isCuevasTenebrosas(),
-                CursosActivos.isMaresAcidos()
+                CursosActivos.isMaresAcidos(),
+                CursosActivos.isGritoPrimal(),
+                CursosActivos.isSombraParpadeante(),
+                0
         );
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             ServerPlayNetworking.send(player, payload);
@@ -1956,7 +2385,21 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     public static void sincronizarVidasJugador(ServerPlayer player) {
         if (player instanceof VidasJugadorAccessor accessor) {
-            ServerPlayNetworking.send(player, new VidasSyncPayload(accessor.ruleta$getVidas(), CursosActivos.getVidasIniciales()));
+            MinecraftServer server = player.level().getServer();
+            if (server == null) return;
+            int restantes = accessor.ruleta$getVidas();
+            int maximas = CursosActivos.getVidasIniciales();
+
+            // Sincronizar el HUD personal del jugador
+            ServerPlayNetworking.send(player, new VidasSyncPayload(restantes, maximas));
+
+            // Transmitir a los demás jugadores para el indicador overhead
+            VidasJugadorPayload broadcastPayload = new VidasJugadorPayload(player.getUUID(), restantes, maximas);
+            for (ServerPlayer other : server.getPlayerList().getPlayers()) {
+                if (other != player) {
+                    ServerPlayNetworking.send(other, broadcastPayload);
+                }
+            }
         }
     }
 
@@ -1968,6 +2411,10 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     public static void aplicarCuccoSalvaje(Chicken chicken) {
         if (chicken.entityTags().contains("cucco_salvaje_aplicado")) return;
+        configurarCuccoSalvaje(chicken);
+    }
+
+    public static void configurarCuccoSalvaje(Chicken chicken) {
         chicken.addTag("cucco_salvaje_aplicado");
         AttributeInstance healthAttr = chicken.getAttribute(Attributes.MAX_HEALTH);
         if (healthAttr != null) {
@@ -2123,6 +2570,7 @@ public class Ruleta_Hardcore implements ModInitializer {
     }
 
     public static void evaluarSpawnIllusionerAcompaniante(Raider raider, ServerLevel level) {
+        if (!CursosActivos.isAdivinaQuien()) return;
         if (raider.entityTags().contains("illusioner_spawn_evaluado")) return;
         raider.addTag("illusioner_spawn_evaluado");
 
@@ -2181,10 +2629,62 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (drowned.entityTags().contains("artes_maritimos_equipado")) {
             return;
         }
+        configurarPykete(drowned);
+    }
+
+    public static void configurarPykete(Drowned drowned) {
         drowned.addTag("artes_maritimos_equipado");
+        drowned.addTag("pykete_arponero");
         if (!drowned.getMainHandItem().is(Items.TRIDENT)) {
             drowned.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.TRIDENT));
             drowned.setDropChance(EquipmentSlot.MAINHAND, 0.05f);
+        }
+        // Protección solar cuando está en tierra para evitar que muera quemado
+        ItemStack helmet = drowned.getItemBySlot(EquipmentSlot.HEAD);
+        if (helmet.isEmpty()) {
+            drowned.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.TURTLE_HELMET));
+            drowned.setDropChance(EquipmentSlot.HEAD, 0.0f);
+        }
+    }
+
+    public static void procesarPykete(Drowned drowned, ServerLevel level, long currentTick) {
+        if (!drowned.isAlive()) return;
+
+        // Búsqueda de objetivo: jugador de supervivencia más cercano en 24 bloques
+        LivingEntity target = drowned.getTarget();
+        if (target == null || !target.isAlive() || (target instanceof Player p && (p.isCreative() || p.isSpectator()))) {
+            target = level.getNearestPlayer(
+                    drowned.getX(), drowned.getY(), drowned.getZ(),
+                    24.0,
+                    e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+            );
+            if (target != null) {
+                drowned.setTarget(target);
+            }
+        }
+
+        if (target != null && target.isAlive()) {
+            drowned.getLookControl().setLookAt(target, 35.0f, 35.0f);
+            double distSqr = drowned.distanceToSqr(target);
+
+            // Si está entre 3.0 y 24.0 bloques y tiene línea de visión, arrojar tridente periódicamente
+            if (distSqr >= 9.0 && distSqr <= 576.0 && drowned.hasLineOfSight(target)) {
+                long seed = Math.abs(drowned.getUUID().getMostSignificantBits());
+                if ((currentTick + seed) % 45 == 0) {
+                    ThrownTrident trident = new ThrownTrident(level, drowned, new ItemStack(Items.TRIDENT));
+                    trident.addTag("tridente_pykete");
+                    double dx = target.getX() - drowned.getX();
+                    double dy = (target.getY() + target.getEyeHeight() * 0.5) - (drowned.getY() + 1.2);
+                    double dz = target.getZ() - drowned.getZ();
+                    double horizDist = Math.sqrt(dx * dx + dz * dz);
+                    trident.shoot(dx, dy + horizDist * 0.12, dz, 1.6f, 1.0f);
+
+                    level.playSound(null, drowned.getX(), drowned.getY(), drowned.getZ(),
+                            SoundEvents.DROWNED_SHOOT, SoundSource.HOSTILE, 1.2f, 1.0f / (ThreadLocalRandom.current().nextFloat() * 0.4f + 0.8f));
+                    drowned.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
+                    level.addFreshEntity(trident);
+                }
+            }
         }
     }
 
@@ -2405,35 +2905,46 @@ public class Ruleta_Hardcore implements ModInitializer {
     }
 
     public static void evaluarVerdugo(PiglinBrute brute, ServerLevel level) {
+        if (!CursosActivos.isElVerdugo()) return;
         if (brute.entityTags().contains("piglin_verdugo_evaluado")) return;
         brute.addTag("piglin_verdugo_evaluado");
 
         if (ThreadLocalRandom.current().nextFloat() < 0.15f) {
-            brute.addTag("piglin_verdugo");
-
-            AttributeInstance scaleAttr = brute.getAttribute(Attributes.SCALE);
-            if (scaleAttr != null) {
-                scaleAttr.setBaseValue(1.5);
-            }
-            AttributeInstance hpAttr = brute.getAttribute(Attributes.MAX_HEALTH);
-            if (hpAttr != null) {
-                hpAttr.setBaseValue(100.0);
-                brute.setHealth(100.0f);
-            }
-
-            ItemStack axe = new ItemStack(Items.NETHERITE_AXE);
-            level.registryAccess().lookup(Registries.ENCHANTMENT).ifPresent(reg -> {
-                reg.get(Enchantments.SHARPNESS).ifPresent(sharpnessHolder -> {
-                    axe.enchant(sharpnessHolder, 6);
-                });
-            });
-            brute.setItemSlot(EquipmentSlot.MAINHAND, axe);
-            brute.setDropChance(EquipmentSlot.MAINHAND, 0.08f);
+            configurarElVerdugo(brute, level);
         }
     }
 
+    public static void configurarElVerdugo(PiglinBrute brute, ServerLevel level) {
+        brute.addTag("piglin_verdugo_evaluado");
+        brute.addTag("piglin_verdugo");
+
+        AttributeInstance scaleAttr = brute.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(1.5);
+        }
+        AttributeInstance hpAttr = brute.getAttribute(Attributes.MAX_HEALTH);
+        if (hpAttr != null) {
+            hpAttr.setBaseValue(100.0);
+            brute.setHealth(100.0f);
+        }
+
+        ItemStack axe = new ItemStack(Items.NETHERITE_AXE);
+        level.registryAccess().lookup(Registries.ENCHANTMENT).ifPresent(reg -> {
+            reg.get(Enchantments.SHARPNESS).ifPresent(sharpnessHolder -> {
+                axe.enchant(sharpnessHolder, 6);
+            });
+        });
+        brute.setItemSlot(EquipmentSlot.MAINHAND, axe);
+        brute.setDropChance(EquipmentSlot.MAINHAND, 0.08f);
+    }
+
     public static void evaluarPhantomAlfa(Phantom phantom) {
+        if (!CursosActivos.isPhantomAlfa()) return;
         if (phantom.entityTags().contains("phantom_alfa_evaluado")) return;
+        configurarPhantomAlfa(phantom);
+    }
+
+    public static void configurarPhantomAlfa(Phantom phantom) {
         phantom.addTag("phantom_alfa_evaluado");
         phantom.addTag("phantom_alfa");
         phantom.addTag("eclipse_inmune_sol");
@@ -2534,6 +3045,7 @@ public class Ruleta_Hardcore implements ModInitializer {
             return;
         }
 
+        if (!CursosActivos.isAtaqueSlimes()) return;
         if (slime.entityTags().contains("slime_pantano_evaluado")) return;
         slime.addTag("slime_pantano_evaluado");
 
@@ -2543,38 +3055,45 @@ public class Ruleta_Hardcore implements ModInitializer {
         }
 
         if (ThreadLocalRandom.current().nextFloat() < 0.05f) {
-            slime.addTag("slime_gigante_pantano");
-            slime.setSize(4, true);
+            configurarSlimeGigante(slime);
+        }
+    }
 
-            AttributeInstance scaleAttr = slime.getAttribute(Attributes.SCALE);
-            if (scaleAttr != null) {
-                scaleAttr.setBaseValue(4.5);
-            }
-            AttributeInstance healthAttr = slime.getAttribute(Attributes.MAX_HEALTH);
-            if (healthAttr != null) {
-                healthAttr.setBaseValue(100.0);
-                slime.setHealth(100.0f);
-            }
-            AttributeInstance dmgAttr = slime.getAttribute(Attributes.ATTACK_DAMAGE);
-            if (dmgAttr != null) {
-                // Slime grande (tamaño 4) hace 4.0 de daño -> x2.5 = 10.0 de daño
-                dmgAttr.setBaseValue(10.0);
-            }
+    public static void configurarSlimeGigante(Slime slime) {
+        slime.addTag("slime_pantano_evaluado");
+        slime.addTag("slime_gigante_pantano");
+        slime.setSize(4, true);
+
+        AttributeInstance scaleAttr = slime.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(4.5);
+        }
+        AttributeInstance healthAttr = slime.getAttribute(Attributes.MAX_HEALTH);
+        if (healthAttr != null) {
+            healthAttr.setBaseValue(100.0);
+            slime.setHealth(100.0f);
+        }
+        AttributeInstance dmgAttr = slime.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (dmgAttr != null) {
+            // Slime grande (tamaño 4) hace 4.0 de daño -> x2.5 = 10.0 de daño
+            dmgAttr.setBaseValue(10.0);
         }
     }
 
     public static void evaluarGigaEndermite(Endermite endermite, ServerLevel level) {
+        if (!CursosActivos.isGigaEndermite()) return;
         if (endermite.entityTags().contains("giga_endermite_evaluado")) return;
         endermite.addTag("giga_endermite_evaluado");
 
         if (!level.dimension().equals(Level.END)) return;
 
         if (ThreadLocalRandom.current().nextFloat() < 0.05f) {
-            convertirEnGigaEndermite(endermite);
+            configurarGigaEndermite(endermite);
         }
     }
 
     public static void evaluarSpawnNaturalGigaEndermiteEnEnd(Entity enderman, ServerLevel level) {
+        if (!CursosActivos.isGigaEndermite()) return;
         if (enderman.entityTags().contains("giga_endermite_enderman_check")) return;
         enderman.addTag("giga_endermite_enderman_check");
 
@@ -2587,14 +3106,15 @@ public class Ruleta_Hardcore implements ModInitializer {
                 if (created instanceof Endermite endermite) {
                     endermite.setPos(enderman.getX(), enderman.getY(), enderman.getZ());
                     endermite.addTag("giga_endermite_evaluado");
-                    convertirEnGigaEndermite(endermite);
+                    configurarGigaEndermite(endermite);
                     level.addFreshEntity(endermite);
                 }
             }
         }
     }
 
-    private static void convertirEnGigaEndermite(Endermite endermite) {
+    public static void configurarGigaEndermite(Endermite endermite) {
+        endermite.addTag("giga_endermite_evaluado");
         endermite.addTag("giga_endermite");
 
         AttributeInstance scaleAttr = endermite.getAttribute(Attributes.SCALE);
@@ -2680,32 +3200,38 @@ public class Ruleta_Hardcore implements ModInitializer {
     }
 
     public static void evaluarMegaHoglin(Hoglin hoglin, ServerLevel level) {
+        if (!CursosActivos.isMegaHoglin()) return;
         if (hoglin.entityTags().contains("mega_hoglin_evaluado")) return;
         hoglin.addTag("mega_hoglin_evaluado");
 
         if (!level.dimension().equals(Level.NETHER)) return;
 
         if (ThreadLocalRandom.current().nextFloat() < 0.05f) {
-            hoglin.addTag("mega_hoglin");
-            if (hoglin.isBaby()) {
-                hoglin.setAge(0);
-            }
-
-            AttributeInstance scaleAttr = hoglin.getAttribute(Attributes.SCALE);
-            if (scaleAttr != null) {
-                scaleAttr.setBaseValue(4.5);
-            }
-            AttributeInstance healthAttr = hoglin.getAttribute(Attributes.MAX_HEALTH);
-            if (healthAttr != null) {
-                healthAttr.setBaseValue(300.0);
-                hoglin.setHealth(300.0f);
-            }
-            AttributeInstance dmgAttr = hoglin.getAttribute(Attributes.ATTACK_DAMAGE);
-            if (dmgAttr != null) {
-                dmgAttr.setBaseValue(dmgAttr.getBaseValue() * 2.0);
-            }
-            hoglin.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, MobEffectInstance.INFINITE_DURATION, 0));
+            configurarMegaHoglin(hoglin);
         }
+    }
+
+    public static void configurarMegaHoglin(Hoglin hoglin) {
+        hoglin.addTag("mega_hoglin_evaluado");
+        hoglin.addTag("mega_hoglin");
+        if (hoglin.isBaby()) {
+            hoglin.setAge(0);
+        }
+
+        AttributeInstance scaleAttr = hoglin.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(4.5);
+        }
+        AttributeInstance healthAttr = hoglin.getAttribute(Attributes.MAX_HEALTH);
+        if (healthAttr != null) {
+            healthAttr.setBaseValue(300.0);
+            hoglin.setHealth(300.0f);
+        }
+        AttributeInstance dmgAttr = hoglin.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (dmgAttr != null) {
+            dmgAttr.setBaseValue(dmgAttr.getBaseValue() * 2.0);
+        }
+        hoglin.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, MobEffectInstance.INFINITE_DURATION, 0));
     }
 
     public static void romperBloquesMegaHoglin(Hoglin hoglin, ServerLevel lvl) {
@@ -2758,6 +3284,7 @@ public class Ruleta_Hardcore implements ModInitializer {
     }
 
     public static void evaluarSpawnCreeperCosmico(Entity refEntity, ServerLevel level) {
+        if (!CursosActivos.isCreeperCosmico()) return;
         if (refEntity.entityTags().contains("creeper_cosmico_check")) return;
         refEntity.addTag("creeper_cosmico_check");
 
@@ -2776,21 +3303,40 @@ public class Ruleta_Hardcore implements ModInitializer {
                 Entity created = creeperType.create(level, EntitySpawnReason.NATURAL);
                 if (created instanceof Creeper creeper) {
                     creeper.snapTo(refEntity.getX(), refEntity.getY(), refEntity.getZ(), refEntity.getYRot(), 0.0f);
-                    creeper.addTag("creeper_cosmico");
-                    creeper.addTag("creeper_antimateria_evaluado");
-                    AttributeInstance speedAttr = creeper.getAttribute(Attributes.MOVEMENT_SPEED);
-                    if (speedAttr != null) {
-                        speedAttr.setBaseValue(0.05);
-                    }
-                    creeper.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, MobEffectInstance.INFINITE_DURATION, 3, false, false));
-                    if (creeper instanceof CreeperCustomAccessor accessor) {
-                        accessor.ruleta$setPowered(true);
-                        // En Creeper#explodeCreeper, cuando isPowered() es true, el radio se multiplica por 2.0f -> 15 * 2 = 30 bloques
-                        accessor.ruleta$setExplosionRadius(15);
-                    }
+                    configurarCreeperCosmico(creeper);
                     level.addFreshEntity(creeper);
                 }
             }
+        }
+    }
+
+    public static void configurarCreeperCosmico(Creeper creeper) {
+        creeper.addTag("creeper_cosmico");
+        creeper.addTag("creeper_antimateria_evaluado");
+        AttributeInstance speedAttr = creeper.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speedAttr != null) {
+            speedAttr.setBaseValue(0.05);
+        }
+        creeper.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, MobEffectInstance.INFINITE_DURATION, 3, false, false));
+        if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setPowered(true);
+            // En Creeper#explodeCreeper, cuando isPowered() es true, el radio se multiplica por 2.0f -> 15 * 2 = 30 bloques
+            accessor.ruleta$setExplosionRadius(15);
+        }
+    }
+
+    public static void configurarCreeperEscondido(Creeper creeper) {
+        creeper.addTag("creeper_escondido");
+        AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(0.35);
+        }
+        AttributeInstance speedAttr = creeper.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speedAttr != null) {
+            speedAttr.setBaseValue(0.38);
+        }
+        if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setExplosionRadius(2);
         }
     }
 
@@ -2842,26 +3388,30 @@ public class Ruleta_Hardcore implements ModInitializer {
                 double oz = Math.sin(angle) * 0.65;
                 mini.snapTo(original.getX() + ox, original.getY(), original.getZ() + oz,
                         original.getYRot(), 0.0f);
-                mini.addTag("mini_multicreeper");
-                mini.addTag("creeper_antimateria_evaluado");
-
-                AttributeInstance scaleAttr = mini.getAttribute(Attributes.SCALE);
-                if (scaleAttr != null) {
-                    scaleAttr.setBaseValue(0.55);
-                }
-                AttributeInstance speedAttr = mini.getAttribute(Attributes.MOVEMENT_SPEED);
-                if (speedAttr != null) {
-                    speedAttr.setBaseValue(0.34);
-                }
-                if (mini instanceof CreeperCustomAccessor accessor) {
-                    accessor.ruleta$setMaxSwell(20); // 1 segundo de mecha ultracorta
-                    accessor.ruleta$setExplosionRadius(2);
-                }
+                configurarMiniCreeper(mini);
                 mini.setTarget(attacker);
                 mini.ignite();
                 mini.setDeltaMovement(ox * 0.35, 0.28, oz * 0.35);
                 level.addFreshEntity(mini);
             }
+        }
+    }
+
+    public static void configurarMiniCreeper(Creeper creeper) {
+        creeper.addTag("mini_multicreeper");
+        creeper.addTag("creeper_antimateria_evaluado");
+
+        AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(0.55);
+        }
+        AttributeInstance speedAttr = creeper.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speedAttr != null) {
+            speedAttr.setBaseValue(0.34);
+        }
+        if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setMaxSwell(20); // 1 segundo de mecha ultracorta
+            accessor.ruleta$setExplosionRadius(2);
         }
     }
 
@@ -2909,28 +3459,36 @@ public class Ruleta_Hardcore implements ModInitializer {
     }
 
     public static void evaluarCreeperAntimateria(Creeper creeper) {
+        if (!CursosActivos.isCreeperAntimateria()) return;
         if (creeper.entityTags().contains("creeper_antimateria_evaluado")) return;
         creeper.addTag("creeper_antimateria_evaluado");
 
         if (creeper.entityTags().contains("creeper_cosmico")
                 || creeper.entityTags().contains("creeper_escondido")
-                || creeper.entityTags().contains("mini_multicreeper")) {
+                || creeper.entityTags().contains("mini_multicreeper")
+                || creeper.entityTags().contains("creeper_fantasma")
+                || creeper.entityTags().contains("creeper_termonuclear")) {
             return;
         }
 
         // Probabilidad rara (8%) en cualquier bioma
         if (ThreadLocalRandom.current().nextFloat() < 0.08f) {
-            creeper.addTag("creeper_antimateria");
-            AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
-            if (scaleAttr != null) {
-                // Escala 1.08 detectada por CreeperRendererMixin para renderizar la textura negra de Antimateria
-                scaleAttr.setBaseValue(1.08);
-            }
-            AttributeInstance healthAttr = creeper.getAttribute(Attributes.MAX_HEALTH);
-            if (healthAttr != null) {
-                healthAttr.setBaseValue(40.0);
-                creeper.setHealth(40.0f);
-            }
+            configurarCreeperAntimateria(creeper);
+        }
+    }
+
+    public static void configurarCreeperAntimateria(Creeper creeper) {
+        creeper.addTag("creeper_antimateria_evaluado");
+        creeper.addTag("creeper_antimateria");
+        AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            // Escala 1.08 detectada por CreeperRendererMixin para renderizar la textura negra de Antimateria
+            scaleAttr.setBaseValue(1.08);
+        }
+        AttributeInstance healthAttr = creeper.getAttribute(Attributes.MAX_HEALTH);
+        if (healthAttr != null) {
+            healthAttr.setBaseValue(40.0);
+            creeper.setHealth(40.0f);
         }
     }
 
@@ -2965,6 +3523,7 @@ public class Ruleta_Hardcore implements ModInitializer {
     }
 
     public static void evaluarSpawnApocalipsisTotal(Zombie zombie, ServerLevel level) {
+        if (!CursosActivos.isApocalipsisZombie()) return;
         if (zombie.entityTags().contains("apoc6_spawn_evaluado")) return;
         zombie.addTag("apoc6_spawn_evaluado");
 
@@ -2981,13 +3540,19 @@ public class Ruleta_Hardcore implements ModInitializer {
     }
 
     public static void evaluarZombieApocalipsis(Zombie zombie) {
+        if (!CursosActivos.isApocalipsisZombie()) return;
         if (zombie.entityTags().contains("apoc_evaluado")) return;
         zombie.addTag("apoc_evaluado");
         if (ThreadLocalRandom.current().nextFloat() < 0.50f) {
-            zombie.addTag("apoc_mutante");
-            if (zombie instanceof WallClimberAccessor climber) {
-                climber.ruleta$setWallClimberNavigation();
-            }
+            configurarApocalipsisZombie(zombie);
+        }
+    }
+
+    public static void configurarApocalipsisZombie(Zombie zombie) {
+        zombie.addTag("apoc_evaluado");
+        zombie.addTag("apoc_mutante");
+        if (zombie instanceof WallClimberAccessor climber) {
+            climber.ruleta$setWallClimberNavigation();
         }
     }
 
@@ -3007,6 +3572,10 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     public static void prepararIntrusoCalaverico(WitherSkeleton ws, ServerLevel level) {
         if (ws.entityTags().contains("intruso_calaverico_equipado")) return;
+        configurarIntrusoCalaverico(ws, level);
+    }
+
+    public static void configurarIntrusoCalaverico(WitherSkeleton ws, ServerLevel level) {
         ws.addTag("intruso_calaverico_equipado");
 
         ItemStack helmet = new ItemStack(Items.DIAMOND_HELMET);
@@ -3267,6 +3836,220 @@ public class Ruleta_Hardcore implements ModInitializer {
             && !player.getItemBySlot(EquipmentSlot.FEET).isEmpty();
     }
 
+    private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> construirComandoRuletaSummon() {
+        var ruletaSummon = Commands.literal("summon");
+        for (String mob : MOBS_CUSTOM) {
+            ruletaSummon.then(Commands.literal(mob)
+                    .executes(ctx -> spawnMobCustom(ctx.getSource(), mob, ctx.getSource().getPosition()))
+                    .then(Commands.argument("pos", Vec3Argument.vec3())
+                            .executes(ctx -> spawnMobCustom(ctx.getSource(), mob, Vec3Argument.getVec3(ctx, "pos")))));
+        }
+        return ruletaSummon;
+    }
+
+    public static int spawnMobCustom(CommandSourceStack source, String tipo, Vec3 pos) {
+        ServerLevel level = source.getLevel();
+        Entity entity = null;
+        String mobNombre = tipo;
+
+        switch (tipo.toLowerCase()) {
+            case "coloso_ruina" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "iron_golem")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof IronGolem golem) {
+                    configurarColosoRuina(golem);
+                    entity = golem;
+                    mobNombre = "§4§l☄ El Coloso de Ruina";
+                }
+            }
+            case "creeper_termonuclear" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "creeper")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Creeper creeper) {
+                    configurarCreeperTermonuclear(creeper);
+                    entity = creeper;
+                    mobNombre = "§4§l☢ Creeper Termonuclear";
+                }
+            }
+            case "creeper_antimateria" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "creeper")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Creeper creeper) {
+                    configurarCreeperAntimateria(creeper);
+                    entity = creeper;
+                    mobNombre = "§8§l✦ Creeper de Antimateria ✦";
+                }
+            }
+            case "creeper_cosmico" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "creeper")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Creeper creeper) {
+                    configurarCreeperCosmico(creeper);
+                    entity = creeper;
+                    mobNombre = "§5§l☄ Creeper Cósmico ☄";
+                }
+            }
+            case "creeper_fantasma" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "creeper")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Creeper creeper) {
+                    configurarCreeperFantasma(creeper);
+                    entity = creeper;
+                    mobNombre = "§b§l👻 Creeper Fantasma";
+                }
+            }
+            case "creeper_avispon" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "creeper")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Creeper creeper) {
+                    configurarCreeperAvispon(creeper);
+                    entity = creeper;
+                    mobNombre = "§e§l🐝 Creeper Avispón";
+                }
+            }
+            case "creeper_escondido" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "creeper")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Creeper creeper) {
+                    configurarCreeperEscondido(creeper);
+                    entity = creeper;
+                    mobNombre = "§2§l🔍 Creeper Mimetizado";
+                }
+            }
+            case "mini_creeper" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "creeper")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Creeper creeper) {
+                    configurarMiniCreeper(creeper);
+                    entity = creeper;
+                    mobNombre = "§a§l💥 Mini Creeper Fragmentado";
+                }
+            }
+            case "el_verdugo" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "piglin_brute")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof PiglinBrute brute) {
+                    configurarElVerdugo(brute, level);
+                    entity = brute;
+                    mobNombre = "§4§l☠ El Verdugo ☠";
+                }
+            }
+            case "mega_hoglin" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "hoglin")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Hoglin hoglin) {
+                    configurarMegaHoglin(hoglin);
+                    entity = hoglin;
+                    mobNombre = "§c§l🐗 Mega Hoglin Devastador";
+                }
+            }
+            case "berserker" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "vindicator")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Vindicator vindicator) {
+                    configurarBerserker(vindicator, level);
+                    entity = vindicator;
+                    mobNombre = "§c§l🪓 Berserker Frenético";
+                }
+            }
+            case "nigromante_criptas" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "stray")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Stray stray) {
+                    configurarNigromanteCriptas(stray, level);
+                    entity = stray;
+                    mobNombre = "§3§l❄ Nigromante de las Criptas ❄";
+                }
+            }
+            case "colosal_fusion" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "magma_cube")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof MagmaCube magmaCube) {
+                    configurarColosalFusion(magmaCube);
+                    entity = magmaCube;
+                    mobNombre = "§6§l🔥 Colosal de Fusión 🔥";
+                }
+            }
+            case "cazador_igneo" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "wither_skeleton")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof WitherSkeleton ws) {
+                    configurarCazadorIgneo(ws, level);
+                    entity = ws;
+                    mobNombre = "§e§l🏹 Cazador Ígneo 🏹";
+                }
+            }
+            case "intruso_calaverico" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "wither_skeleton")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof WitherSkeleton ws) {
+                    configurarIntrusoCalaverico(ws, level);
+                    entity = ws;
+                    mobNombre = "§8§l💀 Intruso Calavérico 💀";
+                }
+            }
+            case "giga_endermite" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "endermite")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Endermite endermite) {
+                    configurarGigaEndermite(endermite);
+                    entity = endermite;
+                    mobNombre = "§5§l👾 Giga Endermite 👾";
+                }
+            }
+            case "phantom_alfa" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "phantom")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Phantom phantom) {
+                    configurarPhantomAlfa(phantom);
+                    entity = phantom;
+                    mobNombre = "§9§l✦ Phantom Alfa ✦";
+                }
+            }
+            case "slime_gigante" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "slime")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Slime slime) {
+                    configurarSlimeGigante(slime);
+                    entity = slime;
+                    mobNombre = "§a§l🧪 Slime de Pantano Gigante";
+                }
+            }
+            case "cucco_salvaje" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "chicken")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Chicken chicken) {
+                    configurarCuccoSalvaje(chicken);
+                    entity = chicken;
+                    mobNombre = "§e§l🐔 Cucco Salvaje 🐔";
+                }
+            }
+            case "apocalipsis_zombie" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "zombie")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Zombie zombie) {
+                    configurarApocalipsisZombie(zombie);
+                    entity = zombie;
+                    mobNombre = "§2§l☣ Caminante del Apocalipsis ☣";
+                }
+            }
+            case "pykete" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "drowned")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Drowned drowned) {
+                    configurarPykete(drowned);
+                    entity = drowned;
+                    mobNombre = "§3§l🔱 Pykete Arponero 🔱";
+                }
+            }
+            case "sombra_parpadeante" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "enderman")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Enderman enderman) {
+                    configurarSombraParpadeante(enderman);
+                    entity = enderman;
+                    mobNombre = "§8§l👁 Sombra Parpadeante 👁";
+                }
+            }
+            default -> {
+                source.sendFailure(Component.literal("§c[PermaRuleta] Tipo de mob desconocido: " + tipo));
+                return 0;
+            }
+        }
+
+        if (entity != null) {
+            entity.snapTo(pos.x, pos.y, pos.z, source.getRotation().y, 0.0f);
+            level.addFreshEntity(entity);
+            level.sendParticles(ParticleTypes.PORTAL, pos.x, pos.y + 0.5, pos.z, 25, 0.4, 0.5, 0.4, 0.1);
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.EVOKER_CAST_SPELL, SoundSource.PLAYERS, 1.2f, 1.2f);
+            final String nombreFinal = mobNombre;
+            source.sendSuccess(() -> Component.literal("§a[PermaRuleta] Se ha invocado a " + nombreFinal + " §aen §e"
+                    + String.format(java.util.Locale.ROOT, "%.1f, %.1f, %.1f", pos.x, pos.y, pos.z)), true);
+            return 1;
+        } else {
+            source.sendFailure(Component.literal("§c[PermaRuleta] No se pudo instanciar la entidad para el mob: " + tipo));
+            return 0;
+        }
+    }
+
     private static EntityType<?> getCreeperType() {
         if (CREEPER_TYPE_CACHE == null) {
             CREEPER_TYPE_CACHE = BuiltInRegistries.ENTITY_TYPE
@@ -3402,6 +4185,904 @@ public class Ruleta_Hardcore implements ModInitializer {
         return LIGHTNING_BOLT_TYPE_CACHE;
     }
 
+    private static EntityType<?> getMagmaCubeType() {
+        if (MAGMA_CUBE_TYPE_CACHE == null) {
+            MAGMA_CUBE_TYPE_CACHE = BuiltInRegistries.ENTITY_TYPE
+                    .getOptional(Identifier.fromNamespaceAndPath("minecraft", "magma_cube"))
+                    .orElse(null);
+        }
+        return MAGMA_CUBE_TYPE_CACHE;
+    }
+
+    // --- GRITO PRIMAL (Nivel 2) ---
+    public static void aplicarGritoPrimal(ServerPlayer sp, ServerLevel level) {
+        sp.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 50, 3));
+        sp.addEffect(new MobEffectInstance(MobEffects.NAUSEA, 100, 0));
+        level.sendParticles(ParticleTypes.SONIC_BOOM, sp.getX(), sp.getY() + 1.2, sp.getZ(), 1, 0.0, 0.0, 0.0, 0.0);
+        level.sendParticles(ParticleTypes.PORTAL, sp.getX(), sp.getY() + 1.0, sp.getZ(), 35, 0.4, 0.6, 0.4, 0.25);
+        sp.sendSystemMessage(Component.literal("§5§l🔊 ¡GRITO PRIMAL! §dEl alarido del Enderman te ha aturdido y dejado sordo por 30 segundos..."), true);
+
+        ServerPlayNetworking.send(sp, new BloodMoonSyncPayload(
+                CursosActivos.isBloodMoonActive(),
+                CursosActivos.isEclipseActive(),
+                CursosActivos.isContaminacion(),
+                CursosActivos.isCuevasTenebrosas(),
+                CursosActivos.isMaresAcidos(),
+                CursosActivos.isGritoPrimal(),
+                CursosActivos.isSombraParpadeante(),
+                600 // 30 segundos (600 ticks) de sordera total en el cliente
+        ));
+    }
+
+    // --- COMO PEDRO (Nivel 3) ---
+    public static void procesarCreeperComoPedro(Creeper creeper, ServerLevel level, long currentTick) {
+        BlockPos pos = creeper.blockPosition();
+        BlockPos below = pos.below();
+        boolean aguaEnPies = level.getFluidState(pos).is(FluidTags.WATER);
+        boolean aguaDebajo = level.getFluidState(below).is(FluidTags.WATER);
+
+        if (aguaEnPies || aguaDebajo || creeper.isInWater()) {
+            if (aguaEnPies) {
+                creeper.setPos(creeper.getX(), pos.getY() + 0.92, creeper.getZ());
+            }
+            Vec3 vel = creeper.getDeltaMovement();
+            double ny = Math.max(0.0, vel.y);
+            double vx = vel.x;
+            double vz = vel.z;
+
+            if (creeper.getTarget() != null && creeper.getTarget().isAlive()) {
+                double dx = creeper.getTarget().getX() - creeper.getX();
+                double dz = creeper.getTarget().getZ() - creeper.getZ();
+                double horiz = Math.sqrt(dx * dx + dz * dz);
+                if (horiz > 0.2) {
+                    // Velocidad multiplicada por 3 sobre el agua
+                    double targetSpeed = 0.52;
+                    vx = (dx / horiz) * targetSpeed;
+                    vz = (dz / horiz) * targetSpeed;
+                }
+            } else {
+                vx *= 1.35;
+                vz *= 1.35;
+            }
+
+            creeper.setDeltaMovement(vx, ny, vz);
+            creeper.setOnGround(true);
+            creeper.addEffect(new MobEffectInstance(MobEffects.SPEED, 15, 2, false, false));
+
+            if (currentTick % 3 == 0) {
+                level.sendParticles(ParticleTypes.SPLASH,
+                        creeper.getX(), creeper.getY() + 0.05, creeper.getZ(),
+                        6, 0.25, 0.05, 0.25, 0.08);
+            }
+        }
+    }
+
+    // --- COLOSAL DE FUSIÓN (Nivel 4) ---
+    public static void evaluarColosalFusion(MagmaCube magma, ServerLevel level) {
+        if (!CursosActivos.isColosalFusion()) return;
+        if (magma.entityTags().contains("colosal_fusion_evaluado")) return;
+        magma.addTag("colosal_fusion_evaluado");
+
+        if (!level.dimension().equals(Level.NETHER)) return;
+        if (magma.entityTags().contains("cria_mortero_colosal")) return;
+
+        if (ThreadLocalRandom.current().nextFloat() < 0.08f) {
+            configurarColosalFusion(magma);
+        }
+    }
+
+    public static void configurarColosalFusion(MagmaCube magma) {
+        magma.addTag("colosal_fusion_evaluado");
+        magma.addTag("colosal_fusion");
+        int colosalSize = ThreadLocalRandom.current().nextBoolean() ? 7 : 8;
+        magma.setSize(colosalSize, true);
+
+        AttributeInstance hpAttr = magma.getAttribute(Attributes.MAX_HEALTH);
+        if (hpAttr != null) {
+            hpAttr.setBaseValue(120.0);
+            magma.setHealth(120.0f);
+        }
+        AttributeInstance dmgAttr = magma.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (dmgAttr != null) {
+            dmgAttr.setBaseValue(14.0);
+        }
+        AttributeInstance kbAttr = magma.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
+        if (kbAttr != null) {
+            kbAttr.setBaseValue(0.85);
+        }
+    }
+
+    public static void procesarSaltoYCraterColosalFusion(MagmaCube magma, ServerLevel level, long currentTick) {
+        UUID id = magma.getUUID();
+        boolean wasOnGround = COLOSAL_SUELO_PREVIO.getOrDefault(id, true);
+        boolean nowOnGround = magma.onGround();
+        COLOSAL_SUELO_PREVIO.put(id, nowOnGround);
+
+        // Detectar aterrizaje tras un salto para crear el cráter de magma hirviente (8s)
+        if (!wasOnGround && nowOnGround) {
+            crearCraterColosalFusion(magma, level);
+        }
+
+        // Mega salto periódico cada 60 ticks cuando está en el suelo
+        if (nowOnGround && currentTick % 60 == 0) {
+            Player nearest = level.getNearestPlayer(
+                    magma.getX(), magma.getY(), magma.getZ(),
+                    36.0,
+                    e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+            );
+            double vx = magma.getDeltaMovement().x;
+            double vz = magma.getDeltaMovement().z;
+            if (nearest != null) {
+                double dx = nearest.getX() - magma.getX();
+                double dz = nearest.getZ() - magma.getZ();
+                double horiz = Math.sqrt(dx * dx + dz * dz);
+                if (horiz > 0.05) {
+                    vx = (dx / horiz) * 1.05;
+                    vz = (dz / horiz) * 1.05;
+                }
+            }
+            magma.setDeltaMovement(vx, 1.55, vz);
+            level.getChunkSource().sendToTrackingPlayers(magma, new ClientboundSetEntityMotionPacket(magma));
+            level.playSound(null, magma.getX(), magma.getY(), magma.getZ(),
+                    SoundEvents.MAGMA_CUBE_JUMP, SoundSource.HOSTILE, 2.2f, 0.5f);
+            level.sendParticles(ParticleTypes.LAVA, magma.getX(), magma.getY() + 0.5, magma.getZ(), 25, 1.5, 0.4, 1.5, 0.1);
+        }
+    }
+
+    public static void crearCraterColosalFusion(MagmaCube magma, ServerLevel level) {
+        BlockPos center = magma.blockPosition();
+        level.sendParticles(ParticleTypes.LAVA, magma.getX(), magma.getY() + 0.3, magma.getZ(), 45, 2.2, 0.5, 2.2, 0.15);
+        level.sendParticles(ParticleTypes.FLAME, magma.getX(), magma.getY() + 0.4, magma.getZ(), 60, 2.5, 0.4, 2.5, 0.08);
+        level.playSound(null, magma.getX(), magma.getY(), magma.getZ(),
+                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 1.8f, 0.65f);
+
+        Map<BlockPos, BlockState> bloquesOriginales = new HashMap<>();
+        int radius = 3;
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                if (dx * dx + dz * dz > radius * radius) continue;
+                for (int dy = 1; dy >= -2; dy--) {
+                    BlockPos pos = center.offset(dx, dy, dz);
+                    if (!level.isLoaded(pos)) continue;
+                    BlockState state = level.getBlockState(pos);
+                    BlockPos abovePos = pos.above();
+                    BlockState above = level.getBlockState(abovePos);
+                    if (!state.isAir() && !state.is(Blocks.BEDROCK) && !state.is(Blocks.MAGMA_BLOCK)
+                            && !state.is(Blocks.NETHER_PORTAL) && !state.is(Blocks.END_PORTAL_FRAME)
+                            && level.getBlockEntity(pos) == null
+                            && state.isFaceSturdy(level, pos, Direction.UP)
+                            && (above.isAir() || above.canBeReplaced())) {
+                        bloquesOriginales.put(pos.immutable(), state);
+                        level.setBlock(pos, Blocks.MAGMA_BLOCK.defaultBlockState(), Block.UPDATE_ALL);
+                        if (above.isAir() && ThreadLocalRandom.current().nextFloat() < 0.40f) {
+                            level.setBlock(abovePos, Blocks.FIRE.defaultBlockState(), Block.UPDATE_ALL);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        MinecraftServer srv = level.getServer();
+        if (srv != null && !bloquesOriginales.isEmpty()) {
+            // Restaurar los bloques circundantes tras 8 segundos (160 ticks)
+            programarTarea(srv.getTickCount() + 160, () -> {
+                for (var entry : bloquesOriginales.entrySet()) {
+                    BlockPos pos = entry.getKey();
+                    if (level.isLoaded(pos) && level.getBlockState(pos).is(Blocks.MAGMA_BLOCK)) {
+                        level.setBlock(pos, entry.getValue(), Block.UPDATE_ALL);
+                    }
+                }
+            });
+        }
+    }
+
+    public static void dispararCriasMorteroColosal(MagmaCube colosal, ServerLevel level) {
+        EntityType<?> mcType = getMagmaCubeType();
+        if (mcType == null) return;
+
+        level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, colosal.getX(), colosal.getY() + 1.0, colosal.getZ(), 2, 0.5, 0.5, 0.5, 0.0);
+        level.sendParticles(ParticleTypes.LAVA, colosal.getX(), colosal.getY() + 1.2, colosal.getZ(), 60, 1.5, 1.2, 1.5, 0.25);
+        level.playSound(null, colosal.getX(), colosal.getY(), colosal.getZ(),
+                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 2.2f, 0.7f);
+
+        int count = 8;
+        for (int i = 0; i < count; i++) {
+            Entity created = mcType.create(level, EntitySpawnReason.EVENT);
+            if (created instanceof MagmaCube cria) {
+                double angle = (Math.PI * 2.0 * i) / count + (ThreadLocalRandom.current().nextDouble() - 0.5) * 0.25;
+                double speedHoriz = 0.75 + ThreadLocalRandom.current().nextDouble() * 0.35;
+                double vy = 0.68 + ThreadLocalRandom.current().nextDouble() * 0.25;
+                double vx = Math.cos(angle) * speedHoriz;
+                double vz = Math.sin(angle) * speedHoriz;
+
+                cria.snapTo(colosal.getX() + Math.cos(angle) * 0.8, colosal.getY() + 0.8, colosal.getZ() + Math.sin(angle) * 0.8,
+                        (float) Math.toDegrees(angle), 0.0f);
+                cria.addTag("colosal_fusion_evaluado");
+                cria.addTag("cria_mortero_colosal");
+                cria.setSize(2, true);
+                cria.setDeltaMovement(vx, vy, vz);
+                level.addFreshEntity(cria);
+            }
+        }
+    }
+
+    // --- CAZADOR ÍGNEO (Nivel 4) ---
+    public static void evaluarCazadorIgneo(WitherSkeleton ws, ServerLevel level) {
+        if (!CursosActivos.isCazadorIgneo()) return;
+        if (ws.entityTags().contains("cazador_igneo_evaluado")) return;
+        ws.addTag("cazador_igneo_evaluado");
+
+        if (!level.dimension().equals(Level.NETHER)) return;
+
+        if (ThreadLocalRandom.current().nextFloat() < 0.15f) {
+            configurarCazadorIgneo(ws, level);
+        }
+    }
+
+    public static void configurarCazadorIgneo(WitherSkeleton ws, ServerLevel level) {
+        ws.addTag("cazador_igneo_evaluado");
+        ws.addTag("cazador_igneo");
+        ItemStack bow = new ItemStack(Items.BOW);
+        level.registryAccess().lookup(Registries.ENCHANTMENT).ifPresent(reg -> {
+            reg.get(Enchantments.POWER).ifPresent(h -> bow.enchant(h, 2));
+            reg.get(Enchantments.FLAME).ifPresent(h -> bow.enchant(h, 1));
+        });
+        ws.setItemSlot(EquipmentSlot.MAINHAND, bow);
+        ws.setDropChance(EquipmentSlot.MAINHAND, 0.05f);
+    }
+
+    // --- MEGA HOGLIN ACTUALIZADO (Nivel 5) ---
+    public static boolean estaDesestabilizadoHoglin(UUID playerUuid, long currentGameTime) {
+        return DESESTABILIZACION_HOGLIN_EXPIRY.getOrDefault(playerUuid, 0L) > currentGameTime;
+    }
+
+    public static void ejecutarEmbestidaMegaHoglin(Hoglin hoglin, ServerLevel level, long currentTick) {
+        LivingEntity target = hoglin.getTarget();
+        if (target == null || !target.isAlive() || (target instanceof Player p && (p.isCreative() || p.isSpectator()))) {
+            target = level.getNearestPlayer(
+                    hoglin.getX(), hoglin.getY(), hoglin.getZ(),
+                    28.0,
+                    e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+            );
+            if (target != null) {
+                hoglin.setTarget(target);
+            }
+        }
+        if (target == null) return;
+
+        double dx = target.getX() - hoglin.getX();
+        double dz = target.getZ() - hoglin.getZ();
+        double horizDist = Math.sqrt(dx * dx + dz * dz);
+        if (horizDist < 1.5 || horizDist > 22.0) return;
+
+        if (currentTick % 80 == 0) {
+            // Embestida en línea recta
+            double chargeSpeed = 1.65;
+            hoglin.setDeltaMovement((dx / horizDist) * chargeSpeed, 0.25, (dz / horizDist) * chargeSpeed);
+            level.getChunkSource().sendToTrackingPlayers(hoglin, new ClientboundSetEntityMotionPacket(hoglin));
+            level.playSound(null, hoglin.getX(), hoglin.getY(), hoglin.getZ(),
+                    SoundEvents.HOGLIN_ANGRY, SoundSource.HOSTILE, 2.2f, 0.55f);
+            level.sendParticles(ParticleTypes.FLAME, hoglin.getX(), hoglin.getY() + 1.2, hoglin.getZ(), 35, 1.2, 0.8, 1.2, 0.1);
+
+            // Onda expansiva tras la embestida (15 ticks después) que desestabiliza e impide saltar o colocar bloques por 3s (60 ticks)
+            MinecraftServer srv = level.getServer();
+            if (srv != null) {
+                programarTarea(srv.getTickCount() + 15, () -> {
+                    if (!hoglin.isAlive()) return;
+                    level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, hoglin.getX(), hoglin.getY() + 0.5, hoglin.getZ(), 1, 0.0, 0.0, 0.0, 0.0);
+                    level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, hoglin.getX(), hoglin.getY() + 0.3, hoglin.getZ(), 40, 2.8, 0.3, 2.8, 0.05);
+                    level.playSound(null, hoglin.getX(), hoglin.getY(), hoglin.getZ(),
+                            SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 1.8f, 0.6f);
+
+                    List<ServerPlayer> hitPlayers = level.getEntitiesOfClass(
+                            ServerPlayer.class,
+                            hoglin.getBoundingBox().inflate(6.5),
+                            p -> p.isAlive() && !p.isCreative() && !p.isSpectator()
+                    );
+                    long expiry = level.getGameTime() + 60L; // 3 segundos
+                    for (ServerPlayer sp : hitPlayers) {
+                        DESESTABILIZACION_HOGLIN_EXPIRY.put(sp.getUUID(), expiry);
+                        sp.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 60, 1));
+                        Vec3 push = sp.position().subtract(hoglin.position()).normalize().scale(0.85);
+                        sp.setDeltaMovement(push.x, 0.32, push.z);
+                        sp.connection.send(new ClientboundSetEntityMotionPacket(sp));
+                        sp.sendSystemMessage(Component.literal("§4🐗 ¡ONDA EXPANSIVA! §cEstás desestabilizado: no puedes saltar ni colocar bloques por 3 segundos."), true);
+                    }
+                });
+            }
+        }
+    }
+
+    // --- SOMBRA PARPADEANTE (Nivel 5) ---
+    public static void teletransportarEndermanAEspalda(Enderman enderman, ServerPlayer player, ServerLevel level) {
+        Vec3 look = player.getLookAngle();
+        Vec3 horizBack = new Vec3(-look.x, 0.0, -look.z);
+        if (horizBack.lengthSqr() < 0.001) {
+            horizBack = new Vec3(0.0, 0.0, -1.0);
+        } else {
+            horizBack = horizBack.normalize();
+        }
+
+        double tx = player.getX() + horizBack.x * 1.65;
+        double ty = player.getY();
+        double tz = player.getZ() + horizBack.z * 1.65;
+
+        level.sendParticles(ParticleTypes.PORTAL, enderman.getX(), enderman.getY() + 1.2, enderman.getZ(), 25, 0.35, 0.8, 0.35, 0.2);
+        enderman.teleportTo(tx, ty, tz);
+        enderman.setYRot(player.getYRot());
+        enderman.setTarget(player);
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, tx, ty + 1.2, tz, 30, 0.35, 0.8, 0.35, 0.15);
+        level.playSound(null, tx, ty, tz, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.3f, 0.7f);
+    }
+
+    public static void procesarSombraParpadeanteJugador(ServerPlayer player, ServerLevel level, long currentTick) {
+        List<Enderman> nearby = level.getEntitiesOfClass(
+                Enderman.class,
+                player.getBoundingBox().inflate(28.0),
+                Entity::isAlive
+        );
+        if (nearby.isEmpty()) return;
+
+        Vec3 playerLook = player.getLookAngle().normalize();
+        Vec3 playerEye = player.getEyePosition();
+
+        for (Enderman enderman : nearby) {
+            if (!CursosActivos.isSombraParpadeante() && !enderman.entityTags().contains("sombra_parpadeante")) continue;
+            double distSq = enderman.distanceToSqr(player);
+
+            // 1. Si el jugador intenta mirar al Enderman, éste se teletransporta instantáneamente a su espalda exacta
+            Vec3 toEnderman = new Vec3(
+                    enderman.getX() - playerEye.x,
+                    (enderman.getY() + enderman.getBbHeight() * 0.65) - playerEye.y,
+                    enderman.getZ() - playerEye.z
+            );
+            double dist = toEnderman.length();
+            if (dist > 1.2 && dist <= 28.0) {
+                double dot = playerLook.dot(toEnderman.scale(1.0 / dist));
+                if (dot > 0.94 && player.hasLineOfSight(enderman)) {
+                    long lastBlink = ULTIMO_PARPADEO_SOMBRA.getOrDefault(enderman.getUUID(), -100L);
+                    if (currentTick - lastBlink >= 25L) {
+                        ULTIMO_PARPADEO_SOMBRA.put(enderman.getUUID(), currentTick);
+                        teletransportarEndermanAEspalda(enderman, player, level);
+                    }
+                }
+            }
+
+            // 2. Mientras te ataca en un radio de 12 bloques, si intentas mirar al suelo fuerza tu vista hacia sus ojos
+            if (distSq <= 144.0 && (enderman.getTarget() == player || enderman.isCreepy())) {
+                if (player.getXRot() > 24.0f) {
+                    player.lookAt(EntityAnchorArgument.Anchor.EYES, enderman, EntityAnchorArgument.Anchor.EYES);
+                    level.sendParticles(ParticleTypes.WITCH, player.getX(), player.getEyeY(), player.getZ(), 8, 0.25, 0.25, 0.25, 0.05);
+                    level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.ENDERMAN_STARE, SoundSource.HOSTILE, 0.9f, 0.6f);
+                    player.sendSystemMessage(Component.literal("§5👁 ¡El pulso psíquico de la Sombra fuerza tu mirada hacia sus ojos!"), true);
+                }
+            }
+        }
+    }
+
+    public static void configurarSombraParpadeante(Enderman enderman) {
+        enderman.addTag("sombra_parpadeante");
+        AttributeInstance speedAttr = enderman.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speedAttr != null) {
+            speedAttr.setBaseValue(0.35);
+        }
+    }
+
+    // --- BERSERKER (Nivel 5) ---
+    public static void prepararBerserker(Vindicator vindicator, ServerLevel level) {
+        if (vindicator.entityTags().contains("berserker_equipado")) return;
+        configurarBerserker(vindicator, level);
+    }
+
+    public static void configurarBerserker(Vindicator vindicator, ServerLevel level) {
+        vindicator.addTag("berserker_equipado");
+
+        ItemStack axe = new ItemStack(Items.NETHERITE_AXE);
+        ItemStack helmet = new ItemStack(Items.NETHERITE_HELMET);
+        level.registryAccess().lookup(Registries.ENCHANTMENT).ifPresent(reg -> {
+            reg.get(Enchantments.SHARPNESS).ifPresent(h -> axe.enchant(h, 3));
+            reg.get(Enchantments.PROTECTION).ifPresent(h -> helmet.enchant(h, 4));
+            reg.get(Enchantments.UNBREAKING).ifPresent(h -> helmet.enchant(h, 3));
+        });
+        vindicator.setItemSlot(EquipmentSlot.MAINHAND, axe);
+        vindicator.setItemSlot(EquipmentSlot.HEAD, helmet);
+        vindicator.setDropChance(EquipmentSlot.MAINHAND, 0.03f);
+        vindicator.setDropChance(EquipmentSlot.HEAD, 0.03f);
+    }
+
+    public static void procesarCarreraFreneticaBerserker(Vindicator vindicator, ServerLevel level) {
+        Player nearest = level.getNearestPlayer(
+                vindicator.getX(), vindicator.getY(), vindicator.getZ(),
+                15.0,
+                e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+        );
+        if (nearest != null) {
+            if (vindicator.getTarget() == null || !vindicator.getTarget().isAlive()) {
+                vindicator.setTarget(nearest);
+            }
+            // Carrera Frenética (+60% de velocidad = Speed III)
+            vindicator.addEffect(new MobEffectInstance(MobEffects.SPEED, 30, 2, false, false));
+            level.sendParticles(ParticleTypes.ANGRY_VILLAGER,
+                    vindicator.getX(), vindicator.getY() + 1.8, vindicator.getZ(),
+                    1, 0.2, 0.2, 0.2, 0.0);
+        }
+    }
+
+    // --- EL NIGROMANTE DE LAS CRIPTAS (Nivel 5) ---
+    public static void evaluarNigromanteCriptas(Stray stray, ServerLevel level) {
+        if (!CursosActivos.isNigromanteCriptas()) return;
+        if (stray.entityTags().contains("nigromante_evaluado")) return;
+        stray.addTag("nigromante_evaluado");
+
+        if (stray.entityTags().contains("mini_stray_cripta")) return;
+
+        if (ThreadLocalRandom.current().nextFloat() < 0.25f) {
+            configurarNigromanteCriptas(stray, level);
+        }
+    }
+
+    public static void configurarNigromanteCriptas(Stray stray, ServerLevel level) {
+        stray.addTag("nigromante_evaluado");
+        stray.addTag("nigromante_criptas");
+
+        AttributeInstance hpAttr = stray.getAttribute(Attributes.MAX_HEALTH);
+        if (hpAttr != null) {
+            hpAttr.setBaseValue(80.0);
+            stray.setHealth(80.0f);
+        }
+        AttributeInstance scaleAttr = stray.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(1.25);
+        }
+
+        ItemStack tunic = new ItemStack(Items.LEATHER_CHESTPLATE);
+        ItemStack hood = new ItemStack(Items.LEATHER_HELMET);
+        ItemStack staff = new ItemStack(Items.BLUE_ICE);
+        level.registryAccess().lookup(Registries.ENCHANTMENT).ifPresent(reg -> {
+            reg.get(Enchantments.PROTECTION).ifPresent(h -> {
+                tunic.enchant(h, 4);
+                hood.enchant(h, 4);
+            });
+            reg.get(Enchantments.KNOCKBACK).ifPresent(h -> staff.enchant(h, 2));
+        });
+
+        stray.setItemSlot(EquipmentSlot.HEAD, hood);
+        stray.setItemSlot(EquipmentSlot.CHEST, tunic);
+        stray.setItemSlot(EquipmentSlot.MAINHAND, staff);
+        stray.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.PACKED_ICE));
+        stray.setDropChance(EquipmentSlot.HEAD, 0.02f);
+        stray.setDropChance(EquipmentSlot.CHEST, 0.02f);
+        stray.setDropChance(EquipmentSlot.MAINHAND, 0.05f);
+        stray.setDropChance(EquipmentSlot.OFFHAND, 0.05f);
+    }
+
+    public static void procesarNigromanteCriptas(Stray nigromante, ServerLevel level, long currentTick) {
+        Player target = level.getNearestPlayer(
+                nigromante.getX(), nigromante.getY(), nigromante.getZ(),
+                20.0,
+                e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+        );
+        if (target == null) return;
+        nigromante.setTarget(target);
+
+        // 1. Canaliza un rayo gélido continuo que convierte el suelo bajo los pies del jugador en hielo resbaladizo
+        double sx = nigromante.getX();
+        double sy = nigromante.getY() + 1.4;
+        double sz = nigromante.getZ();
+        double tx = target.getX();
+        double ty = target.getY() + 0.5;
+        double tz = target.getZ();
+        double dx = tx - sx;
+        double dy = ty - sy;
+        double dz = tz - sz;
+        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        if (dist <= 18.0 && dist > 0.5 && nigromante.hasLineOfSight(target)) {
+            int steps = Math.min(24, Math.max(5, (int) (dist * 1.6)));
+            for (int i = 1; i <= steps; i++) {
+                double t = (double) i / steps;
+                level.sendParticles(
+                        ParticleTypes.SNOWFLAKE,
+                        sx + dx * t, sy + dy * t, sz + dz * t,
+                        1, 0.02, 0.02, 0.02, 0.0
+                );
+            }
+            target.setTicksFrozen(Math.max(target.getTicksFrozen(), 100));
+
+            for (int ox = -1; ox <= 1; ox++) {
+                for (int oz = -1; oz <= 1; oz++) {
+                    BlockPos floorPos = target.blockPosition().below().offset(ox, 0, oz);
+                    if (!level.isLoaded(floorPos)) continue;
+                    BlockState floorState = level.getBlockState(floorPos);
+                    if (!floorState.isAir() && !floorState.is(Blocks.BEDROCK)
+                            && !floorState.is(Blocks.BLUE_ICE) && !floorState.is(Blocks.PACKED_ICE)
+                            && level.getBlockEntity(floorPos) == null
+                            && floorState.isFaceSturdy(level, floorPos, Direction.UP)) {
+                        level.setBlock(floorPos, Blocks.BLUE_ICE.defaultBlockState(), Block.UPDATE_CLIENTS);
+                    }
+                }
+            }
+        }
+
+        // 2. Invoca periódicamente mini-strays congelados armados con hachas de piedra (cada 6 segundos = 120 ticks)
+        if (currentTick % 120 == 0) {
+            List<Stray> minions = level.getEntitiesOfClass(
+                    Stray.class,
+                    nigromante.getBoundingBox().inflate(16.0),
+                    s -> s.isAlive() && s.entityTags().contains("mini_stray_cripta")
+            );
+            if (minions.size() < 4) {
+                EntityType<?> strayType = getStrayType();
+                if (strayType != null) {
+                    level.playSound(null, nigromante.getX(), nigromante.getY(), nigromante.getZ(),
+                            SoundEvents.EVOKER_PREPARE_SUMMON, SoundSource.HOSTILE, 1.4f, 0.75f);
+                    for (int i = 0; i < 2; i++) {
+                        Entity created = strayType.create(level, EntitySpawnReason.MOB_SUMMONED);
+                        if (created instanceof Stray mini) {
+                            double angle = (i == 0 ? 0.0 : Math.PI) + ThreadLocalRandom.current().nextDouble() * 0.8;
+                            double mx = nigromante.getX() + Math.cos(angle) * 1.5;
+                            double mz = nigromante.getZ() + Math.sin(angle) * 1.5;
+                            mini.snapTo(mx, nigromante.getY(), mz, nigromante.getYRot(), 0.0f);
+                            mini.addTag("nigromante_evaluado");
+                            mini.addTag("mini_stray_cripta");
+
+                            AttributeInstance scaleAttr = mini.getAttribute(Attributes.SCALE);
+                            if (scaleAttr != null) {
+                                scaleAttr.setBaseValue(0.55);
+                            }
+                            AttributeInstance speedAttr = mini.getAttribute(Attributes.MOVEMENT_SPEED);
+                            if (speedAttr != null) {
+                                speedAttr.setBaseValue(0.32);
+                            }
+                            mini.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.STONE_AXE));
+                            mini.setDropChance(EquipmentSlot.MAINHAND, 0.0f);
+                            mini.setTarget(target);
+                            level.addFreshEntity(mini);
+                            level.sendParticles(ParticleTypes.SNOWFLAKE, mx, nigromante.getY() + 0.6, mz, 20, 0.3, 0.4, 0.3, 0.05);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- CREEPER FANTASMA (Nivel 5) ---
+    public static void evaluarCreeperFantasma(Creeper creeper) {
+        if (!CursosActivos.isCreeperFantasma()) return;
+        if (creeper.entityTags().contains("creeper_fantasma_evaluado")) return;
+        creeper.addTag("creeper_fantasma_evaluado");
+
+        if (creeper.entityTags().contains("creeper_cosmico")
+                || creeper.entityTags().contains("creeper_escondido")
+                || creeper.entityTags().contains("mini_multicreeper")
+                || creeper.entityTags().contains("creeper_antimateria")
+                || creeper.entityTags().contains("creeper_termonuclear")) {
+            return;
+        }
+
+        if (ThreadLocalRandom.current().nextFloat() < 0.20f) {
+            configurarCreeperFantasma(creeper);
+        }
+    }
+
+    public static void configurarCreeperFantasma(Creeper creeper) {
+        creeper.addTag("creeper_fantasma_evaluado");
+        creeper.addTag("creeper_fantasma");
+        AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            // Escala 1.03 detectada por CreeperRendererMixin para renderizado espectral translúcido
+            scaleAttr.setBaseValue(1.03);
+        }
+    }
+
+    // --- CREEPER TERMONUCLEAR (Nivel 6) ---
+    public static void evaluarCreeperTermonuclear(Creeper creeper) {
+        if (!CursosActivos.isCreeperTermonuclear()) return;
+        if (creeper.entityTags().contains("creeper_termonuclear_evaluado")) return;
+        creeper.addTag("creeper_termonuclear_evaluado");
+
+        if (creeper.entityTags().contains("creeper_cosmico")
+                || creeper.entityTags().contains("creeper_escondido")
+                || creeper.entityTags().contains("mini_multicreeper")
+                || creeper.entityTags().contains("creeper_antimateria")
+                || creeper.entityTags().contains("creeper_fantasma")) {
+            return;
+        }
+
+        if (ThreadLocalRandom.current().nextFloat() < 0.12f) {
+            configurarCreeperTermonuclear(creeper);
+        }
+    }
+
+    public static void configurarCreeperTermonuclear(Creeper creeper) {
+        creeper.addTag("creeper_termonuclear_evaluado");
+        creeper.addTag("creeper_termonuclear");
+        TEMPERATURA_CREEPER_TERMONUCLEAR.put(creeper.getUUID(), 0);
+
+        if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setMaxSwell(Integer.MAX_VALUE);
+        }
+
+        AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            // Escala 1.22 detectada por CreeperRendererMixin para textura volcánica
+            scaleAttr.setBaseValue(1.22);
+        }
+        AttributeInstance hpAttr = creeper.getAttribute(Attributes.MAX_HEALTH);
+        if (hpAttr != null) {
+            hpAttr.setBaseValue(60.0);
+            creeper.setHealth(60.0f);
+        }
+        AttributeInstance armorAttr = creeper.getAttribute(Attributes.ARMOR);
+        if (armorAttr != null) {
+            armorAttr.setBaseValue(12.0);
+        }
+        AttributeInstance kbAttr = creeper.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
+        if (kbAttr != null) {
+            kbAttr.setBaseValue(0.8);
+        }
+        creeper.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, MobEffectInstance.INFINITE_DURATION, 0, false, false));
+    }
+
+    public static void enfriarCreeperTermonuclear(Creeper creeper, ServerLevel level, int reduccion) {
+        UUID id = creeper.getUUID();
+        int actual = TEMPERATURA_CREEPER_TERMONUCLEAR.getOrDefault(id, 0);
+        int nueva = Math.max(0, actual - reduccion);
+        TEMPERATURA_CREEPER_TERMONUCLEAR.put(id, nueva);
+
+        level.sendParticles(ParticleTypes.CLOUD, creeper.getX(), creeper.getY() + 1.0, creeper.getZ(), 20, 0.35, 0.5, 0.35, 0.05);
+        level.sendParticles(ParticleTypes.SNOWFLAKE, creeper.getX(), creeper.getY() + 1.0, creeper.getZ(), 15, 0.35, 0.5, 0.35, 0.04);
+        level.playSound(null, creeper.getX(), creeper.getY(), creeper.getZ(),
+                SoundEvents.FIRE_EXTINGUISH, SoundSource.HOSTILE, 1.2f, 1.1f);
+    }
+
+    public static void procesarCreeperTermonuclear(Creeper creeper, ServerLevel level, long currentTick) {
+        UUID id = creeper.getUUID();
+        int temp = TEMPERATURA_CREEPER_TERMONUCLEAR.getOrDefault(id, 0);
+
+        // Enfriamiento por contacto con agua, lluvia o proyectiles fríos cercanos
+        if (creeper.isInWaterOrRain()) {
+            enfriarCreeperTermonuclear(creeper, level, 12);
+            return;
+        }
+        List<Snowball> snowballs = level.getEntitiesOfClass(Snowball.class, creeper.getBoundingBox().inflate(1.8), Entity::isAlive);
+        if (!snowballs.isEmpty()) {
+            for (Snowball sb : snowballs) {
+                sb.discard();
+            }
+            enfriarCreeperTermonuclear(creeper, level, 35);
+            return;
+        }
+        List<AbstractThrownPotion> potions = level.getEntitiesOfClass(AbstractThrownPotion.class, creeper.getBoundingBox().inflate(2.2), Entity::isAlive);
+        if (!potions.isEmpty()) {
+            enfriarCreeperTermonuclear(creeper, level, 45);
+            return;
+        }
+
+        // Búsqueda de jugador objetivo
+        LivingEntity target = creeper.getTarget();
+        if (target == null || !target.isAlive() || (target instanceof Player p && (p.isCreative() || p.isSpectator()))) {
+            target = level.getNearestPlayer(
+                    creeper.getX(), creeper.getY(), creeper.getZ(),
+                    24.0,
+                    e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+            );
+            if (target != null) {
+                creeper.setTarget(target);
+            }
+        }
+
+        // Mecánica de distanciamiento táctico:
+        // Cerca (< 7 bloques): la caldera se calienta (+3 cada 5 ticks)
+        // Muy cerca (< 3.5 bloques): sobrecalentamiento rápido (+5 cada 5 ticks)
+        // Lejos (> 8 bloques): se enfría (-2 cada 5 ticks, o -3 si > 14 bloques)
+        if (target != null) {
+            double distSqr = creeper.distanceToSqr(target);
+            if (distSqr <= 12.25) { // < 3.5 bloques
+                temp = Math.min(100, temp + 5);
+            } else if (distSqr <= 49.0) { // < 7.0 bloques
+                temp = Math.min(100, temp + 3);
+            } else if (distSqr > 196.0) { // > 14 bloques
+                temp = Math.max(0, temp - 3);
+            } else { // 7 a 14 bloques
+                temp = Math.max(0, temp - 2);
+            }
+        } else {
+            temp = Math.max(0, temp - 2);
+        }
+        TEMPERATURA_CREEPER_TERMONUCLEAR.put(id, temp);
+
+        double bellyX = creeper.getX();
+        double bellyY = creeper.getY() + 0.65;
+        double bellyZ = creeper.getZ();
+        double headY = creeper.getY() + 1.6;
+
+        // Efecto visual brillante de carga en el estómago / caldera volcánica
+        if (temp > 0 && temp < 35) {
+            // Carga baja: brasas tenues en el estómago y humo leve en el cráter de la cabeza
+            level.sendParticles(ParticleTypes.SMALL_FLAME, bellyX, bellyY, bellyZ, 2, 0.12, 0.15, 0.12, 0.01);
+            if (currentTick % 10 == 0) {
+                level.sendParticles(ParticleTypes.SMOKE, bellyX, headY, bellyZ, 1, 0.08, 0.1, 0.08, 0.02);
+            }
+        } else if (temp >= 35 && temp < 70) {
+            // Carga media: núcleo del estómago ardiendo al rojo vivo, gotas de magma y humo denso
+            level.sendParticles(ParticleTypes.FLAME, bellyX, bellyY, bellyZ, 5, 0.18, 0.2, 0.18, 0.02);
+            level.sendParticles(ParticleTypes.LAVA, bellyX, bellyY, bellyZ, 1, 0.12, 0.15, 0.12, 0.02);
+            if (currentTick % 6 == 0) {
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, bellyX, headY, bellyZ, 2, 0.1, 0.15, 0.1, 0.03);
+                level.playSound(null, bellyX, bellyY, bellyZ, SoundEvents.FURNACE_FIRE_CRACKLE, SoundSource.HOSTILE, 0.8f, 1.2f);
+            }
+        } else if (temp >= 70 && temp < 100) {
+            // Carga crítica (>70%): sobrecalentamiento volcánico, columna de humo y quemadura en 4 bloques
+            level.sendParticles(ParticleTypes.FLAME, bellyX, bellyY, bellyZ, 14, 0.22, 0.28, 0.22, 0.04);
+            level.sendParticles(ParticleTypes.LAVA, bellyX, bellyY, bellyZ, 4, 0.2, 0.25, 0.2, 0.03);
+            level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, bellyX, headY, bellyZ, 3, 0.1, 0.2, 0.1, 0.05);
+
+            if (currentTick % 10 == 0) {
+                level.playSound(null, creeper.getX(), creeper.getY(), creeper.getZ(),
+                        SoundEvents.BLAZE_BURN, SoundSource.HOSTILE, 1.2f, 0.5f);
+            }
+
+            List<Player> burnedPlayers = level.getEntitiesOfClass(
+                    Player.class,
+                    creeper.getBoundingBox().inflate(4.0),
+                    p -> p.isAlive() && !p.isCreative() && !p.isSpectator() && p.distanceToSqr(creeper) <= 16.0
+            );
+            for (Player p : burnedPlayers) {
+                p.igniteForTicks(60);
+                p.hurtServer(level, level.damageSources().onFire(), 2.0f);
+            }
+        }
+
+        // Solamente explota al cargarse al 100%: MEGA EXPLOSIÓN VOLCÁNICA
+        if (temp >= 100) {
+            TEMPERATURA_CREEPER_TERMONUCLEAR.remove(id);
+            double cx = creeper.getX();
+            double cy = creeper.getY() + 0.5;
+            double cz = creeper.getZ();
+            level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, cx, cy, cz, 5, 2.0, 2.0, 2.0, 0.0);
+            level.sendParticles(ParticleTypes.LAVA, cx, cy, cz, 120, 3.0, 2.5, 3.0, 0.35);
+            level.playSound(null, cx, cy, cz, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 3.0f, 0.5f);
+            level.explode(creeper, cx, cy, cz, 9.0f, true, Level.ExplosionInteraction.MOB);
+            creeper.discard();
+        }
+    }
+
+    // --- CREEPER AVISPÓN (Nivel 3) ---
+    public static void evaluarCreeperAvispon(Creeper creeper) {
+        if (!CursosActivos.isCreeperAvispon()) return;
+        if (creeper.entityTags().contains("creeper_avispon_evaluado")) return;
+        creeper.addTag("creeper_avispon_evaluado");
+
+        if (creeper.entityTags().contains("creeper_cosmico")
+                || creeper.entityTags().contains("creeper_escondido")
+                || creeper.entityTags().contains("mini_multicreeper")
+                || creeper.entityTags().contains("creeper_antimateria")
+                || creeper.entityTags().contains("creeper_fantasma")
+                || creeper.entityTags().contains("creeper_termonuclear")) {
+            return;
+        }
+
+        // 20% de probabilidad al aparecer en el Overworld
+        if (creeper.level().dimension().equals(Level.OVERWORLD) && ThreadLocalRandom.current().nextFloat() < 0.20f) {
+            configurarCreeperAvispon(creeper);
+        }
+    }
+
+    public static void configurarCreeperAvispon(Creeper creeper) {
+        creeper.addTag("creeper_avispon_evaluado");
+        creeper.addTag("creeper_avispon");
+
+        // Tamaño de una abeja bebé (escala 0.28)
+        AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(0.28);
+        }
+        AttributeInstance speedAttr = creeper.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speedAttr != null) {
+            speedAttr.setBaseValue(0.35);
+        }
+        AttributeInstance maxHealth = creeper.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealth != null) {
+            maxHealth.setBaseValue(10.0);
+        }
+        creeper.setHealth(10.0f);
+        creeper.setNoGravity(true);
+    }
+
+    public static void procesarCreeperAvispon(Creeper creeper, ServerLevel level, long currentTick) {
+        if (!creeper.isAlive() || creeper.isRemoved()) {
+            detenerSonidoCreeperAvispon(creeper, level);
+            return;
+        }
+
+        // Mantener vuelo sin gravedad
+        if (!creeper.isNoGravity()) {
+            creeper.setNoGravity(true);
+        }
+
+        // Sonido de zumbido agudo tipo abeja
+        if (currentTick % 20 == 0) {
+            level.playSound(null, creeper.getX(), creeper.getY(), creeper.getZ(),
+                    SoundEvents.BEE_LOOP, SoundSource.HOSTILE, 1.1f, 1.7f);
+        }
+
+        // Buscar jugador más cercano en un radio de 20 bloques
+        Player target = level.getNearestPlayer(creeper, 20.0);
+        if (target != null && target.isAlive() && !target.isCreative() && !target.isSpectator()) {
+            double targetX = target.getX();
+            double targetY = target.getY() + target.getEyeHeight() * 0.7;
+            double targetZ = target.getZ();
+
+            Vec3 diff = new Vec3(targetX - creeper.getX(), targetY - creeper.getY(), targetZ - creeper.getZ());
+            double dist = diff.length();
+
+            // Revoloteo sinusoidal
+            double bob = Math.sin((currentTick + creeper.getId() * 11) * 0.35) * 0.06;
+            Vec3 dir = dist > 0.1 ? diff.normalize() : Vec3.ZERO;
+            double flySpeed = 0.22;
+            creeper.setDeltaMovement(new Vec3(dir.x * flySpeed, dir.y * flySpeed + bob, dir.z * flySpeed));
+
+            // Mirar hacia el objetivo
+            creeper.lookAt(EntityAnchorArgument.Anchor.EYES, target.getEyePosition());
+
+            // Si está muy cerca, encender mecha
+            if (dist <= 2.2) {
+                creeper.ignite();
+            }
+        } else {
+            // Vuelo suave de patrulla
+            double idleBob = Math.sin((currentTick + creeper.getId() * 13) * 0.25) * 0.04;
+            Vec3 currentMotion = creeper.getDeltaMovement();
+            creeper.setDeltaMovement(new Vec3(currentMotion.x * 0.8, idleBob, currentMotion.z * 0.8));
+        }
+    }
+
+    public static void detenerSonidoCreeperAvispon(Entity creeper, Level level) {
+        if (level instanceof ServerLevel sl && sl.getServer() != null) {
+            sl.getServer().getPlayerList().broadcast(
+                    null,
+                    creeper.getX(),
+                    creeper.getY(),
+                    creeper.getZ(),
+                    48.0,
+                    sl.dimension(),
+                    new ClientboundStopSoundPacket(SoundEvents.BEE_LOOP.location(), SoundSource.HOSTILE)
+            );
+        }
+    }
+
+    public static void detonarCreeperAvispon(Creeper creeper, ServerLevel level) {
+        detenerSonidoCreeperAvispon(creeper, level);
+        double cx = creeper.getX();
+        double cy = creeper.getY() + 0.2;
+        double cz = creeper.getZ();
+
+        // Efectos visuales y de sonido: Cero rotura de bloques
+        level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, cx, cy, cz, 1, 0.0, 0.0, 0.0, 0.0);
+        level.sendParticles(ParticleTypes.POOF, cx, cy, cz, 20, 0.35, 0.35, 0.35, 0.05);
+        level.playSound(null, cx, cy, cz, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 2.5f, 1.4f);
+
+        // Mismo radio que un creeper vanilla (6.0 bloques de distancia de explosión)
+        // Inflige 2/3 del daño vanilla en el epicentro (~45.0f * 2/3 = 30.0f) escalando con la distancia
+        AABB box = creeper.getBoundingBox().inflate(6.0);
+        List<LivingEntity> victimas = level.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && e != creeper);
+        for (LivingEntity victima : victimas) {
+            double dist = victima.distanceTo(creeper);
+            if (dist <= 6.0) {
+                float factor = (float) (1.0 - (dist / 6.0));
+                float damage = factor * 30.0f;
+                if (damage > 0.5f) {
+                    victima.hurtServer(level, level.damageSources().explosion(creeper, creeper), damage);
+                    Vec3 empuje = victima.position().subtract(creeper.position()).normalize();
+                    victima.push(empuje.x * factor * 0.8, factor * 0.35 + 0.1, empuje.z * factor * 0.8);
+                }
+            }
+        }
+    }
+
     private static void intentarSpawnearBreezeDia(ServerLevel level, ServerPlayer player, EntityType<?> breezeType) {
         ThreadLocalRandom rng = ThreadLocalRandom.current();
         for (int attempt = 0; attempt < 15; attempt++) {
@@ -3436,6 +5117,267 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
         }
+    }
+
+    // --- EL COLOSO DE RUINA (Nivel 6) ---
+    private static final Map<Integer, Integer> colosoSlamCooldowns = new HashMap<>();
+    private static final Map<Integer, Integer> colosoSlamWindups = new HashMap<>();
+    private static final Map<Integer, Integer> colosoAntiTowerCooldowns = new HashMap<>();
+
+    public static void evaluarColosoRuina(IronGolem golem) {
+        if (!CursosActivos.isColosoRuina()) return;
+        if (golem.entityTags().contains("coloso_ruina_evaluado")) return;
+        golem.addTag("coloso_ruina_evaluado");
+
+        // 20% de probabilidad al aparecer en el mundo
+        if (ThreadLocalRandom.current().nextFloat() < 0.20f) {
+            configurarColosoRuina(golem);
+        }
+    }
+
+    public static void configurarColosoRuina(IronGolem golem) {
+        golem.addTag("coloso_ruina_evaluado");
+        golem.addTag("coloso_ruina");
+
+        // Escala x1.45 imponente
+        AttributeInstance scaleAttr = golem.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(1.45);
+        }
+        // Vida masiva de 300 HP
+        AttributeInstance maxHealth = golem.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealth != null) {
+            maxHealth.setBaseValue(300.0);
+        }
+        golem.setHealth(300.0f);
+
+        // Inmune al empuje (Knockback Resistance 1.0)
+        AttributeInstance kbAttr = golem.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
+        if (kbAttr != null) {
+            kbAttr.setBaseValue(1.0);
+        }
+
+        // Daño aumentado
+        AttributeInstance attackAttr = golem.getAttribute(Attributes.ATTACK_DAMAGE);
+        if (attackAttr != null) {
+            attackAttr.setBaseValue(21.0);
+        }
+
+        // Velocidad pesada y constante
+        AttributeInstance speedAttr = golem.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (speedAttr != null) {
+            speedAttr.setBaseValue(0.28);
+        }
+    }
+
+    public static void procesarColosoRuina(IronGolem golem, ServerLevel level, long currentTick) {
+        if (!golem.isAlive()) {
+            colosoSlamCooldowns.remove(golem.getId());
+            colosoSlamWindups.remove(golem.getId());
+            colosoAntiTowerCooldowns.remove(golem.getId());
+            return;
+        }
+
+        int golemId = golem.getId();
+        int slamCooldown = colosoSlamCooldowns.getOrDefault(golemId, 120);
+        int slamWindup = colosoSlamWindups.getOrDefault(golemId, 0);
+        int antiTowerCooldown = colosoAntiTowerCooldowns.getOrDefault(golemId, 40);
+
+        // Buscar jugador objetivo en un radio de 28 bloques si no tiene o murió
+        LivingEntity target = golem.getTarget();
+        if (target == null || !target.isAlive() || (target instanceof Player p && (p.isCreative() || p.isSpectator()))) {
+            Player nearest = level.getNearestPlayer(golem, 28.0);
+            if (nearest != null && nearest.isAlive() && !nearest.isCreative() && !nearest.isSpectator()) {
+                golem.setTarget(nearest);
+                target = nearest;
+            }
+        }
+
+        // Partículas sutiles de brasas volcánicas desde sus fisuras dorsales
+        if (currentTick % 10 == 0) {
+            Vec3 facing = golem.getViewVector(1.0f);
+            level.sendParticles(ParticleTypes.FLAME,
+                    golem.getX() - facing.x * 0.7, golem.getY() + 1.8, golem.getZ() - facing.z * 0.7,
+                    2, 0.2, 0.2, 0.2, 0.02);
+            level.sendParticles(ParticleTypes.LAVA,
+                    golem.getX() - facing.x * 0.7, golem.getY() + 1.5, golem.getZ() - facing.z * 0.7,
+                    1, 0.1, 0.1, 0.1, 0.0);
+        }
+
+        // --- FASE 1: WIND-UP Y EJECUCIÓN DEL GOLPE SÍSMICO RADIAL ---
+        if (slamWindup > 0) {
+            slamWindup--;
+            colosoSlamWindups.put(golemId, slamWindup);
+
+            // Inmovilizar traslación mientras canaliza el golpe
+            Vec3 mot = golem.getDeltaMovement();
+            golem.setDeltaMovement(new Vec3(0, mot.y, 0));
+
+            // Mirar hacia el objetivo
+            if (target != null) {
+                golem.lookAt(EntityAnchorArgument.Anchor.EYES, target.getEyePosition());
+            }
+
+            // Brasas y humo en los pies mientras levanta los brazos
+            level.sendParticles(ParticleTypes.LAVA, golem.getX(), golem.getY() + 0.1, golem.getZ(), 3, 0.5, 0.1, 0.5, 0.05);
+
+            if (slamWindup == 0) {
+                // ¡MOMENTO DE IMPACTO DEL GOLPE SÍSMICO!
+                ejecutarImpactoSismicoColoso(golem, level);
+                colosoSlamCooldowns.put(golemId, 180); // 9 segundos de enfriamiento
+            }
+            return;
+        }
+
+        if (slamCooldown > 0) {
+            slamCooldown--;
+            colosoSlamCooldowns.put(golemId, slamCooldown);
+        }
+
+        // Si el objetivo está en rango de combate terrestre (<= 9.0 bloques) y el golpe sísmico está listo
+        if (target != null && slamCooldown <= 0) {
+            double dist = golem.distanceTo(target);
+            if (dist <= 9.0) {
+                colosoSlamWindups.put(golemId, 25);
+                level.broadcastEntityEvent(golem, (byte) 66); // Desencadena animación de slam en clientes
+                level.playSound(null, golem.getX(), golem.getY(), golem.getZ(),
+                        SoundEvents.WARDEN_ROAR, SoundSource.HOSTILE, 1.4f, 0.65f);
+                return;
+            }
+        }
+
+        // --- FASE 2: ANTI-CAMPING / DESTRUCTOR DE TORRES ---
+        if (target != null && target.isAlive()) {
+            double dx = target.getX() - golem.getX();
+            double dz = target.getZ() - golem.getZ();
+            double horizontalDistSq = dx * dx + dz * dz;
+            double verticalDist = target.getY() - golem.getY();
+
+            // Si el jugador está subido a una torre o pilar alto (>= 2.2 bloques más alto y a menos de 7 bloques)
+            if (verticalDist >= 2.2 && horizontalDistSq <= 49.0) {
+                if (antiTowerCooldown > 0) {
+                    antiTowerCooldown--;
+                    colosoAntiTowerCooldowns.put(golemId, antiTowerCooldown);
+                } else {
+                    colosoAntiTowerCooldowns.put(golemId, 45); // cada 2.25 segundos
+                    demolerTorreCampista(golem, target, level);
+                }
+            }
+        }
+    }
+
+    private static void ejecutarImpactoSismicoColoso(IronGolem golem, ServerLevel level) {
+        double gx = golem.getX();
+        double gy = golem.getY();
+        double gz = golem.getZ();
+
+        // Sonidos colosales de impacto sísmico
+        level.playSound(null, gx, gy, gz, SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 2.5f, 0.55f);
+        level.playSound(null, gx, gy, gz, SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 2.0f, 0.5f);
+
+        // Onda expansiva radial visible con humo denso y fragmentos de lava
+        for (int deg = 0; deg < 360; deg += 20) {
+            double rad = Math.toRadians(deg);
+            double cos = Math.cos(rad);
+            double sin = Math.sin(rad);
+            for (double r = 1.5; r <= 8.5; r += 1.4) {
+                double px = gx + cos * r;
+                double pz = gz + sin * r;
+                level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, px, gy + 0.15, pz, 1, 0.0, 0.06, 0.0, 0.02);
+                level.sendParticles(ParticleTypes.LAVA, px, gy + 0.15, pz, 1, 0.08, 0.04, 0.08, 0.04);
+            }
+        }
+
+        // Dañar entidades en un radio de 8.5 bloques
+        AABB box = golem.getBoundingBox().inflate(8.5);
+        List<LivingEntity> victimas = level.getEntitiesOfClass(LivingEntity.class, box, e -> e.isAlive() && !(e instanceof IronGolem));
+        for (LivingEntity victima : victimas) {
+            double dist = victima.distanceTo(golem);
+            if (dist <= 8.5) {
+                // Si la víctima está tocando el suelo o muy cerca de la superficie
+                boolean enSuelo = victima.onGround() || (victima.getY() <= gy + 0.65);
+                if (enSuelo) {
+                    float factor = (float) (1.0 - (dist / 8.5) * 0.45);
+                    float damage = 22.0f * factor;
+                    victima.hurtServer(level, level.damageSources().mobAttack(golem), damage);
+                    victima.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 70, 3)); // Lentitud IV
+                    victima.addEffect(new MobEffectInstance(MobEffects.NAUSEA, 70, 0));
+
+                    Vec3 push = victima.position().subtract(golem.position()).normalize();
+                    victima.push(push.x * 0.45, 0.58, push.z * 0.45);
+                } else {
+                    // ¡Esquivó la onda sísmica saltando en el aire! (feedback sonoro)
+                    level.playSound(null, victima.getX(), victima.getY(), victima.getZ(), SoundEvents.SHIELD_BLOCK, SoundSource.PLAYERS, 1.2f, 1.4f);
+                }
+            }
+        }
+    }
+
+    private static void demolerTorreCampista(IronGolem golem, LivingEntity target, ServerLevel level) {
+        level.broadcastEntityEvent(golem, (byte) 4); // Animación vanilla de golpe de brazo
+        level.playSound(null, golem.getX(), golem.getY(), golem.getZ(),
+                SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.HOSTILE, 1.6f, 0.7f);
+        level.playSound(null, golem.getX(), golem.getY(), golem.getZ(),
+                SoundEvents.GENERIC_EXPLODE.value(), SoundSource.HOSTILE, 1.2f, 1.6f);
+
+        BlockPos targetPos = target.blockPosition();
+        BlockPos basePos = golem.blockPosition();
+
+        int minY = Math.max(level.getMinY(), basePos.getY() - 1);
+        int maxY = targetPos.getY() - 1;
+
+        boolean demolido = false;
+        for (int y = maxY; y >= minY; y--) {
+            BlockPos checkPos = new BlockPos(targetPos.getX(), y, targetPos.getZ());
+            BlockState state = level.getBlockState(checkPos);
+            if (!state.isAir() && !state.is(BlockTags.DRAGON_IMMUNE) && !state.is(BlockTags.WITHER_IMMUNE)) {
+                level.destroyBlock(checkPos, true, golem, 512);
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, checkPos.getX() + 0.5, checkPos.getY() + 0.5, checkPos.getZ() + 0.5, 10, 0.3, 0.3, 0.3, 0.05);
+                demolido = true;
+            }
+        }
+
+        if (demolido && target instanceof ServerPlayer sp) {
+            sp.sendSystemMessage(Component.literal("§4§l¡El Coloso de Ruina ha demolido tu estructura!"));
+        }
+    }
+
+    public static float procesarDanoColosoRuina(IronGolem golem, ServerLevel level, DamageSource source, float amount) {
+        Entity attacker = source.getEntity();
+        if (attacker != null) {
+            Vec3 colosoFacing = golem.getViewVector(1.0f);
+            Vec3 dirToAttacker = attacker.position().subtract(golem.position()).normalize();
+            double dot = colosoFacing.x * dirToAttacker.x + colosoFacing.z * dirToAttacker.z;
+
+            if (dot > 0.0) {
+                // Golpe frontal: armadura de basalto mitiga el 60% del daño
+                level.playSound(null, golem.getX(), golem.getY(), golem.getZ(),
+                        SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 1.4f, 1.6f);
+                level.playSound(null, golem.getX(), golem.getY(), golem.getZ(),
+                        SoundEvents.SHIELD_BLOCK, SoundSource.HOSTILE, 1.5f, 0.8f);
+
+                double fx = golem.getX() + colosoFacing.x * 0.8;
+                double fy = golem.getY() + 1.8;
+                double fz = golem.getZ() + colosoFacing.z * 0.8;
+                level.sendParticles(ParticleTypes.CRIT, fx, fy, fz, 12, 0.3, 0.3, 0.3, 0.2);
+                level.sendParticles(ParticleTypes.LAVA, fx, fy, fz, 5, 0.2, 0.2, 0.2, 0.1);
+
+                return amount * 0.40f;
+            } else {
+                // Golpe trasero: impacto en la fisura dorsal de magma expuesta (punto débil)
+                level.playSound(null, golem.getX(), golem.getY(), golem.getZ(),
+                        SoundEvents.PLAYER_ATTACK_CRIT, SoundSource.HOSTILE, 1.8f, 0.7f);
+
+                double bx = golem.getX() - colosoFacing.x * 0.8;
+                double by = golem.getY() + 1.8;
+                double bz = golem.getZ() - colosoFacing.z * 0.8;
+                level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, bx, by, bz, 8, 0.2, 0.2, 0.2, 0.1);
+                level.sendParticles(ParticleTypes.FLAME, bx, by, bz, 15, 0.3, 0.3, 0.3, 0.05);
+
+                return amount;
+            }
+        }
+        return amount;
     }
 
     private static NivelRuleta elegirNivel() {

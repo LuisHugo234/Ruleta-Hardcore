@@ -29,11 +29,14 @@ import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.monster.Shulker;
 import net.minecraft.world.entity.monster.Silverfish;
 import net.minecraft.world.entity.monster.Vex;
+import net.minecraft.world.entity.monster.illager.Vindicator;
 import net.minecraft.world.entity.monster.piglin.PiglinBrute;
 import net.minecraft.world.entity.monster.spider.Spider;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
 import net.minecraft.world.entity.projectile.hurtingprojectile.LargeFireball;
+import net.minecraft.world.entity.projectile.throwableitemprojectile.AbstractThrownPotion;
+import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -82,10 +85,25 @@ public abstract class LivingEntityMixin {
 
     @Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)
     private void ruleta$inmunidadCreeperMulticreeper(ServerLevel level, DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> cir) {
-        if ((Object) this instanceof Creeper && damageSource.is(DamageTypeTags.IS_EXPLOSION)
-                && damageSource.getEntity() instanceof Creeper sourceCreeper
-                && sourceCreeper.entityTags().contains("mini_multicreeper")) {
-            cir.setReturnValue(false);
+        if ((Object) this instanceof Creeper creeper) {
+            if (damageSource.is(DamageTypeTags.IS_EXPLOSION)
+                    && damageSource.getEntity() instanceof Creeper sourceCreeper
+                    && sourceCreeper.entityTags().contains("mini_multicreeper")) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (CursosActivos.isCreeperFantasma()
+                    && creeper.entityTags().contains("creeper_fantasma")
+                    && damageSource.is(DamageTypeTags.IS_PROJECTILE)) {
+                cir.setReturnValue(false);
+                return;
+            }
+            if (creeper.entityTags().contains("creeper_termonuclear")
+                    && (damageSource.getDirectEntity() instanceof Snowball
+                    || damageSource.getDirectEntity() instanceof AbstractThrownPotion
+                    || damageSource.is(DamageTypes.FREEZE))) {
+                Ruleta_Hardcore.enfriarCreeperTermonuclear(creeper, level, 45);
+            }
         }
     }
 
@@ -222,12 +240,41 @@ public abstract class LivingEntityMixin {
                 Ruleta_Hardcore.dividirMulticreeper(level, creeper, player);
             }
         }
+
+        // Grito Primal (Nivel 2): Enderman aturde al jugador que ataca y lo deja sordo durante 30 segundos
+        if (CursosActivos.isGritoPrimal() && cir.getReturnValueZ()
+                && self instanceof ServerPlayer sp && damageSource.getEntity() instanceof Enderman) {
+            Ruleta_Hardcore.aplicarGritoPrimal(sp, level);
+        }
+
+        // Sombra Parpadeante (Nivel 5): al golpear cuerpo a cuerpo a un Enderman, se teletransporta instantáneamente a la espalda exacta del jugador
+        if (CursosActivos.isSombraParpadeante()
+                && self instanceof Enderman enderman && enderman.isAlive()
+                && damageSource.getEntity() instanceof ServerPlayer sp
+                && !damageSource.is(DamageTypeTags.IS_PROJECTILE)) {
+            Ruleta_Hardcore.teletransportarEndermanAEspalda(enderman, sp, level);
+        }
     }
 
     @Inject(method = "applyItemBlocking", at = @At("RETURN"))
     private void ruleta$escudoPesadoConsumoComida(ServerLevel level, DamageSource damageSource, float damage, CallbackInfoReturnable<Float> cir) {
-        if (!CursosActivos.isEscudoPesado()) return;
         if (cir.getReturnValueF() > 0.0f && (Object) this instanceof ServerPlayer sp) {
+            // Berserker (Nivel 5): Vindicador rompe el escudo por 10 segundos y aplica Lentitud III por 2 segundos debido al impacto cinético
+            if (CursosActivos.isBerserker() && damageSource.getEntity() instanceof Vindicator) {
+                ItemStack blockingStack = sp.getItemBlockingWith();
+                if (blockingStack == null || blockingStack.isEmpty()) {
+                    blockingStack = new ItemStack(Items.SHIELD);
+                }
+                sp.getCooldowns().addCooldown(blockingStack, 200);
+                sp.stopUsingItem();
+                sp.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 40, 2));
+                level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.SHIELD_BREAK, SoundSource.PLAYERS, 1.4f, 0.75f);
+                level.playSound(null, sp.getX(), sp.getY(), sp.getZ(), SoundEvents.ANVIL_LAND, SoundSource.HOSTILE, 0.65f, 0.7f);
+                level.sendParticles(ParticleTypes.CRIT, sp.getX(), sp.getY() + 1.0, sp.getZ(), 25, 0.35, 0.45, 0.35, 0.2);
+                sp.sendSystemMessage(Component.literal("§4🪓 ¡IMPACTO BERSERKER! §cTu escudo ha sido destrozado por 10 segundos."), true);
+            }
+
+            if (!CursosActivos.isEscudoPesado()) return;
             // Consume el doble de comida por el esfuerzo de bloquear el impacto
             int currentFood = sp.getFoodData().getFoodLevel();
             sp.getFoodData().setFoodLevel(Math.max(0, currentFood - 2));
@@ -472,6 +519,16 @@ public abstract class LivingEntityMixin {
         }
     }
 
+    @Inject(method = "getDamageAfterArmorAbsorb", at = @At("RETURN"), cancellable = true)
+    private void ruleta$berserkerIgnorarMitadArmadura(DamageSource damageSource, float damage, CallbackInfoReturnable<Float> cir) {
+        if (CursosActivos.isBerserker() && damageSource.getEntity() instanceof Vindicator) {
+            float postArmor = cir.getReturnValueF();
+            if (postArmor < damage) {
+                cir.setReturnValue((damage + postArmor) * 0.5f);
+            }
+        }
+    }
+
     // Anomalía Gravitacional (Nivel 6): triplica el knockback en el End
     @ModifyVariable(method = "knockback(DDDLnet/minecraft/world/damagesource/DamageSource;FZ)V", at = @At("HEAD"), argsOnly = true, ordinal = 0)
     private double ruleta$triplicarKnockbackEnEnd(double strength) {
@@ -483,10 +540,16 @@ public abstract class LivingEntityMixin {
         return strength;
     }
 
-    // Anomalía Gravitacional (Nivel 6): saltar en el End aplica caída lenta por 3 segundos
-    @Inject(method = "jumpFromGround", at = @At("HEAD"))
+    // Anomalía Gravitacional (Nivel 6) y Mega Hoglin (Nivel 5): control de salto
+    @Inject(method = "jumpFromGround", at = @At("HEAD"), cancellable = true)
     private void ruleta$anomaliaSalto(CallbackInfo ci) {
         LivingEntity self = (LivingEntity) (Object) this;
+        if (CursosActivos.isMegaHoglin() && self instanceof ServerPlayer sp
+                && Ruleta_Hardcore.estaDesestabilizadoHoglin(sp.getUUID(), sp.level().getGameTime())) {
+            sp.sendSystemMessage(Component.literal("§c🐗 ¡Estás desestabilizado por el Mega Hoglin y no puedes saltar!"), true);
+            ci.cancel();
+            return;
+        }
         if (CursosActivos.isAnomaliaGravitacional() && self instanceof ServerPlayer sp
                 && sp.level().dimension().equals(Level.END)) {
             sp.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 60, 0, false, false, true));

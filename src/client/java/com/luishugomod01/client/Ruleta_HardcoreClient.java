@@ -3,13 +3,16 @@ package com.luishugomod01.client;
 import com.luishugomod01.Ruleta_Hardcore;
 import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
 import com.luishugomod01.client.gui.AdminConfigScreen;
+import com.luishugomod01.client.gui.FantasmaMuerteHudOverlay;
 import com.luishugomod01.client.gui.RuletaEstadoScreen;
 import com.luishugomod01.client.gui.RuletaHudOverlay;
 import com.luishugomod01.client.vidas.VidasClientState;
 import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
+import com.luishugomod01.network.MuerteFantasmaPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
+import com.luishugomod01.network.VidasJugadorPayload;
 import com.luishugomod01.network.VidasSyncPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -25,6 +28,17 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
                 new RuletaHudOverlay()
         );
 
+        HudElementRegistry.addLast(
+                Ruleta_Hardcore.id("fantasma_muerte_hud"),
+                new FantasmaMuerteHudOverlay()
+        );
+
+        ClientPlayNetworking.registerGlobalReceiver(MuerteFantasmaPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                FantasmaMuerteHudOverlay.iniciarAnimacion(payload);
+            });
+        });
+
         ClientPlayNetworking.registerGlobalReceiver(RuletaAnimacionPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 RuletaHudOverlay.iniciarAnimacion(payload);
@@ -38,7 +52,10 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
                         payload.eclipseActive(),
                         payload.contaminacionActive(),
                         payload.cuevasTenebrosasActive(),
-                        payload.maresAcidosActive()
+                        payload.maresAcidosActive(),
+                        payload.gritoPrimalActive(),
+                        payload.sombraParpadeanteActive(),
+                        payload.sorderaTicks()
                 );
             });
         });
@@ -46,6 +63,12 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(VidasSyncPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 VidasClientState.actualizar(payload.vidasRestantes(), payload.vidasMaximas());
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(VidasJugadorPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                VidasClientState.actualizarOtroJugador(payload.playerUuid(), payload.vidasRestantes(), payload.vidasMaximas());
             });
         });
 

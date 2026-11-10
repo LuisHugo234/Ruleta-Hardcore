@@ -1,0 +1,30 @@
+{
+  "providers": [
+    {
+      "type": "reference",
+      "id": "minecraft:include/space"
+    },
+    {
+      "type": "bitmap",
+      "file": "ruleta_hardcore:font/corazon_hardcore_lleno.png",
+      "ascent": 7,
+      "height": 9,
+      "chars": [
+        "\uE001"
+      ]
+    },
+    {
+      "type": "bitmap",
+      "file": "ruleta_hardcore:font/corazon_hardcore_vacio.png",
+      "ascent": 7,
+      "height": 9,
+      "chars": [
+        "\uE002"
+      ]
+    },
+    {
+      "type": "reference",
+      "id": "minecraft:include/default"
+    }
+  ]
+}

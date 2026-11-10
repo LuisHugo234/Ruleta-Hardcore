@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.monster.Enderman;
 import net.minecraft.world.level.Level;
 
 public final class BloodMoonClientState {
@@ -20,6 +21,10 @@ public final class BloodMoonClientState {
     private static volatile boolean serverContaminacionActive = false;
     private static volatile boolean serverCuevasTenebrosasActive = false;
     private static volatile boolean serverMaresAcidosActive = false;
+    private static volatile boolean serverGritoPrimalActive = false;
+    private static volatile boolean serverSombraParpadeanteActive = false;
+    private static volatile int sorderaTicksRemaining = 0;
+    private static volatile boolean silencioSepulcralActive = false;
     private static boolean fadeOutLatch = false;
     private static boolean eclipseFadeOutLatch = false;
 
@@ -38,12 +43,30 @@ public final class BloodMoonClientState {
 
     private BloodMoonClientState() {}
 
-    public static void updateFromPayload(boolean active, boolean eclipseActive, boolean contaminacionActive, boolean cuevasTenebrosasActive, boolean maresAcidosActive) {
+    public static void updateFromPayload(
+            boolean active,
+            boolean eclipseActive,
+            boolean contaminacionActive,
+            boolean cuevasTenebrosasActive,
+            boolean maresAcidosActive,
+            boolean gritoPrimalActive,
+            boolean sombraParpadeanteActive,
+            int sorderaTicks
+    ) {
         setServerActive(active);
         setServerEclipseActive(eclipseActive);
         serverContaminacionActive = contaminacionActive;
         serverCuevasTenebrosasActive = cuevasTenebrosasActive;
         serverMaresAcidosActive = maresAcidosActive;
+        serverGritoPrimalActive = gritoPrimalActive;
+        serverSombraParpadeanteActive = sombraParpadeanteActive;
+        if (sorderaTicks > 0) {
+            sorderaTicksRemaining = Math.max(sorderaTicksRemaining, sorderaTicks);
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null && mc.getSoundManager() != null) {
+                mc.getSoundManager().stop();
+            }
+        }
     }
 
     public static void setServerEclipseActive(boolean active) {
@@ -101,6 +124,18 @@ public final class BloodMoonClientState {
         return serverMaresAcidosActive;
     }
 
+    public static boolean isGritoPrimalActive() {
+        return serverGritoPrimalActive;
+    }
+
+    public static boolean isPlayerDeafened() {
+        return sorderaTicksRemaining > 0;
+    }
+
+    public static boolean isSilencioSepulcralActive() {
+        return silencioSepulcralActive;
+    }
+
     /**
      * Curva gradual diurna del Eclipse Solar (0.0f a 1.0f):
      * - Fade-in gradual entre tick 500 y 1500 a medida que la luna cubre el sol
@@ -153,6 +188,11 @@ public final class BloodMoonClientState {
         serverEclipseActive = false;
         serverContaminacionActive = false;
         serverCuevasTenebrosasActive = false;
+        serverMaresAcidosActive = false;
+        serverGritoPrimalActive = false;
+        serverSombraParpadeanteActive = false;
+        sorderaTicksRemaining = 0;
+        silencioSepulcralActive = false;
         fadeOutLatch = false;
         eclipseFadeOutLatch = false;
         prevBloodMoonIntensity = 0.0f;
@@ -223,7 +263,34 @@ public final class BloodMoonClientState {
 
         ClientLevel level = client.level;
         LocalPlayer player = client.player;
-        if (level == null || player == null || !level.dimension().equals(Level.OVERWORLD)) {
+        if (level == null || player == null) {
+            bloodMoonIntensity = 0.0f;
+            prevBloodMoonIntensity = 0.0f;
+            currentRenderIntensity = 0.0f;
+            eclipseIntensity = 0.0f;
+            prevEclipseIntensity = 0.0f;
+            currentEclipseRenderIntensity = 0.0f;
+            silencioSepulcralActive = false;
+            return;
+        }
+
+        if (!client.isPaused()) {
+            if (sorderaTicksRemaining > 0) {
+                sorderaTicksRemaining--;
+            }
+            if (serverSombraParpadeanteActive && !player.isCreative() && !player.isSpectator()) {
+                var nearbyAngryEndermen = level.getEntitiesOfClass(
+                        Enderman.class,
+                        player.getBoundingBox().inflate(12.0),
+                        e -> e.isAlive() && e.isCreepy() && e.distanceToSqr(player) <= 144.0
+                );
+                silencioSepulcralActive = !nearbyAngryEndermen.isEmpty();
+            } else {
+                silencioSepulcralActive = false;
+            }
+        }
+
+        if (!level.dimension().equals(Level.OVERWORLD)) {
             bloodMoonIntensity = 0.0f;
             prevBloodMoonIntensity = 0.0f;
             currentRenderIntensity = 0.0f;

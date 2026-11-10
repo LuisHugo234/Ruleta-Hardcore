@@ -23,7 +23,7 @@ public class RuletaHudOverlay implements HudElement {
     private static final Identifier TEXTURE_AGUJA =
             Ruleta_Hardcore.id("textures/gui/ruleta_aguja.png");
 
-    // Matriz de texturas para la animación de barrido horario al detenerse estilo DEDsafio 4
+    // Matriz de texturas para la animación de barrido horario al detenerse
     // TEXTURAS_BARRIDO[nivel - 1][paso - 1] (pasos 1 a 4 intermedios, paso 5 [índice 4] es el disco 100% monocromático)
     private static final Identifier[][] TEXTURAS_BARRIDO = new Identifier[6][5];
     static {
@@ -263,7 +263,7 @@ public class RuletaHudOverlay implements HudElement {
         }
 
         if (maximas <= 5) {
-            // Escala visual fija estilo Extremo 3 (~34px en pantalla independiente del GuiScale)
+            // Escala visual fija para corazones (~34px en pantalla independiente del GuiScale)
             int heartW = Math.max(10, (int) Math.round(34.0 / guiScale));
             int heartH = heartW;
             int gap = Math.max(2, (int) Math.round(5.0 / guiScale));

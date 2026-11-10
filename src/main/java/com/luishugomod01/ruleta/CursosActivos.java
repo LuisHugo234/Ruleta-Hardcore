@@ -48,6 +48,7 @@ public class CursosActivos {
     private static volatile boolean mineriaInestable          = false;
     private static volatile boolean telaranaAlFallo           = false;
     private static volatile boolean brujaReflejante           = false;
+    private static volatile boolean gritoPrimal               = false;
 
     // Nivel 3
     private static volatile boolean errorTotemico             = false;
@@ -64,6 +65,8 @@ public class CursosActivos {
     private static volatile boolean monturaAcuatica           = false;
     private static volatile boolean pykete                    = false;
     private static volatile boolean fragmentacionHelada       = false;
+    private static volatile boolean comoPedro                 = false;
+    private static volatile boolean creeperAvispon            = false;
 
     // Nivel 4
     private static volatile boolean danoColateral             = false;
@@ -75,6 +78,8 @@ public class CursosActivos {
     private static volatile boolean desiertoAbrasador         = false;
     private static volatile boolean ataqueSlimes              = false;
     private static volatile boolean tensionMuscular           = false;
+    private static volatile boolean colosalFusion             = false;
+    private static volatile boolean cazadorIgneo              = false;
 
     // Nivel 5
     private static volatile boolean intrusosCalavericos       = false;
@@ -89,6 +94,10 @@ public class CursosActivos {
     private static volatile boolean cegueraAbisal             = false;
     private static volatile boolean fallaDimensional          = false;
     private static volatile boolean multicreeper              = false;
+    private static volatile boolean sombraParpadeante         = false;
+    private static volatile boolean berserker                 = false;
+    private static volatile boolean nigromanteCriptas         = false;
+    private static volatile boolean creeperFantasma           = false;
 
     // Nivel 6
     private static volatile boolean permadeath                = false;
@@ -101,6 +110,8 @@ public class CursosActivos {
     private static volatile boolean anomaliaGravitacional     = false;
     private static volatile boolean corrupcionVacio           = false;
     private static volatile boolean creeperAntimateria        = false;
+    private static volatile boolean creeperTermonuclear       = false;
+    private static volatile boolean colosoRuina               = false;
 
     // Estados dinámicos de eventos temporales (Luna de Sangre / Eclipse Solar)
     private static volatile boolean isBloodMoonActive         = false;
@@ -225,6 +236,9 @@ public class CursosActivos {
     public static void activarBrujaReflejante() { brujaReflejante = true; }
     public static boolean isBrujaReflejante() { return brujaReflejante; }
 
+    public static void activarGritoPrimal() { gritoPrimal = true; }
+    public static boolean isGritoPrimal() { return gritoPrimal; }
+
     // --- Nivel 3 ---
     public static void activarErrorTotemico() { errorTotemico = true; }
     public static boolean isErrorTotemico() { return errorTotemico; }
@@ -269,6 +283,12 @@ public class CursosActivos {
     public static void activarFragmentacionHelada() { fragmentacionHelada = true; }
     public static boolean isFragmentacionHelada() { return fragmentacionHelada; }
 
+    public static void activarComoPedro() { comoPedro = true; }
+    public static boolean isComoPedro() { return comoPedro; }
+
+    public static void activarCreeperAvispon() { creeperAvispon = true; }
+    public static boolean isCreeperAvispon() { return creeperAvispon; }
+
     // --- Nivel 4 ---
     public static void activarDanoColateral() { danoColateral = true; }
     public static boolean isDanoColateral() { return danoColateral; }
@@ -295,6 +315,12 @@ public class CursosActivos {
 
     public static void activarTensionMuscular() { tensionMuscular = true; }
     public static boolean isTensionMuscular() { return tensionMuscular; }
+
+    public static void activarColosalFusion() { colosalFusion = true; }
+    public static boolean isColosalFusion() { return colosalFusion; }
+
+    public static void activarCazadorIgneo() { cazadorIgneo = true; }
+    public static boolean isCazadorIgneo() { return cazadorIgneo; }
 
     // --- Nivel 5 ---
     public static void activarIntrusosCalavericos() { intrusosCalavericos = true; }
@@ -341,6 +367,18 @@ public class CursosActivos {
     public static void activarMulticreeper() { multicreeper = true; }
     public static boolean isMulticreeper() { return multicreeper; }
 
+    public static void activarSombraParpadeante() { sombraParpadeante = true; }
+    public static boolean isSombraParpadeante() { return sombraParpadeante; }
+
+    public static void activarBerserker() { berserker = true; }
+    public static boolean isBerserker() { return berserker; }
+
+    public static void activarNigromanteCriptas() { nigromanteCriptas = true; }
+    public static boolean isNigromanteCriptas() { return nigromanteCriptas; }
+
+    public static void activarCreeperFantasma() { creeperFantasma = true; }
+    public static boolean isCreeperFantasma() { return creeperFantasma; }
+
     // --- Nivel 6 ---
     public static void activarPermadeath() { permadeath = true; }
     public static boolean isPermadeath() { return permadeath; }
@@ -376,6 +414,12 @@ public class CursosActivos {
     public static void activarCreeperAntimateria() { creeperAntimateria = true; }
     public static boolean isCreeperAntimateria() { return creeperAntimateria; }
 
+    public static void activarCreeperTermonuclear() { creeperTermonuclear = true; }
+    public static boolean isCreeperTermonuclear() { return creeperTermonuclear; }
+
+    public static void activarColosoRuina() { colosoRuina = true; }
+    public static boolean isColosoRuina() { return colosoRuina; }
+
     public static void setBloodMoonActive(boolean active) { isBloodMoonActive = active; }
     public static boolean isBloodMoonActive() { return isBloodMoonActive; }
 
@@ -397,19 +441,21 @@ public class CursosActivos {
                 || filoMortal || muerteEspinosa || cucarachaPlateada || abejasAsesinas
                 || cargaPesada || vexGrandes || resistenciaFisica || escudoPesado
                 || wingardiumLeviosa || lavaActiva || webones || mineriaInestable
-                || telaranaAlFallo || brujaReflejante
+                || telaranaAlFallo || brujaReflejante || gritoPrimal
                 || errorTotemico || artesMaritimos || boogieWoogie || energiaPoseica
                 || infestacionMinera || muerteInstantanea || manzanaRegeneradora
                 || magmaContacto || contaminacionCruzada || sinOxigeno || fallaMecanica || adivinaQuien
-                || pykete || fragmentacionHelada
+                || pykete || fragmentacionHelada || comoPedro
                 || danoColateral || ultraFundido || contaminacion
                 || congelacionProfunda || escopeta || reyDeLoProfundo || desiertoAbrasador || tensionMuscular
+                || colosalFusion || cazadorIgneo
                 || intrusosCalavericos || spiderman || enderGhast || kaBoom
                 || ataqueSlimes || gigaEndermite || megaHoglin || creepersEscondidos || creeperCosmico
                 || torbellinoIgneo || phantomAlfa || cegueraAbisal || fallaDimensional || multicreeper
+                || sombraParpadeante || berserker || nigromanteCriptas || creeperFantasma
                 || permadeath || apocalipsisMinecraftTotal || maldicionLunaDeSangre
                 || monturaAcuatica || eclipseSolar || elVerdugo || maresAcidos || pareceQueVaALlover
-                || anomaliaGravitacional || corrupcionVacio || creeperAntimateria;
+                || anomaliaGravitacional || corrupcionVacio || creeperAntimateria || creeperTermonuclear || colosoRuina;
     }
 
     public static List<String> obtenerIdsActivas() {
@@ -446,6 +492,7 @@ public class CursosActivos {
         if (mineriaInestable) ids.add("mineriainestable");
         if (telaranaAlFallo) ids.add("telaranaalfallo");
         if (brujaReflejante) ids.add("brujareflejante");
+        if (gritoPrimal) ids.add("gritoprimal");
         if (errorTotemico) ids.add("errortotemico");
         if (artesMaritimos) ids.add("artesmaritimos");
         if (boogieWoogie) ids.add("boogiewoogie");
@@ -460,6 +507,8 @@ public class CursosActivos {
         if (adivinaQuien) ids.add("adivinaquien");
         if (pykete) ids.add("pykete");
         if (fragmentacionHelada) ids.add("fragmentacionhelada");
+        if (comoPedro) ids.add("comopedro");
+        if (creeperAvispon) ids.add("creeperavispon");
         if (danoColateral) ids.add("danocolateral");
         if (ultraFundido) ids.add("ultrafundido");
         if (contaminacion) ids.add("contaminacion");
@@ -468,6 +517,8 @@ public class CursosActivos {
         if (reyDeLoProfundo) ids.add("reydeloprofundo");
         if (desiertoAbrasador) ids.add("desiertoabrasador");
         if (tensionMuscular) ids.add("tensionmuscular");
+        if (colosalFusion) ids.add("colosalfusion");
+        if (cazadorIgneo) ids.add("cazadorigneo");
         if (intrusosCalavericos) ids.add("intrusoscalavericos");
         if (spiderman) ids.add("spiderman");
         if (enderGhast) ids.add("enderghast");
@@ -482,6 +533,10 @@ public class CursosActivos {
         if (cegueraAbisal) ids.add("cegueraabisal");
         if (fallaDimensional) ids.add("falladimensional");
         if (multicreeper) ids.add("multicreeper");
+        if (sombraParpadeante) ids.add("sombraparpadeante");
+        if (berserker) ids.add("berserker");
+        if (nigromanteCriptas) ids.add("nigromantecriptas");
+        if (creeperFantasma) ids.add("creeperfantasma");
         if (permadeath) ids.add("permadeath");
         if (apocalipsisMinecraftTotal) ids.add("apocalipsis6");
         if (maldicionLunaDeSangre) ids.add("lunasangre");
@@ -493,6 +548,8 @@ public class CursosActivos {
         if (anomaliaGravitacional) ids.add("anomaliagravitacional");
         if (corrupcionVacio) ids.add("corrupcionvacio");
         if (creeperAntimateria) ids.add("creeperantimateria");
+        if (creeperTermonuclear) ids.add("creepertermonuclear");
+        if (colosoRuina) ids.add("colosoruina");
         return ids;
     }
 
@@ -530,6 +587,7 @@ public class CursosActivos {
             case "mineriainestable" -> activarMineriaInestable();
             case "telaranaalfallo" -> activarTelaranaAlFallo();
             case "brujareflejante" -> activarBrujaReflejante();
+            case "gritoprimal" -> activarGritoPrimal();
             case "errortotemico" -> activarErrorTotemico();
             case "artesmaritimos" -> activarArtesMaritimos();
             case "boogiewoogie" -> activarBoogieWoogie();
@@ -544,6 +602,8 @@ public class CursosActivos {
             case "adivinaquien" -> activarAdivinaQuien();
             case "pykete" -> activarPykete();
             case "fragmentacionhelada" -> activarFragmentacionHelada();
+            case "comopedro" -> activarComoPedro();
+            case "creeperavispon" -> activarCreeperAvispon();
             case "danocolateral" -> activarDanoColateral();
             case "ultrafundido" -> activarUltraFundido();
             case "contaminacion" -> activarContaminacion();
@@ -552,6 +612,8 @@ public class CursosActivos {
             case "reydeloprofundo" -> activarReyDeLoProfundo();
             case "desiertoabrasador" -> activarDesiertoAbrasador();
             case "tensionmuscular" -> activarTensionMuscular();
+            case "colosalfusion" -> activarColosalFusion();
+            case "cazadorigneo" -> activarCazadorIgneo();
             case "intrusoscalavericos" -> activarIntrusosCalavericos();
             case "spiderman" -> activarSpiderman();
             case "enderghast" -> activarEnderGhast();
@@ -566,6 +628,10 @@ public class CursosActivos {
             case "cegueraabisal" -> activarCegueraAbisal();
             case "falladimensional" -> activarFallaDimensional();
             case "multicreeper" -> activarMulticreeper();
+            case "sombraparpadeante" -> activarSombraParpadeante();
+            case "berserker" -> activarBerserker();
+            case "nigromantecriptas" -> activarNigromanteCriptas();
+            case "creeperfantasma" -> activarCreeperFantasma();
             case "permadeath" -> activarPermadeath();
             case "apocalipsis6", "apocalipsistotal" -> activarApocalipsisMinecraftTotal();
             case "lunasangre", "bloodmoon" -> activarLunaDeSangre();
@@ -577,6 +643,8 @@ public class CursosActivos {
             case "anomaliagravitacional" -> activarAnomaliaGravitacional();
             case "corrupcionvacio" -> activarCorrupcionVacio();
             case "creeperantimateria" -> activarCreeperAntimateria();
+            case "creepertermonuclear" -> activarCreeperTermonuclear();
+            case "colosoruina", "coloso_ruina" -> activarColosoRuina();
         }
     }
 
@@ -678,6 +746,9 @@ public class CursosActivos {
         if (brujaReflejante) {
             lista.add(Component.literal("  §d🔮 BRUJA REFLEJANTE:§r Las brujas tienen un 30% de probabilidad de reflejar flechas y tridentes de vuelta hacia ti."));
         }
+        if (gritoPrimal) {
+            lista.add(Component.literal("  §5🔊 GRITO PRIMAL:§r Los Endermans aturden al jugador que atacan y lo dejan sordo por 30s tras enojarse."));
+        }
         if (errorTotemico) {
             lista.add(Component.literal("  §4✝ ERROR TOTÉMICO:§r Los tótems de la inmortalidad tienen un 2% de probabilidad de fallar."));
         }
@@ -715,10 +786,16 @@ public class CursosActivos {
             lista.add(Component.literal("  §5🎩 ADIVINA QUIÉN HA VUELTO:§r El Illusioner aparece (25%) en raids, outposts y patrullas con Arco Retroceso X, Poder III y Resistencia III."));
         }
         if (pykete) {
-            lista.add(Component.literal("  §3🪝 PYKETE:§r Los tridentes de los Ahogados tienen un hilo espectral que te arrastra 5 bloques hacia ellos al impactar."));
+            lista.add(Component.literal("  §3🪝 PYKETE:§r Los tridentes con cuerda de algas de los Ahogados arrastran 8 bloques si no usas escudo y rompen barcos de un golpe."));
         }
         if (fragmentacionHelada) {
             lista.add(Component.literal("  §b❄ FRAGMENTACIÓN HELADA:§r Al morir un Stray, congela el suelo en 4 bloques en hielo resbaladizo y aplica Congelación Profunda."));
+        }
+        if (comoPedro) {
+            lista.add(Component.literal("  §a🌊 COMO PEDRO:§r Los Creepers caminan sobre el agua y mientras la pisan su velocidad se multiplica por 3."));
+        }
+        if (creeperAvispon) {
+            lista.add(Component.literal("  §e🐝 CREEPER AVISPÓN:§r Pequeños creepers voladores del tamaño de una abeja bebé rondan el Overworld. No destruyen bloques y causan 2/3 de daño."));
         }
         if (danoColateral) {
             lista.add(Component.literal("  §5💥 DAÑO COLATERAL:§r Las Ender Pearls hacen x3 su daño e ignoran armadura."));
@@ -744,6 +821,12 @@ public class CursosActivos {
         if (tensionMuscular) {
             lista.add(Component.literal("  §c🏹 TENSIÓN MUSCULAR:§r Tensar arco/ballesta >3s provoca fatiga, lentitud, debilidad II y temblores de puntería hasta soltar el arma."));
         }
+        if (colosalFusion) {
+            lista.add(Component.literal("  §6☄ COLOSAL DE FUSIÓN:§r Magma Cubes colosales en el Nether que al aterrizar crean cráteres de magma y al morir lanzan crías como morteros."));
+        }
+        if (cazadorIgneo) {
+            lista.add(Component.literal("  §b🏹 CAZADOR ÍGNEO:§r 15% de los Wither Skeletons en el Nether portan arcos de fuego fatuo azul que infligen Wither I por 6s."));
+        }
         if (intrusosCalavericos) {
             lista.add(Component.literal("  §8💀 INTRUSOS CALAVÉRICOS:§r Wither Skeletons aparecen de noche en el Overworld con Diamante Prot IV, Espada Filo V, Velocidad I y Fuerza II."));
         }
@@ -763,7 +846,7 @@ public class CursosActivos {
             lista.add(Component.literal("  §5👾 GIGA-ENDERMITE:§r 5% de probabilidad en el End de un Endermite Gigante con 250 HP, x2 de daño, sin empuje y con embestida."));
         }
         if (megaHoglin) {
-            lista.add(Component.literal("  §4🐗 MEGA HOGLIN:§r 5% de probabilidad en el Nether de un Hoglin Gigante con 300 HP, x2 de daño y Lentitud."));
+            lista.add(Component.literal("  §4🐗 MEGA HOGLIN:§r 5% en el Nether de un Hoglin Gigante (300 HP, x2 daño) cuya embestida genera onda expansiva e impide saltar/colocar bloques por 3s."));
         }
         if (creepersEscondidos) {
             lista.add(Component.literal("  §2🌱 CREEPERS ESCONDIDOS:§r 20% de probabilidad al romper pasto de que aparezca un mini-creeper cabezón con 1/3 de daño explosivo."));
@@ -785,6 +868,18 @@ public class CursosActivos {
         }
         if (multicreeper) {
             lista.add(Component.literal("  §a🧬 MULTICREEPER:§r Si un Creeper sobrevive a un golpe cuerpo a cuerpo, tiene 30% de dividirse en 2 mini-creepers con mecha de 1s."));
+        }
+        if (sombraParpadeante) {
+            lista.add(Component.literal("  §5👤 SOMBRA PARPADEANTE:§r Endermans se teletransportan a tu espalda al mirarlos/golpearlos, silencian el ambiente (12 bloques) y fuerzan tu vista."));
+        }
+        if (berserker) {
+            lista.add(Component.literal("  §4🪓 BERSERKER:§r Vindicadores con Netherite (+60% vel. a <15 bloques), ignoran 50% de armadura y rompen escudos por 10s con Lentitud III."));
+        }
+        if (nigromanteCriptas) {
+            lista.add(Component.literal("  §b🧙 EL NIGROMANTE DE LAS CRIPTAS:§r Stray con báculo de hielo que canaliza un rayo congelante al suelo e invoca mini-strays con hacha."));
+        }
+        if (creeperFantasma) {
+            lista.add(Component.literal("  §f👻 CREEPER FANTASMA:§r Creeper espectral translúcido completamente inmune a proyectiles (flechas y tridentes lo atraviesan)."));
         }
         if (permadeath) {
             lista.add(Component.literal("  §4§l☠ PERMADEATH:§r Se ha eliminado la regeneración pasiva de vida."));
@@ -818,6 +913,12 @@ public class CursosActivos {
         }
         if (creeperAntimateria) {
             lista.add(Component.literal("  §5§l🕳 CREEPER DE IMPLOSIÓN ANTIMATERIA:§r Raro Creeper negro con partículas del End que al detonar crea un vórtice de succión de 18 bloques por 2.5s antes de colapsar."));
+        }
+        if (creeperTermonuclear) {
+            lista.add(Component.literal("  §6§l☢ CREEPER TERMONUCLEAR:§r Creeper acorazado de magma cuya temperatura sube en combate (>70% quema en 4 bloques, 100% explosión ígnea masiva; enfriable con agua/nieve)."));
+        }
+        if (colosoRuina) {
+            lista.add(Component.literal("  §4§l☄ EL COLOSO DE RUINA:§r Golem titánico (300 HP) con armadura de basalto. Destruye torres de bloques y desata Golpes Sísmicos esquivables saltando."));
         }
         return lista;
     }
@@ -861,6 +962,7 @@ public class CursosActivos {
         if (mineriaInestable) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Minería Inestable", "5% de probabilidad de pequeña explosión sin destruir bloques al minar."));
         if (telaranaAlFallo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Telaraña al Fallo", "Cuando una araña salta sobre un jugador, coloca una telaraña temporal por 2.5s."));
         if (brujaReflejante) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Bruja Reflejante", "30% de probabilidad de que las brujas repelan proyectiles de vuelta hacia el jugador."));
+        if (gritoPrimal) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Grito Primal", "Los Endermans aturden al jugador que atacan y lo dejan sordo durante 30 segundos tras enojarse."));
 
         // Nivel 3
         if (errorTotemico) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Error Totémico", "Los Tótems de Inmortalidad tienen un 2% de probabilidad de fallar."));
@@ -876,8 +978,9 @@ public class CursosActivos {
         if (creepersEscondidos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Creepers Escondidos", "Al romper pasto hay 20% de probabilidad de spawnear un mini-creeper."));
         if (monturaAcuatica) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Montura Acuática", "Los Zombies Ahogados tienen 10% de probabilidad de montar Delfín o Nautilo."));
         if (desiertoAbrasador) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Desierto Abrasador", "Permanecer en el desierto acumula insolación progresiva a menos que lleves casco."));
-        if (pykete) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Pykete", "Los tridentes de los Ahogados tienen un hilo espectral que te arrastra 5 bloques hacia ellos."));
+        if (pykete) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Pykete", "Tridente con cuerda de algas: arrastra 8 bloques al agua si no usas escudo y rompe barcos de un golpe."));
         if (fragmentacionHelada) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Fragmentación Helada", "Al morir un Stray, transforma el suelo en hielo resbaladizo (4 bloques) e inflige Congelación Profunda."));
+        if (comoPedro) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Como Pedro", "Los Creepers caminan sobre el agua y mientras la pisan su velocidad se multiplica por 3."));
 
         // Nivel 4
         if (danoColateral) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Daño Colateral", "Las Ender Pearls hacen x3 su daño original e ignoran armadura."));
@@ -888,6 +991,8 @@ public class CursosActivos {
         if (reyDeLoProfundo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Rey de lo Profundo", "Elder Guardian con 100 HP y rayo acumulativo de Debilidad."));
         if (ataqueSlimes) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Ataque a los Slimes", "5% de probabilidad de Slime Gigante en pantanos con x2.5 de daño y mega salto."));
         if (tensionMuscular) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Tensión Muscular", "Tensar arco/ballesta >3s provoca fatiga, temblor de puntería y Debilidad II."));
+        if (colosalFusion) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Colosal de Fusión", "Magma Cubes colosales en el Nether que crean cráteres de magma al aterrizar y lanzan crías al morir."));
+        if (cazadorIgneo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Cazador Ígneo", "15% de Wither Skeletons en el Nether portan arcos de fuego azul que aplican Wither I por 6s."));
 
         // Nivel 5
         if (intrusosCalavericos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Intrusos Calavéricos", "Wither Skeletons con armadura de diamante y Filo V aparecen de noche."));
@@ -895,13 +1000,17 @@ public class CursosActivos {
         if (enderGhast) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Ender Ghast", "El Ghast se vuelve más agresivo y sus proyectiles hacen un x3 el daño explosivo."));
         if (kaBoom) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "KA-BOOM", "Los Shulkers explotan 3 segundos después de morir como una TNT."));
         if (gigaEndermite) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Giga-Endermite", "Endermite Gigante en el End con 250 HP, embestida y sin retroceso."));
-        if (megaHoglin) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Mega Hoglin", "Hoglin Gigante en el Nether con 300 HP y x2 de daño base."));
+        if (megaHoglin) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Mega Hoglin", "Hoglin Gigante (300 HP, x2 daño) cuya embestida desestabiliza e impide saltar/colocar bloques por 3s."));
         if (creeperCosmico) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Creeper Cósmico", "Creeper Eléctrico lentísimo en el End con atracción gravitacional y explosión de 30 bloques."));
         if (torbellinoIgneo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Torbellino Ígneo", "Proyectiles de Blazes empujan y crean charcos temporales de lava y fuego."));
         if (phantomAlfa) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Phantom Alfa", "Phantoms gigantes (x2.5), 60 HP, onda sónica que inflige 3 corazones."));
         if (cegueraAbisal) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Ceguera Abisal", "Golpes en End y Deep Dark aplican Ceguera y Oscuridad sin poder curarse."));
         if (fallaDimensional) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Falla Dimensional", "15% de probabilidad al cruzar portal del Nether de invocar 2 Blazes agresivos."));
         if (multicreeper) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Multicreeper", "30% de probabilidad de que un Creeper golpeado cuerpo a cuerpo se divida en 2 mini-creepers (mecha 1s)."));
+        if (sombraParpadeante) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Sombra Parpadeante", "Endermans se teletransportan a tu espalda, silencian el ambiente (12 bloques) y fuerzan tu mirada."));
+        if (berserker) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Berserker", "Vindicadores con Netherite (+60% vel.), ignoran 50% de armadura y rompen el escudo por 10s."));
+        if (nigromanteCriptas) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "El Nigromante de las Criptas", "Stray con báculo de hielo que congela el suelo con un rayo e invoca mini-strays con hachas."));
+        if (creeperFantasma) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Creeper Fantasma", "Creeper espectral translúcido completamente inmune a proyectiles."));
 
         // Nivel 6
         if (permadeath) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "PERMADEATH", "Se elimina permanentemente la regeneración natural de salud."));
@@ -914,6 +1023,8 @@ public class CursosActivos {
         if (anomaliaGravitacional) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Anomalía Gravitacional", "Empuje triplicado en el End y saltos dejan al jugador en caída lenta por 3s."));
         if (corrupcionVacio) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Corrupción del Vacío", "Golpes de Enderman o proyectiles de Shulker anulan la armadura por 5s."));
         if (creeperAntimateria) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Creeper de Implosión Antimateria", "Raro Creeper negro que al detonar crea un vórtice de succión de 18 bloques por 2.5s antes de colapsar."));
+        if (creeperTermonuclear) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "Creeper Termonuclear", "Creeper acorazado de magma cuya temperatura sube en combate hasta detonar; enfriable con agua o nieve."));
+        if (colosoRuina) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "El Coloso de Ruina", "Golem titánico (300 HP) con armadura de basalto. Destruye torres y desata Golpes Sísmicos esquivables saltando."));
 
         return lista;
     }
@@ -951,6 +1062,7 @@ public class CursosActivos {
         mineriaInestable = false;
         telaranaAlFallo = false;
         brujaReflejante = false;
+        gritoPrimal = false;
         errorTotemico = false;
         artesMaritimos = false;
         boogieWoogie = false;
@@ -965,6 +1077,8 @@ public class CursosActivos {
         adivinaQuien = false;
         pykete = false;
         fragmentacionHelada = false;
+        comoPedro = false;
+        creeperAvispon = false;
         danoColateral = false;
         ultraFundido = false;
         contaminacion = false;
@@ -973,6 +1087,8 @@ public class CursosActivos {
         reyDeLoProfundo = false;
         desiertoAbrasador = false;
         tensionMuscular = false;
+        colosalFusion = false;
+        cazadorIgneo = false;
         intrusosCalavericos = false;
         spiderman = false;
         enderGhast = false;
@@ -987,6 +1103,10 @@ public class CursosActivos {
         cegueraAbisal = false;
         fallaDimensional = false;
         multicreeper = false;
+        sombraParpadeante = false;
+        berserker = false;
+        nigromanteCriptas = false;
+        creeperFantasma = false;
         permadeath = false;
         apocalipsisMinecraftTotal = false;
         maldicionLunaDeSangre = false;
@@ -998,6 +1118,8 @@ public class CursosActivos {
         anomaliaGravitacional = false;
         corrupcionVacio = false;
         creeperAntimateria = false;
+        creeperTermonuclear = false;
+        colosoRuina = false;
         isBloodMoonActive = false;
         ultimoDiaBloodMoon = -1L;
         isEclipseActive = false;

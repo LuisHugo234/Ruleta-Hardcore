@@ -9,7 +9,15 @@
 		"FogRendererMixin",
 		"DeathScreenMixin",
 		"CreeperModelMixin",
-		"CreeperRendererMixin"
+		"CreeperRendererMixin",
+		"CreeperRenderStateMixin",
+		"LivingEntityRendererAccessor",
+		"AvatarRenderStateMixin",
+		"AvatarRendererMixin",
+		"SoundManagerMixin",
+		"IronGolemRenderStateMixin",
+		"IronGolemRendererMixin",
+		"IronGolemModelMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

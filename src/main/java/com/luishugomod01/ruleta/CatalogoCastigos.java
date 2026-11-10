@@ -217,6 +217,10 @@ public class CatalogoCastigos {
                 "Las brujas tienen un 30% de probabilidad de repeler proyectiles: cualquier flecha o tridente que le disparen rebota en un escudo mágico visible y sale disparado de vuelta hacia el jugador.",
                 (level, player) -> CursosActivos.activarBrujaReflejante());
 
+        registrar("gritoprimal", NivelRuleta.NIVEL_2, "Grito Primal",
+                "Ahora los endermans aturden al jugador que atacan y lo dejan sordo durante 30 segundos después de que se enoje con el jugador.",
+                (level, player) -> CursosActivos.activarGritoPrimal());
+
         // --- NIVEL 3 ---
         registrar("errortotemico", NivelRuleta.NIVEL_3, "Error Totémico",
                 "Los Tótems de Inmortalidad tienen un 2% de probabilidad de fallar.",
@@ -271,12 +275,20 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarDesiertoAbrasador());
 
         registrar("pykete", NivelRuleta.NIVEL_3, "Pykete",
-                "Los tridentes arrojados por los ahogados tienen un hilo espectral atado: si impactan al jugador, además del daño, lo arrastran 5 bloques hacia el ahogado, jalándolo hacia lo profundo del agua.",
+                "Los ahogados portan un tridente con cuerda de algas. Al lanzarlo contra un jugador, si no es bloqueado con escudo, además del daño lo arrastra violentamente 8 bloques hacia el agua, y si impacta contra un barco de madera lo rompe instantáneamente de un solo golpe.",
                 (level, player) -> CursosActivos.activarPykete());
 
         registrar("fragmentacionhelada", NivelRuleta.NIVEL_3, "Fragmentación Helada",
                 "Al morir un Stray (esqueleto del bioma helado), su cuerpo se quiebra en una ráfaga de esquirlas congeladas que transforma el suelo en un radio de 4 bloques en hielo resbaladizo e inflige el efecto de Congelación Profunda inmediata a quien esté cerca.",
                 (level, player) -> CursosActivos.activarFragmentacionHelada());
+
+        registrar("comopedro", NivelRuleta.NIVEL_3, "Como Pedro",
+                "Ahora los creepers pueden caminar sobre el agua y mientras la pisan su velocidad se multiplica por 3.",
+                (level, player) -> CursosActivos.activarComoPedro());
+
+        registrar("creeperavispon", NivelRuleta.NIVEL_3, "Creeper Avispón",
+                "En el Overworld pueden aparecer pequeños creepers voladores del tamaño de una abeja bebé que revolotean y zumban hacia el jugador. Al detonar no rompen bloques y su explosión inflige 2/3 del daño de un creeper ordinario en el mismo radio.",
+                (level, player) -> CursosActivos.activarCreeperAvispon());
 
         // --- NIVEL 4 ---
         registrar("danocolateral", NivelRuleta.NIVEL_4, "Daño Colateral",
@@ -311,6 +323,14 @@ public class CatalogoCastigos {
                 "Mantener tensado el arco o la ballesta por más de 3 segundos seguidos fatiga los brazos del jugador, provocando temblores de puntería, lentitud al caminar y Debilidad II hasta soltar el arma.",
                 (level, player) -> CursosActivos.activarTensionMuscular());
 
+        registrar("colosalfusion", NivelRuleta.NIVEL_4, "Colosal de Fusión",
+                "En el Nether pueden aparecer Magma Cubes colosales (tamaño 7-8). Al aterrizar de sus mega saltos crean un cráter que enciende fuego y convierte temporalmente los bloques circundantes en magma hirviente durante 8 segundos. Al morir, sus crías salen disparadas en arco en todas direcciones como proyectiles de mortero.",
+                (level, player) -> CursosActivos.activarColosalFusion());
+
+        registrar("cazadorigneo", NivelRuleta.NIVEL_4, "Cazador Ígneo",
+                "Un 15% de los Wither Skeletons en fortalezas del Nether portan un arco corto de hueso con flechas de fuego fatuo azul. Sus disparos prenden fuego azul e imbuyen el efecto de Descomposición (Wither I) a distancia durante 6 segundos.",
+                (level, player) -> CursosActivos.activarCazadorIgneo());
+
         // --- NIVEL 5 ---
         registrar("intrusoscalavericos", NivelRuleta.NIVEL_5, "Intrusos Calavéricos",
                 "Wither Skeletons con armadura diamante y espada Filo V aparecen de noche.",
@@ -333,7 +353,7 @@ public class CatalogoCastigos {
                 (level, player) -> CursosActivos.activarGigaEndermite());
 
         registrar("megahoglin", NivelRuleta.NIVEL_5, "Mega Hoglin",
-                "En el Nether hay 5% de probabilidad de un Hoglin Gigante con 300 de vida, x2 de daño y Lentitud.",
+                "En el Nether hay 5% de probabilidad de un Hoglin gigante con 300 HP, x2 de daño y Lentitud. Al embestir en línea recta genera una onda expansiva que desestabiliza a los jugadores e impide saltar o colocar bloques durante 3 segundos.",
                 (level, player) -> CursosActivos.activarMegaHoglin());
 
         registrar("creepercosmico", NivelRuleta.NIVEL_5, "Creeper Cósmico",
@@ -359,6 +379,22 @@ public class CatalogoCastigos {
         registrar("multicreeper", NivelRuleta.NIVEL_5, "Multicreeper",
                 "Si un Creeper recibe daño de un arma cuerpo a cuerpo y sobrevive al golpe, tiene un 30% de probabilidad de dividirse instantáneamente en 2 mini-creepers con temporizador de mecha ultracorto (1 segundo) cuyas explosiones no dañan a creepers.",
                 (level, player) -> CursosActivos.activarMulticreeper());
+
+        registrar("sombraparpadeante", NivelRuleta.NIVEL_5, "Sombra Parpadeante",
+                "Los endermans se vuelven depredadores sigilosos. Cada vez que el jugador intenta mirarlos o golpearlos cuerpo a cuerpo, la Sombra se teletransporta instantáneamente a su espalda exacta. Además, mientras te ataca desactiva el sonido ambiental en un radio de 12 bloques (silencio sepulcral táctico) y emite un pulso psíquico que fuerza tu vista hacia sus ojos si intentas mirar al suelo.",
+                (level, player) -> CursosActivos.activarSombraParpadeante());
+
+        registrar("berserker", NivelRuleta.NIVEL_5, "Berserker",
+                "Vindicadores con hacha de Netherite y casco reforzado. Al detectar a un jugador a menos de 15 bloques entran en Carrera Frenética (+60% de velocidad). Sus golpes ignoran el 50% de la protección de cualquier armadura, y si golpean a un jugador con el escudo levantado, rompen el escudo por 10 segundos y aplican Lentitud III por 2 segundos debido al impacto cinético.",
+                (level, player) -> CursosActivos.activarBerserker());
+
+        registrar("nigromantecriptas", NivelRuleta.NIVEL_5, "El Nigromante de las Criptas",
+                "Stray con túnica y báculo de hielo comprimido. Canaliza un rayo gélido continuo que convierte el suelo bajo los pies del jugador en hielo resbaladizo e invoca periódicamente mini-strays congelados armados con hachas de piedra.",
+                (level, player) -> CursosActivos.activarNigromanteCriptas());
+
+        registrar("creeperfantasma", NivelRuleta.NIVEL_5, "Creeper Fantasma",
+                "Creeper translúcido de aspecto espectral. Es completamente inmune a proyectiles (las flechas y tridentes lo atraviesan sin dañarlo), obligando a los jugadores a enfrentarlo a corta distancia con armas cuerpo a cuerpo o explosiones.",
+                (level, player) -> CursosActivos.activarCreeperFantasma());
 
         // --- NIVEL 6 ---
         registrar("permadeath", NivelRuleta.NIVEL_6, "PERMADEATH",
@@ -403,5 +439,13 @@ public class CatalogoCastigos {
         registrar("creeperantimateria", NivelRuleta.NIVEL_6, "Creeper de Implosión Antimateria",
                 "Existe una probabilidad pequeña de que aparezca un Creeper negro con partículas moradas del End. Al detonar, crea un vórtice gravitacional que succiona violentamente en un radio de 18 bloques durante 2.5 segundos antes de colapsar.",
                 (level, player) -> CursosActivos.activarCreeperAntimateria());
+
+        registrar("creepertermonuclear", NivelRuleta.NIVEL_6, "Creeper Termonuclear",
+                "Creeper acorazado con núcleo de magma y placas de obsidiana llorosa. Al entrar en combate su temperatura interna sube constantemente; si supera el 70% emite un aura de calor que quema en 4 bloques, y al llegar al 100% detona en una explosión masiva con fuego persistente. Los jugadores pueden arrojarle agua, bolas de nieve o flechas heladas para enfriarlo tácticamente antes de que colapse.",
+                (level, player) -> CursosActivos.activarCreeperTermonuclear());
+
+        registrar("colosoruina", NivelRuleta.NIVEL_6, "El Coloso de Ruina",
+                "Golem titánico (escala x1.45 y 300 HP) con armadura de basalto y núcleo de magma. Destruye torres de acampar, desata Golpes Sísmicos Radiales esquivables saltando y su armadura frontal reduce un 60% el daño recibido.",
+                (level, player) -> CursosActivos.activarColosoRuina());
     }
 }

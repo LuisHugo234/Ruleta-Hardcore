@@ -53,6 +53,23 @@ public abstract class CreeperMixin extends Entity implements CreeperCustomAccess
             Ruleta_Hardcore.iniciarVorticeAntimateria(serverLevel, this.getX(), this.getY() + 0.5, this.getZ());
             this.discard();
             ci.cancel();
+            return;
+        }
+
+        // Creeper Termonuclear (Nivel 6): NUNCA detona por proximidad vanilla ni por mecha ordinaria.
+        // Únicamente explota al cargarse al 100% de temperatura en su núcleo volcánico.
+        if (this.entityTags().contains("creeper_termonuclear")) {
+            ci.cancel();
+            return;
+        }
+
+        // Creeper Avispón (Nivel 3): No rompe bloques y realiza 2/3 del daño vanilla en el mismo radio.
+        if (this.entityTags().contains("creeper_avispon") && this.level() instanceof ServerLevel serverLevel) {
+            Ruleta_Hardcore.detenerSonidoCreeperAvispon(this, serverLevel);
+            Ruleta_Hardcore.detonarCreeperAvispon((Creeper) (Object) this, serverLevel);
+            this.discard();
+            ci.cancel();
+            return;
         }
     }
 }

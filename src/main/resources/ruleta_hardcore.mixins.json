@@ -18,7 +18,8 @@
 		"VillagerMixin",
 		"CreeperMixin",
 		"SmallFireballMixin",
-		"AnvilMenuMixin"
+		"AnvilMenuMixin",
+		"IronGolemMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
