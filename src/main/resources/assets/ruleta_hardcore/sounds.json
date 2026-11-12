@@ -1,0 +1,32 @@
+{
+  "entity.hombre_roca.throw": {
+    "category": "hostile",
+    "sounds": [
+      {
+        "name": "ruleta_hardcore:entity/hombre_roca/throw_1",
+        "volume": 1.2,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "ruleta_hardcore:entity/hombre_roca/throw_2",
+        "volume": 1.2,
+        "attenuation_distance": 32
+      },
+      {
+        "name": "ruleta_hardcore:entity/hombre_roca/throw_3",
+        "volume": 1.2,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "entity.hombre_roca.kill": {
+    "category": "hostile",
+    "sounds": [
+      {
+        "name": "ruleta_hardcore:entity/hombre_roca/bye_bye",
+        "volume": 1.4,
+        "attenuation_distance": 40
+      }
+    ]
+  }
+}

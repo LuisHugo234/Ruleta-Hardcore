@@ -6,6 +6,17 @@ import com.luishugomod01.client.gui.AdminConfigScreen;
 import com.luishugomod01.client.gui.FantasmaMuerteHudOverlay;
 import com.luishugomod01.client.gui.RuletaEstadoScreen;
 import com.luishugomod01.client.gui.RuletaHudOverlay;
+import com.luishugomod01.client.coloso.ColosoRuinaModel;
+import com.luishugomod01.client.creeper.CreeperCosmicoModel;
+import com.luishugomod01.client.creeper.CreeperFantasmaModel;
+import com.luishugomod01.client.creeper.CreeperTermonuclearModel;
+import com.luishugomod01.client.elder.ReyProfundoModel;
+import com.luishugomod01.client.hombre.HombreRocaModel;
+import com.luishugomod01.client.hombre.HombreRocaRenderer;
+import com.luishugomod01.client.hombre.RocaProyectilRenderer;
+import com.luishugomod01.client.mimic.MimicModel;
+import com.luishugomod01.client.mimic.MimicRenderer;
+import com.luishugomod01.client.nigromante.NigromanteModel;
 import com.luishugomod01.client.vidas.VidasClientState;
 import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
@@ -13,6 +24,8 @@ import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.MuerteFantasmaPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
 import com.luishugomod01.network.VidasJugadorPayload;
+import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.ModelLayerRegistry;
 import com.luishugomod01.network.VidasSyncPayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -23,6 +36,18 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 public class Ruleta_HardcoreClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        ModelLayerRegistry.registerModelLayer(MimicModel.LAYER_LOCATION, MimicModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(NigromanteModel.LAYER_LOCATION, NigromanteModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(CreeperFantasmaModel.LAYER_LOCATION, CreeperFantasmaModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(CreeperTermonuclearModel.LAYER_LOCATION, CreeperTermonuclearModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(CreeperCosmicoModel.LAYER_LOCATION, CreeperCosmicoModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(ColosoRuinaModel.LAYER_LOCATION, ColosoRuinaModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(ReyProfundoModel.LAYER_LOCATION, ReyProfundoModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(HombreRocaModel.LAYER_LOCATION, HombreRocaModel::createBodyLayer);
+        EntityRendererRegistry.register(Ruleta_Hardcore.MIMIC, MimicRenderer::new);
+        EntityRendererRegistry.register(Ruleta_Hardcore.HOMBRE_ROCA, HombreRocaRenderer::new);
+        EntityRendererRegistry.register(Ruleta_Hardcore.ROCA_PROYECTIL, RocaProyectilRenderer::new);
+
         HudElementRegistry.addLast(
                 Ruleta_Hardcore.id("ruleta_hud"),
                 new RuletaHudOverlay()
@@ -55,6 +80,7 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
                         payload.maresAcidosActive(),
                         payload.gritoPrimalActive(),
                         payload.sombraParpadeanteActive(),
+                        payload.reyDeLoProfundoActive(),
                         payload.sorderaTicks()
                 );
             });

@@ -13,11 +13,12 @@ public record BloodMoonSyncPayload(
         boolean maresAcidosActive,
         boolean gritoPrimalActive,
         boolean sombraParpadeanteActive,
+        boolean reyDeLoProfundoActive,
         int sorderaTicks
 ) implements CustomPacketPayload {
 
     public BloodMoonSyncPayload(boolean active) {
-        this(active, false, false, false, false, false, false, 0);
+        this(active, false, false, false, false, false, false, false, 0);
     }
 
     public BloodMoonSyncPayload(
@@ -27,7 +28,7 @@ public record BloodMoonSyncPayload(
             boolean cuevasTenebrosasActive,
             boolean maresAcidosActive
     ) {
-        this(active, eclipseActive, contaminacionActive, cuevasTenebrosasActive, maresAcidosActive, false, false, 0);
+        this(active, eclipseActive, contaminacionActive, cuevasTenebrosasActive, maresAcidosActive, false, false, false, 0);
     }
 
     public static final CustomPacketPayload.Type<BloodMoonSyncPayload> TYPE =
@@ -42,9 +43,11 @@ public record BloodMoonSyncPayload(
                 buf.writeBoolean(payload.maresAcidosActive());
                 buf.writeBoolean(payload.gritoPrimalActive());
                 buf.writeBoolean(payload.sombraParpadeanteActive());
+                buf.writeBoolean(payload.reyDeLoProfundoActive());
                 buf.writeInt(payload.sorderaTicks());
             },
             buf -> new BloodMoonSyncPayload(
+                    buf.readBoolean(),
                     buf.readBoolean(),
                     buf.readBoolean(),
                     buf.readBoolean(),

@@ -11,6 +11,7 @@ import net.minecraft.world.level.Level;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -28,8 +29,36 @@ public abstract class CreeperMixin extends Entity implements CreeperCustomAccess
     @Shadow
     private int maxSwell;
 
+    @Unique
+    private boolean ruleta$savedNoPhysics;
+
     protected CreeperMixin(EntityType<?> entityType, Level level) {
         super(entityType, level);
+    }
+
+    @Unique
+    private boolean ruleta$esCreeperFantasma() {
+        Creeper self = (Creeper) (Object) this;
+        float scale = self.getScale();
+        return self.entityTags().contains("creeper_fantasma")
+                || (scale > 1.015f && scale < 1.055f);
+    }
+
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void ruleta$activarFaseFantasma(CallbackInfo ci) {
+        if (this.ruleta$esCreeperFantasma()) {
+            this.ruleta$savedNoPhysics = this.noPhysics;
+            this.noPhysics = true;
+            this.setNoGravity(true);
+            this.resetFallDistance();
+        }
+    }
+
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void ruleta$restaurarFaseFantasma(CallbackInfo ci) {
+        if (this.ruleta$esCreeperFantasma()) {
+            this.noPhysics = this.ruleta$savedNoPhysics;
+        }
     }
 
     @Override
@@ -70,6 +99,13 @@ public abstract class CreeperMixin extends Entity implements CreeperCustomAccess
             this.discard();
             ci.cancel();
             return;
+        }
+    }
+
+    @Inject(method = "spawnLingeringCloud", at = @At("HEAD"), cancellable = true)
+    private void ruleta$cancelarNubePocionCosmico(CallbackInfo ci) {
+        if (this.entityTags().contains("creeper_cosmico")) {
+            ci.cancel();
         }
     }
 }

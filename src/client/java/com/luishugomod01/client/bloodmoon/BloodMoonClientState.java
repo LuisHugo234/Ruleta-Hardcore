@@ -23,6 +23,7 @@ public final class BloodMoonClientState {
     private static volatile boolean serverMaresAcidosActive = false;
     private static volatile boolean serverGritoPrimalActive = false;
     private static volatile boolean serverSombraParpadeanteActive = false;
+    private static volatile boolean serverReyDeLoProfundoActive = false;
     private static volatile int sorderaTicksRemaining = 0;
     private static volatile boolean silencioSepulcralActive = false;
     private static boolean fadeOutLatch = false;
@@ -51,6 +52,7 @@ public final class BloodMoonClientState {
             boolean maresAcidosActive,
             boolean gritoPrimalActive,
             boolean sombraParpadeanteActive,
+            boolean reyDeLoProfundoActive,
             int sorderaTicks
     ) {
         setServerActive(active);
@@ -60,6 +62,7 @@ public final class BloodMoonClientState {
         serverMaresAcidosActive = maresAcidosActive;
         serverGritoPrimalActive = gritoPrimalActive;
         serverSombraParpadeanteActive = sombraParpadeanteActive;
+        serverReyDeLoProfundoActive = reyDeLoProfundoActive;
         if (sorderaTicks > 0) {
             sorderaTicksRemaining = Math.max(sorderaTicksRemaining, sorderaTicks);
             Minecraft mc = Minecraft.getInstance();
@@ -183,6 +186,10 @@ public final class BloodMoonClientState {
         return currentEclipseRenderIntensity;
     }
 
+    public static boolean isReyDeLoProfundoActive() {
+        return serverReyDeLoProfundoActive;
+    }
+
     public static void reset() {
         serverBloodMoonActive = false;
         serverEclipseActive = false;
@@ -191,6 +198,7 @@ public final class BloodMoonClientState {
         serverMaresAcidosActive = false;
         serverGritoPrimalActive = false;
         serverSombraParpadeanteActive = false;
+        serverReyDeLoProfundoActive = false;
         sorderaTicksRemaining = 0;
         silencioSepulcralActive = false;
         fadeOutLatch = false;

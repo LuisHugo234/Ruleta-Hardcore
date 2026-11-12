@@ -11,6 +11,15 @@ public class CreeperRenderStateMixin implements CreeperRenderStateAccessor {
     private boolean ruleta$isAvispon;
 
     @Unique
+    private boolean ruleta$isFantasma;
+
+    @Unique
+    private boolean ruleta$isTermonuclear;
+
+    @Unique
+    private boolean ruleta$isCosmico;
+
+    @Unique
     private float ruleta$ageInTicks;
 
     @Override
@@ -21,6 +30,36 @@ public class CreeperRenderStateMixin implements CreeperRenderStateAccessor {
     @Override
     public void ruleta$setAvispon(boolean avispon) {
         this.ruleta$isAvispon = avispon;
+    }
+
+    @Override
+    public boolean ruleta$isFantasma() {
+        return this.ruleta$isFantasma;
+    }
+
+    @Override
+    public void ruleta$setFantasma(boolean fantasma) {
+        this.ruleta$isFantasma = fantasma;
+    }
+
+    @Override
+    public boolean ruleta$isTermonuclear() {
+        return this.ruleta$isTermonuclear;
+    }
+
+    @Override
+    public void ruleta$setTermonuclear(boolean termonuclear) {
+        this.ruleta$isTermonuclear = termonuclear;
+    }
+
+    @Override
+    public boolean ruleta$isCosmico() {
+        return this.ruleta$isCosmico;
+    }
+
+    @Override
+    public void ruleta$setCosmico(boolean cosmico) {
+        this.ruleta$isCosmico = cosmico;
     }
 
     @Override

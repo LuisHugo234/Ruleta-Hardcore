@@ -67,6 +67,7 @@ public class CursosActivos {
     private static volatile boolean fragmentacionHelada       = false;
     private static volatile boolean comoPedro                 = false;
     private static volatile boolean creeperAvispon            = false;
+    private static volatile boolean hombreRoca                = false;
 
     // Nivel 4
     private static volatile boolean danoColateral             = false;
@@ -289,6 +290,9 @@ public class CursosActivos {
     public static void activarCreeperAvispon() { creeperAvispon = true; }
     public static boolean isCreeperAvispon() { return creeperAvispon; }
 
+    public static void activarHombreRoca() { hombreRoca = true; }
+    public static boolean isHombreRoca() { return hombreRoca; }
+
     // --- Nivel 4 ---
     public static void activarDanoColateral() { danoColateral = true; }
     public static boolean isDanoColateral() { return danoColateral; }
@@ -509,6 +513,7 @@ public class CursosActivos {
         if (fragmentacionHelada) ids.add("fragmentacionhelada");
         if (comoPedro) ids.add("comopedro");
         if (creeperAvispon) ids.add("creeperavispon");
+        if (hombreRoca) ids.add("hombreroca");
         if (danoColateral) ids.add("danocolateral");
         if (ultraFundido) ids.add("ultrafundido");
         if (contaminacion) ids.add("contaminacion");
@@ -604,6 +609,7 @@ public class CursosActivos {
             case "fragmentacionhelada" -> activarFragmentacionHelada();
             case "comopedro" -> activarComoPedro();
             case "creeperavispon" -> activarCreeperAvispon();
+            case "hombreroca" -> activarHombreRoca();
             case "danocolateral" -> activarDanoColateral();
             case "ultrafundido" -> activarUltraFundido();
             case "contaminacion" -> activarContaminacion();
@@ -797,6 +803,9 @@ public class CursosActivos {
         if (creeperAvispon) {
             lista.add(Component.literal("  §e🐝 CREEPER AVISPÓN:§r Pequeños creepers voladores del tamaño de una abeja bebé rondan el Overworld. No destruyen bloques y causan 2/3 de daño."));
         }
+        if (hombreRoca) {
+            lista.add(Component.literal("  §9🪨 HOMBRE ROCA:§r Aparece de día y de noche en cualquier bioma (80 HP, 4 de armadura) arrojando rocas gigantes que infligen 13 de daño, Lentitud II, gran empuje y desactivan el escudo."));
+        }
         if (danoColateral) {
             lista.add(Component.literal("  §5💥 DAÑO COLATERAL:§r Las Ender Pearls hacen x3 su daño e ignoran armadura."));
         }
@@ -879,7 +888,7 @@ public class CursosActivos {
             lista.add(Component.literal("  §b🧙 EL NIGROMANTE DE LAS CRIPTAS:§r Stray con báculo de hielo que canaliza un rayo congelante al suelo e invoca mini-strays con hacha."));
         }
         if (creeperFantasma) {
-            lista.add(Component.literal("  §f👻 CREEPER FANTASMA:§r Creeper espectral translúcido completamente inmune a proyectiles (flechas y tridentes lo atraviesan)."));
+            lista.add(Component.literal("  §f👻 CREEPER FANTASMA:§r Creeper espectral con manta translúcida que flota estilo Vex, atraviesa bloques y es inmune a proyectiles."));
         }
         if (permadeath) {
             lista.add(Component.literal("  §4§l☠ PERMADEATH:§r Se ha eliminado la regeneración pasiva de vida."));
@@ -1010,7 +1019,7 @@ public class CursosActivos {
         if (sombraParpadeante) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Sombra Parpadeante", "Endermans se teletransportan a tu espalda, silencian el ambiente (12 bloques) y fuerzan tu mirada."));
         if (berserker) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Berserker", "Vindicadores con Netherite (+60% vel.), ignoran 50% de armadura y rompen el escudo por 10s."));
         if (nigromanteCriptas) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "El Nigromante de las Criptas", "Stray con báculo de hielo que congela el suelo con un rayo e invoca mini-strays con hachas."));
-        if (creeperFantasma) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Creeper Fantasma", "Creeper espectral translúcido completamente inmune a proyectiles."));
+        if (creeperFantasma) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Creeper Fantasma", "Creeper espectral con manta translúcida que flota estilo Vex, atraviesa bloques e inmune a proyectiles."));
 
         // Nivel 6
         if (permadeath) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "PERMADEATH", "Se elimina permanentemente la regeneración natural de salud."));
@@ -1079,6 +1088,7 @@ public class CursosActivos {
         fragmentacionHelada = false;
         comoPedro = false;
         creeperAvispon = false;
+        hombreRoca = false;
         danoColateral = false;
         ultraFundido = false;
         contaminacion = false;

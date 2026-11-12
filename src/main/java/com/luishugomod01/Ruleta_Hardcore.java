@@ -1,5 +1,8 @@
 package com.luishugomod01;
 
+import com.luishugomod01.entity.HombreRocaEntity;
+import com.luishugomod01.entity.MimicEntity;
+import com.luishugomod01.entity.RocaProyectilEntity;
 import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
@@ -19,6 +22,7 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityLevelChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
@@ -42,6 +46,7 @@ import net.minecraft.commands.arguments.EntityAnchorArgument;
 import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.Registry;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -50,10 +55,12 @@ import net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket;
 import net.minecraft.network.protocol.game.ClientboundSetPassengersPacket;
 import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
@@ -73,6 +80,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.NeutralMob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -136,7 +144,64 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
+    public static final ResourceKey<EntityType<?>> MIMIC_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(MOD_ID, "mimic")
+    );
+
+    public static final EntityType<MimicEntity> MIMIC = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            MIMIC_KEY,
+            EntityType.Builder.of(MimicEntity::new, MobCategory.MONSTER)
+                    .sized(0.88F, 0.88F)
+                    .clientTrackingRange(10)
+                    .build(MIMIC_KEY)
+    );
+
+    public static final SoundEvent HOMBRE_ROCA_THROW_SOUND = Registry.register(
+            BuiltInRegistries.SOUND_EVENT,
+            Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.throw"),
+            SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.throw"))
+    );
+
+    public static final SoundEvent HOMBRE_ROCA_KILL_SOUND = Registry.register(
+            BuiltInRegistries.SOUND_EVENT,
+            Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.kill"),
+            SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.kill"))
+    );
+
+    public static final ResourceKey<EntityType<?>> HOMBRE_ROCA_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(MOD_ID, "hombre_roca")
+    );
+
+    public static final EntityType<HombreRocaEntity> HOMBRE_ROCA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            HOMBRE_ROCA_KEY,
+            EntityType.Builder.of(HombreRocaEntity::new, MobCategory.MONSTER)
+                    .sized(0.78F, 2.15F)
+                    .clientTrackingRange(10)
+                    .build(HOMBRE_ROCA_KEY)
+    );
+
+    public static final ResourceKey<EntityType<?>> ROCA_PROYECTIL_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(MOD_ID, "roca_proyectil")
+    );
+
+    public static final EntityType<RocaProyectilEntity> ROCA_PROYECTIL = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            ROCA_PROYECTIL_KEY,
+            EntityType.Builder.<RocaProyectilEntity>of(RocaProyectilEntity::new, MobCategory.MISC)
+                    .sized(0.8F, 0.8F)
+                    .clientTrackingRange(8)
+                    .updateInterval(10)
+                    .build(ROCA_PROYECTIL_KEY)
+    );
+
     public static final String[] MOBS_CUSTOM = new String[] {
+            "mimic",
+            "hombre_roca",
             "coloso_ruina",
             "creeper_termonuclear",
             "creeper_antimateria",
@@ -203,6 +268,9 @@ public class Ruleta_Hardcore implements ModInitializer {
     @Override
     public void onInitialize() {
         LOGGER.info("Ruleta Hardcore inicializada correctamente.");
+
+        FabricDefaultAttributeRegistry.register(MIMIC, MimicEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(HOMBRE_ROCA, HombreRocaEntity.createAttributes());
 
         PayloadTypeRegistry.clientboundPlay().register(RuletaAnimacionPayload.TYPE, RuletaAnimacionPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MuerteFantasmaPayload.TYPE, MuerteFantasmaPayload.STREAM_CODEC);
@@ -356,7 +424,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("nigromantecriptas").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "nigromantecriptas")))
                     .then(Commands.literal("creeperfantasma").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creeperfantasma")))
                     .then(Commands.literal("creepertermonuclear").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "creepertermonuclear")))
-                    .then(Commands.literal("colosoruina").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "colosoruina"))))
+                    .then(Commands.literal("colosoruina").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "colosoruina")))
+                    .then(Commands.literal("hombreroca").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "hombreroca"))))
                 .then(Commands.literal("bloodmoon")
                     .then(Commands.literal("iniciar").executes(ctx -> {
                         var srv = ctx.getSource().getServer();
@@ -596,6 +665,9 @@ public class Ruleta_Hardcore implements ModInitializer {
 
         // KA-BOOM (Nivel 5): los Shulkers explotan 3 segundos (60 ticks) después de morir
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
+            if (entity instanceof ServerPlayer sp && (damageSource.getEntity() instanceof HombreRocaEntity || damageSource.getDirectEntity() instanceof RocaProyectilEntity)) {
+                sp.level().playSound(null, sp.getX(), sp.getY(), sp.getZ(), HOMBRE_ROCA_KILL_SOUND, SoundSource.HOSTILE, 2.0F, 1.0F);
+            }
             if (entity instanceof ServerPlayer sp && sp instanceof VidasJugadorAccessor accessor) {
                 if (!accessor.ruleta$isVidasInicializadas()) {
                     accessor.ruleta$setVidas(CursosActivos.getVidasIniciales());
@@ -722,6 +794,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                     CursosActivos.isMaresAcidos(),
                     CursosActivos.isGritoPrimal(),
                     CursosActivos.isSombraParpadeante(),
+                    CursosActivos.isReyDeLoProfundo(),
                     0
             ));
 
@@ -997,6 +1070,25 @@ public class Ruleta_Hardcore implements ModInitializer {
 
                         if (ThreadLocalRandom.current().nextFloat() < 0.15f) {
                             intentarSpawnearBreezeDia(sLvl, player, breezeType);
+                        }
+                    }
+                }
+            }
+
+            // Hombre Roca (Nivel 3): Spawnea en cualquier bioma día o noche para atormentar jugadores con sus rocas
+            if (CursosActivos.isHombreRoca() && currentTick % 120 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isSpectator() || player.isCreative()) continue;
+                    if (player.level() instanceof ServerLevel sLvl && sLvl.dimension() == Level.OVERWORLD) {
+                        if (sLvl.getDifficulty() != net.minecraft.world.Difficulty.PEACEFUL) {
+                            List<HombreRocaEntity> cercanos = sLvl.getEntitiesOfClass(
+                                    HombreRocaEntity.class,
+                                    player.getBoundingBox().inflate(48.0),
+                                    HombreRocaEntity::isAlive
+                            );
+                            if (cercanos.size() < 2 && sLvl.getRandom().nextFloat() < 0.15f) {
+                                intentarSpawnearHombreRoca(sLvl, player);
+                            }
                         }
                     }
                 }
@@ -2288,21 +2380,21 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Creeper Fantasma (Nivel 5): Creeper espectral translúcido inmune a proyectiles
-            if (currentTick % 6 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Creeper creeper && creeper.isAlive()) {
-                            if (CursosActivos.isCreeperFantasma() && !creeper.entityTags().contains("creeper_fantasma_evaluado")) {
-                                evaluarCreeperFantasma(creeper);
-                            }
-                            if (creeper.entityTags().contains("creeper_fantasma")) {
-                                lvl.sendParticles(ParticleTypes.SOUL,
-                                        creeper.getX(), creeper.getY() + 0.9, creeper.getZ(),
-                                        2, 0.25, 0.45, 0.25, 0.01);
-                            }
+            // Creeper Fantasma (Nivel 5): Creeper espectral translúcido que flota estilo Vex, atraviesa bloques y es inmune a proyectiles
+            for (ServerLevel lvl : server.getAllLevels()) {
+                List<Creeper> fantasmas = new ArrayList<>();
+                for (Entity entity : lvl.getAllEntities()) {
+                    if (entity instanceof Creeper creeper && creeper.isAlive()) {
+                        if (CursosActivos.isCreeperFantasma() && !creeper.entityTags().contains("creeper_fantasma_evaluado")) {
+                            evaluarCreeperFantasma(creeper);
+                        }
+                        if (creeper.entityTags().contains("creeper_fantasma")) {
+                            fantasmas.add(creeper);
                         }
                     }
+                }
+                for (Creeper creeper : fantasmas) {
+                    procesarCreeperFantasma(creeper, lvl, currentTick);
                 }
             }
 
@@ -2376,6 +2468,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                 CursosActivos.isMaresAcidos(),
                 CursosActivos.isGritoPrimal(),
                 CursosActivos.isSombraParpadeante(),
+                CursosActivos.isReyDeLoProfundo(),
                 0
         );
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -3313,11 +3406,17 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static void configurarCreeperCosmico(Creeper creeper) {
         creeper.addTag("creeper_cosmico");
         creeper.addTag("creeper_antimateria_evaluado");
+        AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            // Escala 1.14 detectada por CreeperRendererMixin para modelo y textura de nebulosa cósmica
+            scaleAttr.setBaseValue(1.14);
+        }
         AttributeInstance speedAttr = creeper.getAttribute(Attributes.MOVEMENT_SPEED);
         if (speedAttr != null) {
-            speedAttr.setBaseValue(0.05);
+            // Velocidad lentísima directa por atributo (sin MobEffects.SLOWNESS para no soltar nube infinita al morir)
+            speedAttr.setBaseValue(0.02);
         }
-        creeper.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, MobEffectInstance.INFINITE_DURATION, 3, false, false));
+        creeper.removeEffect(MobEffects.SLOWNESS);
         if (creeper instanceof CreeperCustomAccessor accessor) {
             accessor.ruleta$setPowered(true);
             // En Creeper#explodeCreeper, cuando isPowered() es true, el radio se multiplica por 2.0f -> 15 * 2 = 30 bloques
@@ -3853,6 +3952,23 @@ public class Ruleta_Hardcore implements ModInitializer {
         String mobNombre = tipo;
 
         switch (tipo.toLowerCase()) {
+            case "mimic" -> {
+                MimicEntity mimic = MIMIC.create(level, EntitySpawnReason.COMMAND);
+                if (mimic != null) {
+                    entity = mimic;
+                    mobNombre = "§6§l📦 Mimic";
+                }
+            }
+            case "hombre_roca" -> {
+                HombreRocaEntity hr = HOMBRE_ROCA.create(level, EntitySpawnReason.COMMAND);
+                if (hr != null) {
+                    hr.setPos(pos.x, pos.y, pos.z);
+                    hr.setCustomName(Component.literal("§9§l🪨 Hombre Roca"));
+                    hr.setCustomNameVisible(true);
+                    entity = hr;
+                    mobNombre = "§9§l🪨 Hombre Roca";
+                }
+            }
             case "coloso_ruina" -> {
                 EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "iron_golem")).orElse(null);
                 if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof IronGolem golem) {
@@ -4210,6 +4326,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                 CursosActivos.isMaresAcidos(),
                 CursosActivos.isGritoPrimal(),
                 CursosActivos.isSombraParpadeante(),
+                CursosActivos.isReyDeLoProfundo(),
                 600 // 30 segundos (600 ticks) de sordera total en el cliente
         ));
     }
@@ -4770,10 +4887,74 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static void configurarCreeperFantasma(Creeper creeper) {
         creeper.addTag("creeper_fantasma_evaluado");
         creeper.addTag("creeper_fantasma");
+        creeper.setNoGravity(true);
         AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
         if (scaleAttr != null) {
-            // Escala 1.03 detectada por CreeperRendererMixin para renderizado espectral translúcido
+            // Escala 1.03 detectada por CreeperRendererMixin y CreeperMixin para renderizado y faseo espectral
             scaleAttr.setBaseValue(1.03);
+        }
+    }
+
+    public static void procesarCreeperFantasma(Creeper creeper, ServerLevel level, long currentTick) {
+        if (!creeper.isNoGravity()) {
+            creeper.setNoGravity(true);
+        }
+        creeper.resetFallDistance();
+
+        if (currentTick % 6 == 0) {
+            level.sendParticles(ParticleTypes.SOUL,
+                    creeper.getX(), creeper.getY() + 0.9, creeper.getZ(),
+                    2, 0.25, 0.45, 0.25, 0.01);
+        }
+
+        // Busca jugadores cercanos incluso a través de paredes para acecharlos como un Vex
+        Player target = level.getNearestPlayer(
+                creeper.getX(), creeper.getY(), creeper.getZ(),
+                24.0,
+                e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+        );
+
+        double phase = (currentTick + creeper.getId() * 11L);
+        double bobY = Math.sin(phase * 0.16) * 0.022;
+
+        if (target != null) {
+            if (creeper.getTarget() != target) {
+                creeper.setTarget(target);
+            }
+            creeper.lookAt(EntityAnchorArgument.Anchor.EYES, target.getEyePosition());
+
+            Vec3 desired = new Vec3(target.getX(), target.getY() + 0.25, target.getZ());
+            Vec3 diff = desired.subtract(creeper.position());
+            double dist = diff.length();
+
+            // Si ya está encendiendo la mecha y ve al jugador, frena suavemente flotando frente a él
+            if (creeper.getSwellDir() > 0 && dist < 3.2) {
+                Vec3 slow = creeper.getDeltaMovement().scale(0.65);
+                creeper.setDeltaMovement(slow.x, slow.y * 0.5 + bobY * 0.5, slow.z);
+            } else if (dist > 0.2) {
+                double flySpeed = dist > 6.0 ? 0.175 : 0.145;
+                Vec3 targetVel = diff.normalize().scale(flySpeed).add(0.0, bobY, 0.0);
+                creeper.setDeltaMovement(creeper.getDeltaMovement().lerp(targetVel, 0.30));
+            }
+        } else {
+            // Patrulla flotante suave alrededor de su altura actual sin hundirse bajo el suelo
+            double patrolAngle = phase * 0.035;
+            double driftX = Math.cos(patrolAngle) * 0.045;
+            double driftZ = Math.sin(patrolAngle) * 0.045;
+            double vertAdjust = bobY;
+
+            BlockPos below = BlockPos.containing(creeper.getX(), creeper.getY() - 0.35, creeper.getZ());
+            if (!level.getBlockState(below).isAir()) {
+                vertAdjust += 0.035;
+            } else {
+                BlockPos farBelow = BlockPos.containing(creeper.getX(), creeper.getY() - 3.5, creeper.getZ());
+                if (level.getBlockState(farBelow).isAir()) {
+                    vertAdjust -= 0.018;
+                }
+            }
+
+            Vec3 idleVel = new Vec3(driftX, vertAdjust, driftZ);
+            creeper.setDeltaMovement(creeper.getDeltaMovement().lerp(idleVel, 0.20));
         }
     }
 
@@ -5113,6 +5294,33 @@ public class Ruleta_Hardcore implements ModInitializer {
                     breeze.snapTo(x, y, z, rng.nextFloat() * 360.0f, 0.0f);
                     breeze.getBrain().setMemory(MemoryModuleType.ATTACK_TARGET, player);
                     level.addFreshEntity(breeze);
+                    return;
+                }
+            }
+        }
+    }
+
+    private static void intentarSpawnearHombreRoca(ServerLevel level, ServerPlayer player) {
+        for (int intento = 0; intento < 6; intento++) {
+            double angulo = level.getRandom().nextDouble() * Math.PI * 2.0;
+            double dist = 16.0 + level.getRandom().nextDouble() * 14.0;
+            int x = (int) Math.floor(player.getX() + Math.cos(angulo) * dist);
+            int z = (int) Math.floor(player.getZ() + Math.sin(angulo) * dist);
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+
+            BlockPos spawnPos = new BlockPos(x, y, z);
+            BlockPos below = spawnPos.below();
+            if (level.getBlockState(below).isSolid()
+                    && level.getBlockState(spawnPos).isAir()
+                    && level.getBlockState(spawnPos.above()).isAir()
+                    && level.getBlockState(spawnPos.above(2)).isAir()) {
+                HombreRocaEntity hr = HOMBRE_ROCA.create(level, EntitySpawnReason.EVENT);
+                if (hr != null) {
+                    hr.setPos(x + 0.5, y, z + 0.5);
+                    hr.setCustomName(Component.literal("§9§l🪨 Hombre Roca"));
+                    hr.setCustomNameVisible(false);
+                    hr.setTarget(player);
+                    level.addFreshEntity(hr);
                     return;
                 }
             }

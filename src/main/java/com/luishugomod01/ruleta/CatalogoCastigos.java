@@ -290,6 +290,10 @@ public class CatalogoCastigos {
                 "En el Overworld pueden aparecer pequeños creepers voladores del tamaño de una abeja bebé que revolotean y zumban hacia el jugador. Al detonar no rompen bloques y su explosión inflige 2/3 del daño de un creeper ordinario en el mismo radio.",
                 (level, player) -> CursosActivos.activarCreeperAvispon());
 
+        registrar("hombreroca", NivelRuleta.NIVEL_3, "Hombre Roca",
+                "Aparece de día y de noche en cualquier bioma (80 HP, 4 de armadura, 50% resistencia al empuje) para atormentar a los jugadores arrojando rocas gigantes que infligen 13 de daño directo (6 en área pequeña), gran empuje, Lentitud II por 2.5s y desactivan el escudo por 2s.",
+                (level, player) -> CursosActivos.activarHombreRoca());
+
         // --- NIVEL 4 ---
         registrar("danocolateral", NivelRuleta.NIVEL_4, "Daño Colateral",
                 "Las Ender Pearls hacen x3 su daño original e ignoran armadura.",
