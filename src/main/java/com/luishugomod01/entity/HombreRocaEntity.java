@@ -223,13 +223,18 @@ public class HombreRocaEntity extends Monster {
     }
 
     @Override
+    protected SoundEvent getAmbientSound() {
+        return this.getTarget() == null ? Ruleta_Hardcore.HOMBRE_ROCA_AMBIENT_SOUND : null;
+    }
+
+    @Override
     protected SoundEvent getHurtSound(DamageSource damageSource) {
         return SoundEvents.PLAYER_HURT;
     }
 
     @Override
     protected SoundEvent getDeathSound() {
-        return SoundEvents.PLAYER_DEATH;
+        return Ruleta_Hardcore.HOMBRE_ROCA_DEATH_SOUND;
     }
 
     static class HombreRocaCombatGoal extends Goal {
@@ -276,15 +281,6 @@ public class HombreRocaEntity extends Monster {
                 return;
             }
 
-            // Si el jugador se pega cuerpo a cuerpo (< 3.1 bloques), da un golpe seco para empujarlo
-            if (distSqr <= 9.6 && canSee && this.mob.meleeCooldown <= 0) {
-                this.mob.meleeCooldown = 28;
-                if (this.mob.level() instanceof ServerLevel serverLevel) {
-                    this.mob.doHurtTarget(serverLevel, target);
-                }
-                return;
-            }
-
             // Mantener distancia media (7 a 20 bloques) para bombardear con rocas
             if (!canSee || distSqr > 324.0) { // > 18 bloques
                 this.mob.getMoveControl().strafe(0.0F, 0.0F);
@@ -304,8 +300,8 @@ public class HombreRocaEntity extends Monster {
                 this.mob.setYRot(this.mob.yHeadRot);
             }
 
-            // Lanzar la roca gigante si está en rango (3.1 a 26 bloques) y con línea de visión
-            if (canSee && distSqr >= 9.6 && distSqr <= 676.0 && this.mob.throwCooldown <= 0) {
+            // Lanzar la roca gigante si está en rango (hasta 26 bloques, incluso de cerca) y con línea de visión
+            if (canSee && distSqr <= 676.0 && this.mob.throwCooldown <= 0) {
                 this.mob.startThrowAttack();
             }
         }

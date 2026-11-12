@@ -28,5 +28,25 @@
         "attenuation_distance": 40
       }
     ]
+  },
+  "entity.hombre_roca.death": {
+    "category": "hostile",
+    "sounds": [
+      {
+        "name": "ruleta_hardcore:entity/hombre_roca/death",
+        "volume": 1.3,
+        "attenuation_distance": 32
+      }
+    ]
+  },
+  "entity.hombre_roca.ambient": {
+    "category": "hostile",
+    "sounds": [
+      {
+        "name": "ruleta_hardcore:entity/hombre_roca/ambient",
+        "volume": 1.1,
+        "attenuation_distance": 28
+      }
+    ]
   }
 }

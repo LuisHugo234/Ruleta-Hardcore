@@ -6,6 +6,7 @@ import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
 import com.luishugomod01.client.coloso.ColosoRuinaModel;
 import com.luishugomod01.client.creeper.CreeperCosmicoModel;
 import com.luishugomod01.client.creeper.CreeperFantasmaModel;
+import com.luishugomod01.client.creeper.CreeperAntimateriaModel;
 import com.luishugomod01.client.creeper.CreeperTermonuclearModel;
 import com.luishugomod01.client.elder.ReyProfundoModel;
 import com.luishugomod01.client.nigromante.NigromanteModel;
@@ -69,6 +70,9 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
     private CreeperFantasmaModel ruleta$creeperFantasmaModel;
 
     @Unique
+    private CreeperAntimateriaModel ruleta$creeperAntimateriaModel;
+
+    @Unique
     private CreeperTermonuclearModel ruleta$creeperTermonuclearModel;
 
     @Unique
@@ -120,6 +124,7 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
                     || (state.scale > 1.015f && state.scale < 1.055f);
             boolean isCosmico = (state instanceof CreeperRenderStateAccessor acc && acc.ruleta$isCosmico())
                     || (state.scale > 1.125f && state.scale < 1.165f);
+            boolean isAntimateria = (state.scale > 1.06f && state.scale < 1.12f);
             boolean isTermonuclear = (state instanceof CreeperRenderStateAccessor acc && acc.ruleta$isTermonuclear())
                     || (state.scale > 1.18f && state.scale < 1.26f);
             if (isFantasma) {
@@ -149,6 +154,14 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
                 this.ruleta$savedVanillaModel = this.model;
                 this.ruleta$activeEyesTexture = TERMONUCLEAR_EYES_TEXTURE;
                 this.model = (M) this.ruleta$creeperTermonuclearModel;
+            } else if (isAntimateria) {
+                if (this.ruleta$creeperAntimateriaModel == null) {
+                    this.ruleta$creeperAntimateriaModel = new CreeperAntimateriaModel(
+                            Minecraft.getInstance().getEntityModels().bakeLayer(CreeperAntimateriaModel.LAYER_LOCATION)
+                    );
+                }
+                this.ruleta$savedVanillaModel = this.model;
+                this.model = (M) this.ruleta$creeperAntimateriaModel;
             }
         }
     }

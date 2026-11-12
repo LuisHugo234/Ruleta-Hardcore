@@ -7,6 +7,7 @@ import com.luishugomod01.client.gui.FantasmaMuerteHudOverlay;
 import com.luishugomod01.client.gui.RuletaEstadoScreen;
 import com.luishugomod01.client.gui.RuletaHudOverlay;
 import com.luishugomod01.client.coloso.ColosoRuinaModel;
+import com.luishugomod01.client.creeper.CreeperAntimateriaModel;
 import com.luishugomod01.client.creeper.CreeperCosmicoModel;
 import com.luishugomod01.client.creeper.CreeperFantasmaModel;
 import com.luishugomod01.client.creeper.CreeperTermonuclearModel;
@@ -40,6 +41,7 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
         ModelLayerRegistry.registerModelLayer(NigromanteModel.LAYER_LOCATION, NigromanteModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(CreeperFantasmaModel.LAYER_LOCATION, CreeperFantasmaModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(CreeperTermonuclearModel.LAYER_LOCATION, CreeperTermonuclearModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(CreeperAntimateriaModel.LAYER_LOCATION, CreeperAntimateriaModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(CreeperCosmicoModel.LAYER_LOCATION, CreeperCosmicoModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(ColosoRuinaModel.LAYER_LOCATION, ColosoRuinaModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(ReyProfundoModel.LAYER_LOCATION, ReyProfundoModel::createBodyLayer);

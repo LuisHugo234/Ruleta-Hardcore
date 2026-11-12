@@ -158,16 +158,33 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .build(MIMIC_KEY)
     );
 
+    // --- Audios personalizados del Hombre Roca ---
+    // Al arrojar la roca: reproduce aleatoriamente "Hoo-hoo-hoo!", "Bowling!" o "Luis Hugo!"
     public static final SoundEvent HOMBRE_ROCA_THROW_SOUND = Registry.register(
             BuiltInRegistries.SOUND_EVENT,
             Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.throw"),
             SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.throw"))
     );
 
+    // Al matar a un jugador: reproduce "Bye-bye!"
     public static final SoundEvent HOMBRE_ROCA_KILL_SOUND = Registry.register(
             BuiltInRegistries.SOUND_EVENT,
             Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.kill"),
             SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.kill"))
+    );
+
+    // Al morir / ser derrotado el Hombre Roca: reproduce "Ohhhh"
+    public static final SoundEvent HOMBRE_ROCA_DEATH_SOUND = Registry.register(
+            BuiltInRegistries.SOUND_EVENT,
+            Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.death"),
+            SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.death"))
+    );
+
+    // Sonido pasivo (cuando ronda por ahí / AFK): reproduce "Ho ho ho ho hoi"
+    public static final SoundEvent HOMBRE_ROCA_AMBIENT_SOUND = Registry.register(
+            BuiltInRegistries.SOUND_EVENT,
+            Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.ambient"),
+            SoundEvent.createVariableRangeEvent(Identifier.fromNamespaceAndPath(MOD_ID, "entity.hombre_roca.ambient"))
     );
 
     public static final ResourceKey<EntityType<?>> HOMBRE_ROCA_KEY = ResourceKey.create(
@@ -3963,8 +3980,6 @@ public class Ruleta_Hardcore implements ModInitializer {
                 HombreRocaEntity hr = HOMBRE_ROCA.create(level, EntitySpawnReason.COMMAND);
                 if (hr != null) {
                     hr.setPos(pos.x, pos.y, pos.z);
-                    hr.setCustomName(Component.literal("§9§l🪨 Hombre Roca"));
-                    hr.setCustomNameVisible(true);
                     entity = hr;
                     mobNombre = "§9§l🪨 Hombre Roca";
                 }
@@ -5317,8 +5332,6 @@ public class Ruleta_Hardcore implements ModInitializer {
                 HombreRocaEntity hr = HOMBRE_ROCA.create(level, EntitySpawnReason.EVENT);
                 if (hr != null) {
                     hr.setPos(x + 0.5, y, z + 0.5);
-                    hr.setCustomName(Component.literal("§9§l🪨 Hombre Roca"));
-                    hr.setCustomNameVisible(false);
                     hr.setTarget(player);
                     level.addFreshEntity(hr);
                     return;
