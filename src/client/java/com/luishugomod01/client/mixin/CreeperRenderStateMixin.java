@@ -20,6 +20,9 @@ public class CreeperRenderStateMixin implements CreeperRenderStateAccessor {
     private boolean ruleta$isCosmico;
 
     @Unique
+    private boolean ruleta$isAntimateria;
+
+    @Unique
     private float ruleta$ageInTicks;
 
     @Override
@@ -60,6 +63,16 @@ public class CreeperRenderStateMixin implements CreeperRenderStateAccessor {
     @Override
     public void ruleta$setCosmico(boolean cosmico) {
         this.ruleta$isCosmico = cosmico;
+    }
+
+    @Override
+    public boolean ruleta$isAntimateria() {
+        return this.ruleta$isAntimateria;
+    }
+
+    @Override
+    public void ruleta$setAntimateria(boolean antimateria) {
+        this.ruleta$isAntimateria = antimateria;
     }
 
     @Override

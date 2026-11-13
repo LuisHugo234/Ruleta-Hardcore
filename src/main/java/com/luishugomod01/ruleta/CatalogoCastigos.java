@@ -140,6 +140,22 @@ public class CatalogoCastigos {
                 "Los Enderman pueden volverse agresivos si te acercas a menos de 3 bloques, incluso sin mirarlos.",
                 (level, player) -> CursosActivos.activarOjosEnLaOscuridad());
 
+        registrar("escupitajomortal", NivelRuleta.NIVEL_1, "Escupitajo Mortal",
+                "Los escupitajos de las llamas causan 5 corazones de daño al impactar contra un jugador, ignorando completamente su armadura y resistencia.",
+                (level, player) -> CursosActivos.activarEscupitajoMortal());
+
+        registrar("camellosfuriosos", NivelRuleta.NIVEL_1, "Camellos Furiosos",
+                "Todos los camellos son agresivos hacia los jugadores, causando 3 corazones de daño por golpe.",
+                (level, player) -> CursosActivos.activarCamellosFuriosos());
+
+        registrar("toteminestable", NivelRuleta.NIVEL_1, "Tótem Inestable",
+                "Cuando se activa un tótem, el jugador recibe Lentitud II durante 3 segundos después de salvarse.",
+                (level, player) -> CursosActivos.activarTotemInestable());
+
+        registrar("supermurcielago", NivelRuleta.NIVEL_1, "Super Murciélago",
+                "Los murciélagos son agresivos hacia los jugadores, tienen el doble de tamaño, 10 puntos de vida, poseen omnivampirismo (recuperando 50% del daño infligido) e infligen 2 corazones de daño por golpe.",
+                (level, player) -> CursosActivos.activarSuperMurcielago());
+
         // --- NIVEL 2 ---
         registrar("speedpers", NivelRuleta.NIVEL_2, "Speedpers",
                 "Todos los Creepers del Overworld (excepto Creepers Escondidos) tienen Velocidad II permanente.",
@@ -335,6 +351,10 @@ public class CatalogoCastigos {
                 "Un 15% de los Wither Skeletons en fortalezas del Nether portan un arco corto de hueso con flechas de fuego fatuo azul. Sus disparos prenden fuego azul e imbuyen el efecto de Descomposición (Wither I) a distancia durante 6 segundos.",
                 (level, player) -> CursosActivos.activarCazadorIgneo());
 
+        registrar("cordura", NivelRuleta.NIVEL_4, "Cordura",
+                "Existe un medidor de cordura que baja progresivamente en la oscuridad, dimensiones hostiles o cerca de monstruos hasta llegar a 0, provocando alucinaciones auditivas y visuales.",
+                (level, player) -> CursosActivos.activarCordura());
+
         // --- NIVEL 5 ---
         registrar("intrusoscalavericos", NivelRuleta.NIVEL_5, "Intrusos Calavéricos",
                 "Wither Skeletons con armadura diamante y espada Filo V aparecen de noche.",
@@ -400,6 +420,10 @@ public class CatalogoCastigos {
                 "Creeper translúcido de aspecto espectral. Es completamente inmune a proyectiles (las flechas y tridentes lo atraviesan sin dañarlo), obligando a los jugadores a enfrentarlo a corta distancia con armas cuerpo a cuerpo o explosiones.",
                 (level, player) -> CursosActivos.activarCreeperFantasma());
 
+        registrar("mimic", NivelRuleta.NIVEL_5, "Mimic",
+                "Cofre trampa indistinguible de un cofre vanilla. Al recibir daño, intentar abrirlo o acercarse a menos de 2.5 bloques, despierta en postura cuadrúpeda arácnida y ataca con embestidas y mordidas de cepo (80 HP, 16 de daño y Lentitud III).",
+                (level, player) -> CursosActivos.activarMimic());
+
         // --- NIVEL 6 ---
         registrar("permadeath", NivelRuleta.NIVEL_6, "PERMADEATH",
                 "Se elimina permanentemente la regeneración pasiva de vida natural.",
@@ -427,6 +451,10 @@ public class CatalogoCastigos {
         registrar("elverdugo", NivelRuleta.NIVEL_6, "El Verdugo (Piglin Executioner)",
                 "15% de Piglins Brutos aparecen gigantes (x1.5), 80 HP, Hacha de Netherite Filo VI y sus golpes críticos desarman al jugador.",
                 (level, player) -> CursosActivos.activarElVerdugo());
+
+        registrar("maresacidos", NivelRuleta.NIVEL_6, "Mares Ácidos",
+                "El agua del Overworld se vuelve corrosiva verde: sumergirse inflige 2 corazones de daño por segundo y triplica el desgaste de la armadura.",
+                (level, player) -> CursosActivos.activarMaresAcidos());
 
         registrar("parecequevallover", NivelRuleta.NIVEL_6, "Parece que va´ llover",
                 "Tormentas frecuentes con probabilidad base de 15% de ser alcanzado por rayos si portas armadura o herramientas metálicas. Aviso de 10s con estática para despojarte de metales.",

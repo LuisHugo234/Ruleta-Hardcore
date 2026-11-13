@@ -3,245 +3,429 @@ package com.luishugomod01.client.gui;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class RuletaEstadoScreen extends Screen {
 
-    private final List<AbrirMenuEstadoPayload.MaldicionInfo> todasMaldiciones;
+    private sealed interface FilaEstado permits FilaHeader, FilaMaldicion, FilaSeparador {
+        int altura();
+    }
+
+    private record FilaHeader(int nivel) implements FilaEstado {
+        @Override
+        public int altura() {
+            return 18;
+        }
+    }
+
+    private record FilaMaldicion(AbrirMenuEstadoPayload.MaldicionInfo info) implements FilaEstado {
+        @Override
+        public int altura() {
+            return 38;
+        }
+    }
+
+    private record FilaSeparador() implements FilaEstado {
+        @Override
+        public int altura() {
+            return 6;
+        }
+    }
+
+    private final List<AbrirMenuEstadoPayload.MaldicionInfo> todasLasMaldiciones;
     private final boolean bloodMoonActiva;
     private final boolean eclipseActivo;
 
-    private int filtroNivel = 0; // 0 = Todas, 1 a 6 = Nivel específico
-    private double scrollY = 0.0;
-    private int maxScroll = 0;
+    private int filtroNivel = 0; // 0 = Todos, 1..6 = Nivel específico
+    private String textoBusqueda = "";
+    private double scrollOffset = 0.0;
+    private final List<Button> botonesFiltro = new ArrayList<>();
+    private final int[] conteoPorNivel = new int[7];
+    private EditBox campoBusqueda;
 
-    private final List<Button> tabButtons = new ArrayList<>();
-
-    public RuletaEstadoScreen(List<AbrirMenuEstadoPayload.MaldicionInfo> maldiciones, boolean bloodMoon, boolean eclipse) {
-        super(Component.literal("Estado de la Ruleta - Maldiciones Activas"));
-        this.todasMaldiciones = maldiciones != null ? maldiciones : List.of();
-        this.bloodMoonActiva = bloodMoon;
-        this.eclipseActivo = eclipse;
-    }
-
-    @Override
-    public boolean isPauseScreen() {
-        return false;
+    public RuletaEstadoScreen(
+            List<AbrirMenuEstadoPayload.MaldicionInfo> maldiciones,
+            boolean bloodMoonActiva,
+            boolean eclipseActivo
+    ) {
+        super(Component.literal("Maldiciones Activas - PermaRuleta"));
+        this.todasLasMaldiciones = maldiciones != null ? maldiciones : List.of();
+        this.bloodMoonActiva = bloodMoonActiva;
+        this.eclipseActivo = eclipseActivo;
+        for (AbrirMenuEstadoPayload.MaldicionInfo m : this.todasLasMaldiciones) {
+            int n = Math.clamp(m.nivel(), 1, 6);
+            this.conteoPorNivel[n]++;
+        }
     }
 
     @Override
     protected void init() {
-        this.clearWidgets();
-        this.tabButtons.clear();
-
+        this.botonesFiltro.clear();
         int centerX = this.width / 2;
-        int centerY = this.height / 2;
-        int panelW = 430;
-        int panelH = 250;
+        int panelW = Math.min(440, this.width - 24);
+        int panelH = Math.min(280, this.height - 24);
         int panelX = centerX - panelW / 2;
-        int panelY = centerY - panelH / 2;
+        int panelY = (this.height - panelH) / 2;
 
-        // Pestañas superiores de filtrado (Todas, Nivel 1, Nivel 2, etc.)
-        int tabH = 16;
-        int startTabX = panelX + 9;
-        int tabY = panelY + 28;
+        // Barra de búsqueda interactiva en la esquina superior derecha del panel
+        int searchW = 128;
+        this.campoBusqueda = new EditBox(
+                this.font,
+                panelX + panelW - searchW - 10,
+                panelY + 8,
+                searchW,
+                16,
+                Component.literal("Buscar maldición...")
+        );
+        this.campoBusqueda.setHint(Component.literal("§8🔍 Buscar..."));
+        this.campoBusqueda.setValue(this.textoBusqueda);
+        this.campoBusqueda.setResponder(val -> {
+            this.textoBusqueda = val != null ? val : "";
+            this.scrollOffset = 0.0;
+        });
+        this.addRenderableWidget(this.campoBusqueda);
 
-        for (int i = 0; i <= 6; i++) {
+        // Pestañas de filtro por nivel sin contadores numéricos
+        int tabY = panelY + 32;
+        int totalTabs = 7;
+        int gap = 3;
+        int tabW = (panelW - 20 - gap * (totalTabs - 1)) / totalTabs;
+        int startX = panelX + 10;
+
+        for (int i = 0; i < totalTabs; i++) {
             final int nivel = i;
-            long count = (nivel == 0)
-                    ? this.todasMaldiciones.size()
-                    : this.todasMaldiciones.stream().filter(m -> m.nivel() == nivel).count();
-
-            String label = (nivel == 0) ? ("Todas (" + count + ")") : ("Nivel " + nivel + " (" + count + ")");
-            int btnWidth = (nivel == 0) ? 62 : 57;
-
-            Button btn = Button.builder(Component.literal(label), b -> {
-                this.filtroNivel = nivel;
-                this.scrollY = 0.0;
-                actualizarEstadoTabs();
-            }).bounds(startTabX, tabY, btnWidth, tabH).build();
-
-            startTabX += btnWidth + 2;
-            this.tabButtons.add(btn);
+            Button btn = Button.builder(
+                    obtenerTextoTab(nivel),
+                    b -> {
+                        this.filtroNivel = nivel;
+                        this.scrollOffset = 0.0;
+                        actualizarBotonesFiltro();
+                    }
+            ).bounds(startX + i * (tabW + gap), tabY, tabW, 18).build();
+            this.botonesFiltro.add(btn);
             this.addRenderableWidget(btn);
         }
 
-        // Botón Cerrar centrado en la parte inferior
-        int footerY = panelY + panelH - 24;
-        Button btnCerrar = Button.builder(Component.literal("§cCerrar"), b -> this.onClose())
-                .bounds(centerX - 45, footerY, 90, 18)
-                .build();
-        this.addRenderableWidget(btnCerrar);
+        Button cerrarBtn = Button.builder(
+                Component.literal("§c§l✖ Cerrar"),
+                b -> this.onClose()
+        ).bounds(centerX - 55, panelY + panelH - 25, 110, 18).build();
+        this.addRenderableWidget(cerrarBtn);
 
-        actualizarEstadoTabs();
+        actualizarBotonesFiltro();
     }
 
-    private void actualizarEstadoTabs() {
-        for (int i = 0; i < this.tabButtons.size(); i++) {
-            this.tabButtons.get(i).active = (i != this.filtroNivel);
+    private void actualizarBotonesFiltro() {
+        for (int i = 0; i < this.botonesFiltro.size(); i++) {
+            Button btn = this.botonesFiltro.get(i);
+            btn.setMessage(obtenerTextoTab(i));
         }
     }
 
-    private int obtenerColorNivel(int nivel) {
+    private Component obtenerTextoTab(int nivel) {
+        boolean seleccionado = (this.filtroNivel == nivel);
+        if (nivel == 0) {
+            return Component.literal(seleccionado ? "§6§l[Todos]" : "§7Todos");
+        }
+        String color = obtenerPrefijoColorNivel(nivel);
+        return Component.literal(seleccionado ? color + "§l[Nivel " + nivel + "]" : "§7Nivel " + nivel);
+    }
+
+    private static String obtenerPrefijoColorNivel(int nivel) {
         return switch (nivel) {
-            case 1 -> 0xFF55FF55; // Verde
-            case 2 -> 0xFFFFFF55; // Amarillo
-            case 3 -> 0xFFFF9900; // Naranja
-            case 4 -> 0xFFFF5555; // Salmón / Coral
-            case 5 -> 0xFFFF55FF; // Magenta
-            case 6 -> 0xFFFF2222; // Carmesí
-            default -> 0xFFFFFFFF;
+            case 1 -> "§a";
+            case 2 -> "§e";
+            case 3 -> "§6";
+            case 4 -> "§c";
+            case 5 -> "§d";
+            case 6 -> "§4";
+            default -> "§f";
         };
+    }
+
+    private static int obtenerColorBordeNivel(int nivel) {
+        return switch (nivel) {
+            case 1 -> 0xFF44CC55;
+            case 2 -> 0xFFFFCC33;
+            case 3 -> 0xFFFF8822;
+            case 4 -> 0xFFEE3333;
+            case 5 -> 0xFFCC44FF;
+            case 6 -> 0xFFAA0022;
+            default -> 0xFFAAAAAA;
+        };
+    }
+
+    private List<AbrirMenuEstadoPayload.MaldicionInfo> obtenerMaldicionesFiltradas() {
+        String query = this.textoBusqueda == null ? "" : this.textoBusqueda.trim().toLowerCase(Locale.ROOT);
+        List<AbrirMenuEstadoPayload.MaldicionInfo> res = new ArrayList<>();
+        for (AbrirMenuEstadoPayload.MaldicionInfo m : this.todasLasMaldiciones) {
+            if (this.filtroNivel != 0 && m.nivel() != this.filtroNivel) {
+                continue;
+            }
+            if (!query.isEmpty()) {
+                boolean matchNombre = m.nombre().toLowerCase(Locale.ROOT).contains(query);
+                boolean matchDesc = m.descripcion().toLowerCase(Locale.ROOT).contains(query);
+                if (!matchNombre && !matchDesc) {
+                    continue;
+                }
+            }
+            res.add(m);
+        }
+        return res;
+    }
+
+    private List<FilaEstado> construirFilasVisibles(List<AbrirMenuEstadoPayload.MaldicionInfo> filtradas) {
+        List<FilaEstado> filas = new ArrayList<>();
+        if (this.filtroNivel == 0) {
+            for (int nivel = 1; nivel <= 6; nivel++) {
+                boolean headerAgregado = false;
+                for (AbrirMenuEstadoPayload.MaldicionInfo info : filtradas) {
+                    if (info.nivel() == nivel) {
+                        if (!headerAgregado) {
+                            if (!filas.isEmpty()) {
+                                filas.add(new FilaSeparador());
+                            }
+                            filas.add(new FilaHeader(nivel));
+                            headerAgregado = true;
+                        }
+                        filas.add(new FilaMaldicion(info));
+                    }
+                }
+            }
+        } else {
+            for (AbrirMenuEstadoPayload.MaldicionInfo info : filtradas) {
+                filas.add(new FilaMaldicion(info));
+            }
+        }
+        return filas;
+    }
+
+    private static int calcularAlturaTotal(List<FilaEstado> filas) {
+        int total = 0;
+        for (FilaEstado fila : filas) {
+            total += fila.altura();
+        }
+        return total;
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        if (this.maxScroll > 0) {
-            this.scrollY -= scrollY * 18.0;
-            this.scrollY = Math.max(0.0, Math.min(this.maxScroll, this.scrollY));
-            return true;
-        }
-        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        List<FilaEstado> filas = construirFilasVisibles(obtenerMaldicionesFiltradas());
+        int panelH = Math.min(280, this.height - 24);
+        int listH = panelH - 86;
+        int totalH = calcularAlturaTotal(filas);
+        int maxScroll = Math.max(0, totalH - listH + 8);
+        this.scrollOffset = Math.clamp(this.scrollOffset - scrollY * 22.0, 0.0, maxScroll);
+        return true;
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor extractor, int mouseX, int mouseY, float partialTick) {
         int centerX = this.width / 2;
-        int centerY = this.height / 2;
-        int panelW = 430;
-        int panelH = 250;
+        int panelW = Math.min(440, this.width - 24);
+        int panelH = Math.min(280, this.height - 24);
         int panelX = centerX - panelW / 2;
-        int panelY = centerY - panelH / 2;
+        int panelY = (this.height - panelH) / 2;
 
-        // Fondo del panel principal
-        extractor.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xEE101018);
+        // Sombra exterior y fondo principal con acabado oscuro/dorado
+        extractor.fill(panelX - 3, panelY - 3, panelX + panelW + 3, panelY + panelH + 3, 0x88000000);
+        extractor.fill(panelX, panelY, panelX + panelW, panelY + panelH, 0xEE0D0D14);
+        extractor.fill(panelX + 1, panelY + 1, panelX + panelW - 1, panelY + 28, 0xCC181624);
         extractor.outline(panelX, panelY, panelW, panelH, 0xFFFFAA00);
+        extractor.outline(panelX + 2, panelY + 2, panelW - 4, panelH - 4, 0x44FFAA00);
 
-        // Renderizado de botones superiores e inferiores
-        super.extractRenderState(extractor, mouseX, mouseY, partialTick);
+        List<AbrirMenuEstadoPayload.MaldicionInfo> filtradas = obtenerMaldicionesFiltradas();
+        List<FilaEstado> filas = construirFilasVisibles(filtradas);
 
-        // Título principal
-        extractor.text(
-                this.font,
-                Component.literal("§6§lPERMARULETA §7| §fMaldiciones Activas"),
-                panelX + 14,
-                panelY + 12,
-                0xFFFFFFFF,
-                true
-        );
+        // Encabezado a la izquierda y resumen de evento mundial
+        String titulo = "§6§l✦ MALDICIONES ACTIVAS §7(" + filtradas.size() + "/" + this.todasLasMaldiciones.size() + ")";
+        extractor.text(this.font, Component.literal(titulo), panelX + 10, panelY + 10, 0xFFFFFFFF, true);
 
-        // Badges de eventos especiales en cabecera
-        if (this.bloodMoonActiva) {
-            extractor.text(this.font, Component.literal("§4§l☾ LUNA ROJA"), panelX + panelW - 105, panelY + 12, 0xFFFF4444, true);
-        } else if (this.eclipseActivo) {
-            extractor.text(this.font, Component.literal("§5§l☼ ECLIPSE"), panelX + panelW - 95, panelY + 12, 0xFFDD55FF, true);
+        if (this.bloodMoonActiva || this.eclipseActivo) {
+            long pulse = (System.currentTimeMillis() / 350L) % 2L;
+            String evento = this.bloodMoonActiva
+                    ? (pulse == 0 ? "§4§l☾ LUNA DE SANGRE ACTIVA" : "§c§l☾ LUNA DE SANGRE ACTIVA")
+                    : (pulse == 0 ? "§5§l☼ ECLIPSE SOLAR ACTIVO" : "§d§l☼ ECLIPSE SOLAR ACTIVO");
+            extractor.text(this.font, Component.literal(evento), panelX + 10, panelY + 20, 0xFFFFFFFF, true);
+        } else {
+            // Mini barra de distribución por niveles debajo del título
+            int barX = panelX + 10;
+            int barY = panelY + 22;
+            int barTotalW = Math.max(80, panelW - 160);
+            extractor.fill(barX, barY, barX + barTotalW, barY + 4, 0xFF22222C);
+            int total = Math.max(1, this.todasLasMaldiciones.size());
+            int curX = barX;
+            for (int n = 1; n <= 6; n++) {
+                if (this.conteoPorNivel[n] <= 0) continue;
+                int segW = Math.max(3, (int) Math.round((this.conteoPorNivel[n] / (double) total) * barTotalW));
+                if (curX + segW > barX + barTotalW) {
+                    segW = (barX + barTotalW) - curX;
+                }
+                if (segW > 0) {
+                    extractor.fill(curX, barY, curX + segW, barY + 4, obtenerColorBordeNivel(n));
+                    curX += segW;
+                }
+            }
         }
 
-        // Área de contenido con scroll
-        int viewTop = panelY + 48;
-        int viewBottom = panelY + panelH - 28;
-        int viewH = viewBottom - viewTop;
-        int cardW = panelW - 32;
+        // Área de lista con recorte (scissor)
+        int listX = panelX + 10;
+        int listY = panelY + 55;
+        int listW = panelW - 20;
+        int listH = panelH - 86;
 
-        // Filtrar lista
-        List<AbrirMenuEstadoPayload.MaldicionInfo> activas = (this.filtroNivel == 0)
-                ? this.todasMaldiciones
-                : this.todasMaldiciones.stream().filter(m -> m.nivel() == this.filtroNivel).toList();
+        extractor.fill(listX, listY, listX + listW, listY + listH, 0xAA07070B);
+        extractor.outline(listX, listY, listW, listH, 0xFF2E2E3E);
 
-        if (activas.isEmpty()) {
+        int totalH = calcularAlturaTotal(filas);
+        int maxScroll = Math.max(0, totalH - listH + 8);
+        this.scrollOffset = Math.clamp(this.scrollOffset, 0.0, maxScroll);
+
+        AbrirMenuEstadoPayload.MaldicionInfo hoveredMaldicion = null;
+
+        extractor.enableScissor(listX + 1, listY + 1, listX + listW - 1, listY + listH - 1);
+
+        if (filas.isEmpty()) {
+            String msgVacio = this.todasLasMaldiciones.isEmpty()
+                    ? "§a✦ No hay maldiciones activas en el mundo actualmente."
+                    : "§7No se encontraron maldiciones con ese filtro o búsqueda.";
             extractor.centeredText(
                     this.font,
-                    Component.literal("§a✔ No hay maldiciones activas en este nivel"),
+                    Component.literal(msgVacio),
                     centerX,
-                    centerY - 5,
-                    0xFF88FF88
+                    listY + listH / 2 - 4,
+                    0xFFAAAAAA
             );
-            this.maxScroll = 0;
-            return;
-        }
-
-        extractor.enableScissor(panelX + 8, viewTop, panelX + panelW - 8, viewBottom);
-
-        int drawY = viewTop + 2 - (int) this.scrollY;
-
-        if (this.filtroNivel == 0) {
-            // Pestaña TODAS: Estructurada por encabezados de Nivel
-            for (int lvl = 1; lvl <= 6; lvl++) {
-                final int l = lvl;
-                List<AbrirMenuEstadoPayload.MaldicionInfo> porNivel = activas.stream().filter(m -> m.nivel() == l).toList();
-                if (porNivel.isEmpty()) continue;
-
-                int colorLvl = obtenerColorNivel(l);
-
-                // Encabezado del Nivel
-                extractor.text(
-                        this.font,
-                        Component.literal("§l― NIVEL " + l + " ―"),
-                        panelX + 16,
-                        drawY + 2,
-                        colorLvl,
-                        true
-                );
-                extractor.fill(panelX + 16, drawY + 12, panelX + 16 + cardW, drawY + 13, (colorLvl & 0x00FFFFFF) | 0x44000000);
-                drawY += 16;
-
-                // Tarjetas del nivel
-                for (AbrirMenuEstadoPayload.MaldicionInfo info : porNivel) {
-                    drawY = dibujarTarjeta(extractor, info, panelX + 16, drawY, cardW, colorLvl, false);
-                }
-                drawY += 4; // Espacio entre niveles
-            }
         } else {
-            // Pestaña de Nivel específico: Tarjetas directas sin prefijo redundante
-            int colorLvl = obtenerColorNivel(this.filtroNivel);
-            for (AbrirMenuEstadoPayload.MaldicionInfo info : activas) {
-                drawY = dibujarTarjeta(extractor, info, panelX + 16, drawY, cardW, colorLvl, false);
+            int yPos = listY + 4 - (int) this.scrollOffset;
+            for (int idx = 0; idx < filas.size(); idx++) {
+                FilaEstado fila = filas.get(idx);
+                int h = fila.altura();
+                if (yPos + h >= listY && yPos <= listY + listH) {
+                    if (fila instanceof FilaHeader header) {
+                        int borderColor = obtenerColorBordeNivel(header.nivel());
+                        String colorPrefix = obtenerPrefijoColorNivel(header.nivel());
+                        int hdrX = listX + 4;
+                        int hdrW = listW - 14;
+                        extractor.fill(hdrX, yPos + 1, hdrX + hdrW, yPos + h - 2, 0xBB191926);
+                        // Barra izquierda continua hacia abajo para conectar con la primera tarjeta del nivel
+                        extractor.fill(hdrX, yPos + 1, hdrX + 4, yPos + h, borderColor);
+                        extractor.text(
+                                this.font,
+                                Component.literal(colorPrefix + "§lNivel " + header.nivel()),
+                                hdrX + 9,
+                                yPos + 4,
+                                0xFFFFFFFF,
+                                true
+                        );
+                    } else if (fila instanceof FilaMaldicion item) {
+                        AbrirMenuEstadoPayload.MaldicionInfo info = item.info();
+                        int cardX = listX + 4;
+                        int cardW = listW - 14;
+                        int cardH = h - 4;
+                        int borderColor = obtenerColorBordeNivel(info.nivel());
+                        String colorPrefix = obtenerPrefijoColorNivel(info.nivel());
+
+                        boolean sigueMismoNivel = (idx + 1 < filas.size())
+                                && (filas.get(idx + 1) instanceof FilaMaldicion nextCard)
+                                && (nextCard.info().nivel() == info.nivel());
+                        boolean vieneDelMismoNivel = (idx - 1 >= 0)
+                                && ((filas.get(idx - 1) instanceof FilaHeader prevHdr && prevHdr.nivel() == info.nivel())
+                                || (filas.get(idx - 1) instanceof FilaMaldicion prevCard && prevCard.info().nivel() == info.nivel()));
+
+                        boolean hovered = mouseX >= cardX && mouseX <= cardX + cardW
+                                && mouseY >= Math.max(listY, yPos) && mouseY <= Math.min(listY + listH, yPos + cardH);
+                        if (hovered) {
+                            hoveredMaldicion = info;
+                        }
+
+                        int cardBg = hovered ? 0xEE222230 : 0xCC161620;
+                        extractor.fill(cardX, yPos, cardX + cardW, yPos + cardH, cardBg);
+
+                        // Barra izquierda continua dentro del mismo nivel; corta solo al finalizar el bloque del nivel
+                        int barTop = vieneDelMismoNivel ? yPos : yPos + 1;
+                        int barBottom = sigueMismoNivel ? (yPos + h) : (yPos + cardH);
+                        extractor.fill(cardX, barTop, cardX + 4, barBottom, borderColor);
+
+                        if (hovered) {
+                            extractor.outline(cardX, yPos, cardW, cardH, borderColor);
+                        }
+
+                        // Título de la maldición (sin etiqueta individual de nivel)
+                        extractor.text(
+                                this.font,
+                                Component.literal(colorPrefix + "§l" + info.nombre()),
+                                cardX + 9,
+                                yPos + 4,
+                                0xFFFFFFFF,
+                                true
+                        );
+
+                        // Descripción ajustada a 2 líneas dentro de la tarjeta
+                        List<FormattedCharSequence> lines = this.font.split(Component.literal("§7" + info.descripcion()), cardW - 18);
+                        int maxLines = Math.min(2, lines.size());
+                        for (int l = 0; l < maxLines; l++) {
+                            extractor.text(this.font, lines.get(l), cardX + 9, yPos + 15 + l * 9, 0xFFCCCCCC, false);
+                        }
+                    }
+                }
+                yPos += h;
             }
         }
 
         extractor.disableScissor();
 
-        // Cálculo de scroll máximo
-        int totalContentH = (drawY + (int) this.scrollY) - (viewTop + 2);
-        this.maxScroll = Math.max(0, totalContentH - viewH);
+        // Barra de desplazamiento lateral estilizada
+        if (maxScroll > 0 && totalH > 0) {
+            int trackX = listX + listW - 6;
+            extractor.fill(trackX, listY + 2, trackX + 4, listY + listH - 2, 0x88111118);
+            int barH = Math.max(20, (int) ((double) listH / totalH * (listH - 4)));
+            int barY = listY + 2 + (int) ((this.scrollOffset / maxScroll) * (listH - 4 - barH));
+            extractor.fill(trackX, barY, trackX + 4, barY + barH, 0xFFFFAA00);
+        }
 
-        // Barra de desplazamiento lateral si el contenido excede la vista
-        if (this.maxScroll > 0) {
-            int scrollbarX = panelX + panelW - 10;
-            extractor.fill(scrollbarX, viewTop, scrollbarX + 3, viewBottom, 0x44000000);
-            float ratio = (float) viewH / (float) totalContentH;
-            int thumbH = Math.max(16, (int) (viewH * ratio));
-            int thumbY = viewTop + (int) ((viewH - thumbH) * (this.scrollY / (double) this.maxScroll));
-            extractor.fill(scrollbarX, thumbY, scrollbarX + 3, thumbY + thumbH, 0xCCFFAA00);
+        super.extractRenderState(extractor, mouseX, mouseY, partialTick);
+
+        // Tooltip flotante completo al pasar el cursor sobre cualquier tarjeta
+        if (hoveredMaldicion != null) {
+            int tipMaxW = Math.min(280, this.width - 20);
+            String colorPrefix = obtenerPrefijoColorNivel(hoveredMaldicion.nivel());
+            List<FormattedCharSequence> tipLines = new ArrayList<>();
+            tipLines.addAll(this.font.split(
+                    Component.literal(colorPrefix + "§l" + hoveredMaldicion.nombre()),
+                    tipMaxW
+            ));
+            tipLines.addAll(this.font.split(
+                    Component.literal("§f" + hoveredMaldicion.descripcion()),
+                    tipMaxW
+            ));
+
+            if (tipLines.size() > 2) {
+                int boxW = tipMaxW + 12;
+                int boxH = tipLines.size() * 10 + 10;
+                int boxX = Math.clamp(mouseX + 10, 6, this.width - boxW - 6);
+                int boxY = Math.clamp(mouseY - boxH - 6, 6, this.height - boxH - 6);
+                int borderColor = obtenerColorBordeNivel(hoveredMaldicion.nivel());
+
+                extractor.fill(boxX - 2, boxY - 2, boxX + boxW + 2, boxY + boxH + 2, 0xAA000000);
+                extractor.fill(boxX, boxY, boxX + boxW, boxY + boxH, 0xF4101018);
+                extractor.outline(boxX, boxY, boxW, boxH, borderColor);
+                for (int i = 0; i < tipLines.size(); i++) {
+                    extractor.text(this.font, tipLines.get(i), boxX + 6, boxY + 5 + i * 10, 0xFFFFFFFF, true);
+                }
+            }
         }
     }
 
-    private int dibujarTarjeta(GuiGraphicsExtractor extractor, AbrirMenuEstadoPayload.MaldicionInfo info,
-                               int x, int y, int width, int colorNivel, boolean incluirTagNivel) {
-        List<FormattedCharSequence> lineas = this.font.split(Component.literal("§7" + info.descripcion()), width - 16);
-        int cardH = 15 + Math.min(3, lineas.size()) * 9 + 4;
-
-        // Fondo y borde de tarjeta
-        extractor.fill(x, y, x + width, y + cardH, 0x66181826);
-        extractor.outline(x, y, width, cardH, 0x33555566);
-        extractor.fill(x, y, x + 3, y + cardH, colorNivel);
-
-        // Título (solo el nombre si está filtrado o con tag si se requiere)
-        String titulo = incluirTagNivel ? ("§l[Nivel " + info.nivel() + "] §f§l" + info.nombre()) : ("§f§l" + info.nombre());
-        extractor.text(this.font, Component.literal(titulo), x + 8, y + 4, colorNivel, true);
-
-        // Descripción envuelta
-        int textY = y + 15;
-        for (int l = 0; l < Math.min(3, lineas.size()); l++) {
-            extractor.text(this.font, lineas.get(l), x + 8, textY, 0xFFCCCCCC, true);
-            textY += 9;
-        }
-
-        return y + cardH + 4;
+    @Override
+    public boolean isPauseScreen() {
+        return false;
     }
 }

@@ -54,11 +54,14 @@ public abstract class CreeperRendererMixin {
                 || creeper.entityTags().contains("creeper_termonuclear");
         boolean isCosmico = (state.scale > 1.125f && state.scale < 1.165f)
                 || creeper.entityTags().contains("creeper_cosmico");
+        boolean isAntimateria = (state.scale > 1.06f && state.scale < 1.12f)
+                || creeper.entityTags().contains("creeper_antimateria");
         if (state instanceof CreeperRenderStateAccessor acc) {
             acc.ruleta$setAvispon(isAvispon);
             acc.ruleta$setFantasma(isFantasma);
             acc.ruleta$setTermonuclear(isTermonuclear);
             acc.ruleta$setCosmico(isCosmico);
+            acc.ruleta$setAntimateria(isAntimateria);
             acc.ruleta$setAgeInTicks(creeper.tickCount + partialTicks);
         }
     }
@@ -71,7 +74,8 @@ public abstract class CreeperRendererMixin {
         } else if ((state instanceof CreeperRenderStateAccessor acc && acc.ruleta$isFantasma())
                 || (state.scale > 1.015f && state.scale < 1.055f)) {
             cir.setReturnValue(FANTASMA_TEXTURE);
-        } else if (state.scale > 1.06f && state.scale < 1.12f) {
+        } else if ((state instanceof CreeperRenderStateAccessor acc && acc.ruleta$isAntimateria())
+                || (state.scale > 1.06f && state.scale < 1.12f)) {
             cir.setReturnValue(ANTIMATERIA_TEXTURE);
         } else if ((state instanceof CreeperRenderStateAccessor acc && acc.ruleta$isCosmico())
                 || (state.scale > 1.125f && state.scale < 1.165f)) {

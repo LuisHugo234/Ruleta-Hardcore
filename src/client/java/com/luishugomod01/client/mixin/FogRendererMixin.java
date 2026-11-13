@@ -1,6 +1,7 @@
 package com.luishugomod01.client.mixin;
 
 import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
+import com.luishugomod01.client.vidas.VidasClientState;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -81,6 +82,20 @@ public abstract class FogRendererMixin {
                 fogData.skyEnd = Math.max(fogData.skyEnd, 44.0f);
                 fogData.cloudEnd = Math.max(fogData.cloudEnd, 44.0f);
             }
+        }
+
+        // Niebla espesa progresiva de Cordura (aplica en todas las dimensiones, manteniendo visibilidad jugable en 0%)
+        int corduraPct = VidasClientState.getCorduraPct();
+        if (corduraPct >= 0 && corduraPct < 75) {
+            float t = Mth.clamp((75.0f - corduraPct) / 75.0f, 0.0f, 1.0f);
+            float envStart = Mth.lerp(t, 48.0f, 12.0f);
+            float envEnd = Mth.lerp(t, 140.0f, 42.0f);
+            float farEnd = Mth.lerp(t, 160.0f, 56.0f);
+            fogData.environmentalStart = Math.min(fogData.environmentalStart, envStart);
+            fogData.environmentalEnd = Math.min(fogData.environmentalEnd, envEnd);
+            fogData.renderDistanceEnd = Math.min(fogData.renderDistanceEnd, farEnd);
+            fogData.skyEnd = Math.min(fogData.skyEnd, farEnd);
+            fogData.cloudEnd = Math.min(fogData.cloudEnd, farEnd);
         }
 
         if (!level.dimension().equals(Level.OVERWORLD)) {

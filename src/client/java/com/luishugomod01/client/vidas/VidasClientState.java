@@ -15,6 +15,10 @@ public class VidasClientState {
     private static int vidasRestantes = 3;
     private static int vidasMaximas = 3;
     private static boolean sincronizado = false;
+    private static int insolacionPct = 0;
+    private static int congelacionPct = 0;
+    private static int corduraPct = -1;
+    private static int avisoRayoSegundos = 0;
 
     // Estado para indicadores overhead de otros jugadores
     private static final Map<UUID, Integer> VIDAS_POR_JUGADOR = new ConcurrentHashMap<>();
@@ -23,8 +27,16 @@ public class VidasClientState {
     public static final String GLYPH_CORAZON_VACIO = "\uE002";
 
     public static void actualizar(int restantes, int maximas) {
+        actualizar(restantes, maximas, insolacionPct, congelacionPct, corduraPct, avisoRayoSegundos);
+    }
+
+    public static void actualizar(int restantes, int maximas, int insolacion, int congelacion, int cordura, int avisoRayo) {
         vidasRestantes = Math.max(0, restantes);
         vidasMaximas = Math.max(1, maximas);
+        insolacionPct = Math.clamp(insolacion, 0, 100);
+        congelacionPct = Math.clamp(congelacion, 0, 100);
+        corduraPct = cordura < 0 ? -1 : Math.clamp(cordura, 0, 100);
+        avisoRayoSegundos = Math.max(0, avisoRayo);
         sincronizado = true;
 
         Minecraft mc = Minecraft.getInstance();
@@ -32,6 +44,11 @@ public class VidasClientState {
             VIDAS_POR_JUGADOR.put(mc.player.getUUID(), vidasRestantes);
         }
     }
+
+    public static int getInsolacionPct() { return insolacionPct; }
+    public static int getCongelacionPct() { return congelacionPct; }
+    public static int getCorduraPct() { return corduraPct; }
+    public static int getAvisoRayoSegundos() { return avisoRayoSegundos; }
 
     public static void actualizarOtroJugador(UUID uuid, int restantes, int maximas) {
         if (uuid == null) return;
@@ -55,6 +72,10 @@ public class VidasClientState {
         vidasRestantes = 3;
         vidasMaximas = 3;
         sincronizado = false;
+        insolacionPct = 0;
+        congelacionPct = 0;
+        corduraPct = -1;
+        avisoRayoSegundos = 0;
         VIDAS_POR_JUGADOR.clear();
     }
 

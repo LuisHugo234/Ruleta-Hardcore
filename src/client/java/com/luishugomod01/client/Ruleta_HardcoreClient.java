@@ -90,7 +90,14 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(VidasSyncPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
-                VidasClientState.actualizar(payload.vidasRestantes(), payload.vidasMaximas());
+                VidasClientState.actualizar(
+                        payload.vidasRestantes(),
+                        payload.vidasMaximas(),
+                        payload.insolacionPct(),
+                        payload.congelacionPct(),
+                        payload.corduraPct(),
+                        payload.avisoRayoSegundos()
+                );
             });
         });
 

@@ -19,6 +19,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ambient.Bat;
 import net.minecraft.world.entity.animal.chicken.Chicken;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.monster.Creeper;
@@ -33,6 +34,7 @@ import net.minecraft.world.entity.monster.illager.Vindicator;
 import net.minecraft.world.entity.monster.piglin.PiglinBrute;
 import net.minecraft.world.entity.monster.spider.Spider;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.LlamaSpit;
 import net.minecraft.world.entity.projectile.ShulkerBullet;
 import net.minecraft.world.entity.projectile.hurtingprojectile.LargeFireball;
 import net.minecraft.world.entity.projectile.throwableitemprojectile.AbstractThrownPotion;
@@ -85,7 +87,42 @@ public abstract class LivingEntityMixin {
 
     @Inject(method = "hurtServer", at = @At("HEAD"), cancellable = true)
     private void ruleta$inmunidadCreeperMulticreeper(ServerLevel level, DamageSource damageSource, float amount, CallbackInfoReturnable<Boolean> cir) {
-        if ((Object) this instanceof Creeper creeper) {
+        LivingEntity self = (LivingEntity) (Object) this;
+
+        // Cordura Fase 1: Las alucinaciones no hacen daño y se desvanecen en humo al ser golpeadas
+        if (self.entityTags().contains("alucinacion_cordura")) {
+            if (damageSource.getEntity() instanceof Player) {
+                level.sendParticles(ParticleTypes.LARGE_SMOKE, self.getX(), self.getY() + 0.9, self.getZ(), 14, 0.35, 0.55, 0.35, 0.04);
+                level.sendParticles(ParticleTypes.SCULK_SOUL, self.getX(), self.getY() + 0.9, self.getZ(), 6, 0.25, 0.45, 0.25, 0.03);
+                level.playSound(null, self.getX(), self.getY(), self.getZ(), SoundEvents.FIRE_EXTINGUISH, SoundSource.AMBIENT, 0.35f, 1.35f);
+                self.discard();
+                cir.setReturnValue(false);
+                return;
+            }
+        }
+        if (damageSource.getEntity() instanceof LivingEntity attacker && attacker.entityTags().contains("alucinacion_cordura")) {
+            cir.setReturnValue(false);
+            return;
+        }
+
+        // Cordura Fase 2: Las pesadillas materializadas solo interactúan con jugadores en 0% de cordura
+        if (self.entityTags().contains("pesadilla_materializada")) {
+            if (damageSource.getEntity() instanceof Player attackerPlayer) {
+                if (!(attackerPlayer instanceof ServerPlayer sp) || !Ruleta_Hardcore.estaEnCorduraMinima(sp.getUUID())) {
+                    cir.setReturnValue(false);
+                    return;
+                }
+            }
+        }
+        if (self instanceof ServerPlayer victim
+                && damageSource.getEntity() instanceof LivingEntity attacker
+                && attacker.entityTags().contains("pesadilla_materializada")
+                && !Ruleta_Hardcore.estaEnCorduraMinima(victim.getUUID())) {
+            cir.setReturnValue(false);
+            return;
+        }
+
+        if (self instanceof Creeper creeper) {
             if (damageSource.is(DamageTypeTags.IS_EXPLOSION)
                     && damageSource.getEntity() instanceof Creeper sourceCreeper
                     && sourceCreeper.entityTags().contains("mini_multicreeper")) {
@@ -139,6 +176,10 @@ public abstract class LivingEntityMixin {
         if (CursosActivos.isCreepersEscondidos() && damageSource.getEntity() instanceof Creeper creeper
                 && creeper.entityTags().contains("creeper_escondido")) {
             amount *= (1.0f / 3.0f);
+        }
+        if (CursosActivos.isEscupitajoMortal() && (Object) this instanceof Player
+                && (damageSource.is(DamageTypes.SPIT) || damageSource.getDirectEntity() instanceof LlamaSpit)) {
+            amount = 10.0f;
         }
         return amount;
     }
@@ -253,6 +294,12 @@ public abstract class LivingEntityMixin {
                 && damageSource.getEntity() instanceof ServerPlayer sp
                 && !damageSource.is(DamageTypeTags.IS_PROJECTILE)) {
             Ruleta_Hardcore.teletransportarEndermanAEspalda(enderman, sp, level);
+        }
+
+        // Super Murciélago (Nivel 1): omnivampirismo del 50% del daño infligido
+        if (CursosActivos.isSuperMurcielago() && cir.getReturnValueZ()
+                && damageSource.getEntity() instanceof Bat bat && bat.isAlive()) {
+            bat.heal(amount * 0.5f);
         }
     }
 
@@ -419,11 +466,20 @@ public abstract class LivingEntityMixin {
         if (CursosActivos.isCaidaBrutal() && (Object) this instanceof Player && damageSource.is(DamageTypeTags.IS_FALL)) {
             cir.setReturnValue(damage);
         }
+        if (CursosActivos.isEscupitajoMortal() && (Object) this instanceof Player
+                && (damageSource.is(DamageTypes.SPIT) || damageSource.getDirectEntity() instanceof LlamaSpit)) {
+            cir.setReturnValue(damage);
+        }
     }
 
     @Inject(method = "getDamageAfterMagicAbsorb", at = @At("HEAD"), cancellable = true)
     private void ruleta$ignorarEncantamientosArmaduraEnderPearl(DamageSource damageSource, float damage,
             CallbackInfoReturnable<Float> cir) {
+        if (CursosActivos.isEscupitajoMortal() && (Object) this instanceof Player
+                && (damageSource.is(DamageTypes.SPIT) || damageSource.getDirectEntity() instanceof LlamaSpit)) {
+            cir.setReturnValue(damage);
+            return;
+        }
         if ((CursosActivos.isDanoColateral() && damageSource.is(DamageTypes.ENDER_PEARL))
                 || (CursosActivos.isCaidaBrutal() && (Object) this instanceof Player && damageSource.is(DamageTypeTags.IS_FALL))) {
             LivingEntity self = (LivingEntity) (Object) this;
@@ -484,6 +540,13 @@ public abstract class LivingEntityMixin {
                 }
             }
             cir.setReturnValue(false);
+        }
+    }
+
+    @Inject(method = "checkTotemDeathProtection", at = @At("RETURN"))
+    private void ruleta$totemInestable(DamageSource damageSource, CallbackInfoReturnable<Boolean> cir) {
+        if (cir.getReturnValueZ() && CursosActivos.isTotemInestable() && (Object) this instanceof Player player) {
+            player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 60, 1));
         }
     }
 

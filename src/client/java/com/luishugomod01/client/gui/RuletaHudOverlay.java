@@ -68,6 +68,7 @@ public class RuletaHudOverlay implements HudElement {
         }
 
         renderizarContadorVidas(extractor, mc);
+        renderizarIndicadoresPeligro(extractor, mc);
 
         if (!activa || payloadActual == null) {
             return;
@@ -319,6 +320,149 @@ public class RuletaHudOverlay implements HudElement {
             int subY = hy + heartH + 2;
             extractor.text(mc.font, subTexto, subX, subY, 0xFFFFFFFF, true);
         }
+    }
+
+    private void renderizarIndicadoresPeligro(GuiGraphicsExtractor extractor, Minecraft mc) {
+        if (!VidasClientState.isSincronizado()) {
+            return;
+        }
+        int insolacion = VidasClientState.getInsolacionPct();
+        int congelacion = VidasClientState.getCongelacionPct();
+        int cordura = VidasClientState.getCorduraPct();
+        int avisoRayo = VidasClientState.getAvisoRayoSegundos();
+
+        int x = 8;
+        int y = 8;
+        int barW = 86;
+        int barH = 12;
+
+        if (avisoRayo > 0) {
+            boolean blink = (System.currentTimeMillis() / 200L) % 2L == 0L;
+            int bg = blink ? 0xDD442200 : 0xCC1A1205;
+            int border = blink ? 0xFFFFEE33 : 0xFFFFAA00;
+            extractor.fill(x, y, x + barW + 24, y + barH + 2, bg);
+            extractor.outline(x, y, barW + 24, barH + 2, border);
+            String txt = "§e§l⚡ RAYO EN: §f§l" + avisoRayo + "s";
+            extractor.text(mc.font, Component.literal(txt), x + 4, y + 3, 0xFFFFFFFF, true);
+            y += barH + 5;
+        }
+
+        if (insolacion > 0) {
+            dibujarBarraPeligro(extractor, mc, x, y, barW, barH,
+                    "§6☀ Insolación " + insolacion + "%", insolacion / 100.0f, 0xFFFF8800, 0xFFFF3300);
+            y += barH + 4;
+        }
+
+        if (congelacion > 0) {
+            dibujarBarraPeligro(extractor, mc, x, y, barW, barH,
+                    "§b❄ Hipotermia " + congelacion + "%", congelacion / 100.0f, 0xFF33BBFF, 0xFF0066FF);
+            y += barH + 4;
+        }
+
+        if (cordura >= 0) {
+            dibujarMedidorCorduraCircular(extractor, mc, x + 24, y + 22, cordura);
+        }
+    }
+
+    private static void dibujarMedidorCorduraCircular(
+            GuiGraphicsExtractor extractor,
+            Minecraft mc,
+            int cx,
+            int cy,
+            int cordura) {
+        int outerR = 19;
+        int innerR = 15;
+        long timeMs = System.currentTimeMillis();
+        int jitterX = (cordura == 0 && (timeMs / 90L) % 5L == 0L) ? ((timeMs % 2 == 0) ? 1 : -1) : 0;
+        int drawCx = cx + jitterX;
+
+        // Fondo circular oscuro (medallón)
+        int bgCol = cordura == 0 ? 0xD81A0610 : 0xCC110B1C;
+        for (int dy = -outerR - 1; dy <= outerR + 1; dy++) {
+            int span = (int) Math.floor(Math.sqrt((outerR + 1) * (outerR + 1) - dy * dy));
+            extractor.fill(drawCx - span, cy + dy, drawCx + span + 1, cy + dy + 1, bgCol);
+        }
+
+        // Color del anillo según estado de cordura
+        int ringColor;
+        if (cordura > 50) {
+            ringColor = 0xFF3BD6C6; // Cian lúcido
+        } else if (cordura > 0) {
+            ringColor = 0xFFD9822B; // Ámbar inquieto
+        } else {
+            boolean pulse = (timeMs / 250L) % 2L == 0L;
+            ringColor = pulse ? 0xFFE62E4D : 0xFF99112B; // Carmesí pesadilla
+        }
+        int trackColor = 0xFF281C38;
+
+        // Anillo circular (pista + progreso horario desde arriba)
+        double maxAngle = (cordura / 100.0) * (Math.PI * 2.0);
+        for (int dy = -outerR; dy <= outerR; dy++) {
+            for (int dx = -outerR; dx <= outerR; dx++) {
+                double dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist >= innerR && dist <= outerR) {
+                    double angle = Math.atan2(dx, -dy);
+                    if (angle < 0) angle += Math.PI * 2.0;
+                    int col = (cordura > 0 && angle <= maxAngle) ? ringColor
+                            : (cordura == 0 ? ringColor : trackColor);
+                    extractor.fill(drawCx + dx, cy + dy, drawCx + dx + 1, cy + dy + 1, col);
+                }
+            }
+        }
+
+        // Ojo de Lucidez reactivo en la parte superior del círculo
+        int eyeY = cy - 7;
+        int irisCol = cordura > 50 ? 0xFF3BD6C6 : (cordura > 0 ? 0xFFE89A3C : 0xFFFF3355);
+        if (cordura > 50) {
+            // Ojo sereno abierto
+            extractor.fill(drawCx - 6, eyeY - 1, drawCx + 7, eyeY + 2, 0xFFEAE6F5);
+            extractor.fill(drawCx - 4, eyeY - 2, drawCx + 5, eyeY + 3, 0xFFEAE6F5);
+            extractor.fill(drawCx - 2, eyeY - 2, drawCx + 3, eyeY + 3, irisCol);
+            extractor.fill(drawCx - 1, eyeY - 1, drawCx + 2, eyeY + 2, 0xFF0E0818);
+        } else if (cordura > 0) {
+            // Ojo entrecerrado en tensión
+            extractor.fill(drawCx - 6, eyeY, drawCx + 7, eyeY + 2, 0xFFE0D8EA);
+            extractor.fill(drawCx - 2, eyeY - 1, drawCx + 3, eyeY + 2, irisCol);
+            extractor.fill(drawCx, eyeY - 1, drawCx + 1, eyeY + 2, 0xFF0E0818);
+        } else {
+            // Ojo de pesadilla muy abierto con pupila vertical
+            extractor.fill(drawCx - 6, eyeY - 2, drawCx + 7, eyeY + 3, 0xFF380914);
+            extractor.fill(drawCx - 3, eyeY - 2, drawCx + 4, eyeY + 3, irisCol);
+            extractor.fill(drawCx, eyeY - 2, drawCx + 1, eyeY + 3, 0xFF080205);
+        }
+
+        // Porcentaje centrado dentro del círculo
+        String pctText = cordura + "%";
+        int textCol = cordura == 0 ? 0xFFFF6677 : (cordura <= 50 ? 0xFFFFCC88 : 0xFFE8F8F5);
+        int textW = mc.font.width(pctText);
+        extractor.text(mc.font, pctText, drawCx - textW / 2, cy + 2, textCol, true);
+
+        // Etiqueta inferior
+        String label = "CORDURA";
+        int labelCol = cordura == 0 ? 0xFFCC3355 : 0xFFBCA8D9;
+        int labelW = mc.font.width(label);
+        extractor.text(mc.font, label, cx - labelW / 2, cy + outerR + 3, labelCol, true);
+    }
+
+    private void dibujarBarraPeligro(
+            GuiGraphicsExtractor extractor,
+            Minecraft mc,
+            int x,
+            int y,
+            int w,
+            int h,
+            String label,
+            float ratio,
+            int fillColor,
+            int borderColor
+    ) {
+        extractor.fill(x, y, x + w, y + h, 0xCC101016);
+        int fillW = Math.clamp((int) Math.round((w - 2) * ratio), 0, w - 2);
+        if (fillW > 0) {
+            extractor.fill(x + 1, y + 1, x + 1 + fillW, y + h - 1, fillColor);
+        }
+        extractor.outline(x, y, w, h, borderColor);
+        extractor.text(mc.font, Component.literal(label), x + 4, y + 2, 0xFFFFFFFF, true);
     }
 
     private static int parseNivel(String nivelNombre) {

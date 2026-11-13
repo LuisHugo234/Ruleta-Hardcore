@@ -27,6 +27,10 @@ public class CursosActivos {
     private static volatile boolean inventarioPesado          = false;
     private static volatile boolean caidaBrutal               = false;
     private static volatile boolean ojosEnLaOscuridad         = false;
+    private static volatile boolean escupitajoMortal          = false;
+    private static volatile boolean camellosFuriosos          = false;
+    private static volatile boolean totemInestable            = false;
+    private static volatile boolean superMurcielago           = false;
 
     // Nivel 2
     private static volatile boolean speedpers                 = false;
@@ -81,6 +85,7 @@ public class CursosActivos {
     private static volatile boolean tensionMuscular           = false;
     private static volatile boolean colosalFusion             = false;
     private static volatile boolean cazadorIgneo              = false;
+    private static volatile boolean cordura                   = false;
 
     // Nivel 5
     private static volatile boolean intrusosCalavericos       = false;
@@ -99,6 +104,7 @@ public class CursosActivos {
     private static volatile boolean berserker                 = false;
     private static volatile boolean nigromanteCriptas         = false;
     private static volatile boolean creeperFantasma           = false;
+    private static volatile boolean mimic                     = false;
 
     // Nivel 6
     private static volatile boolean permadeath                = false;
@@ -189,6 +195,18 @@ public class CursosActivos {
 
     public static void activarOjosEnLaOscuridad() { ojosEnLaOscuridad = true; }
     public static boolean isOjosEnLaOscuridad() { return ojosEnLaOscuridad; }
+
+    public static void activarEscupitajoMortal() { escupitajoMortal = true; }
+    public static boolean isEscupitajoMortal() { return escupitajoMortal; }
+
+    public static void activarCamellosFuriosos() { camellosFuriosos = true; }
+    public static boolean isCamellosFuriosos() { return camellosFuriosos; }
+
+    public static void activarTotemInestable() { totemInestable = true; }
+    public static boolean isTotemInestable() { return totemInestable; }
+
+    public static void activarSuperMurcielago() { superMurcielago = true; }
+    public static boolean isSuperMurcielago() { return superMurcielago; }
 
     // --- Nivel 2 ---
     public static void activarSpeedpers() { speedpers = true; }
@@ -326,6 +344,12 @@ public class CursosActivos {
     public static void activarCazadorIgneo() { cazadorIgneo = true; }
     public static boolean isCazadorIgneo() { return cazadorIgneo; }
 
+    public static void activarCordura() { cordura = true; }
+    public static boolean isCordura() { return cordura; }
+
+    public static void activarMimic() { mimic = true; }
+    public static boolean isMimic() { return mimic; }
+
     // --- Nivel 5 ---
     public static void activarIntrusosCalavericos() { intrusosCalavericos = true; }
     public static boolean isIntrusosCalavericos() { return intrusosCalavericos; }
@@ -459,7 +483,9 @@ public class CursosActivos {
                 || sombraParpadeante || berserker || nigromanteCriptas || creeperFantasma
                 || permadeath || apocalipsisMinecraftTotal || maldicionLunaDeSangre
                 || monturaAcuatica || eclipseSolar || elVerdugo || maresAcidos || pareceQueVaALlover
-                || anomaliaGravitacional || corrupcionVacio || creeperAntimateria || creeperTermonuclear || colosoRuina;
+                || anomaliaGravitacional || corrupcionVacio || creeperAntimateria || creeperTermonuclear || colosoRuina
+                || escupitajoMortal || camellosFuriosos || totemInestable || superMurcielago
+                || cordura || mimic;
     }
 
     public static List<String> obtenerIdsActivas() {
@@ -481,6 +507,10 @@ public class CursosActivos {
         if (inventarioPesado) ids.add("inventariopesado");
         if (caidaBrutal) ids.add("caidabrutal");
         if (ojosEnLaOscuridad) ids.add("ojosenlaoscuridad");
+        if (escupitajoMortal) ids.add("escupitajomortal");
+        if (camellosFuriosos) ids.add("camellosfuriosos");
+        if (totemInestable) ids.add("toteminestable");
+        if (superMurcielago) ids.add("supermurcielago");
         if (speedpers) ids.add("speedpers");
         if (filoMortal) ids.add("filomortal");
         if (muerteEspinosa) ids.add("muerteespinosa");
@@ -524,6 +554,7 @@ public class CursosActivos {
         if (tensionMuscular) ids.add("tensionmuscular");
         if (colosalFusion) ids.add("colosalfusion");
         if (cazadorIgneo) ids.add("cazadorigneo");
+        if (cordura) ids.add("cordura");
         if (intrusosCalavericos) ids.add("intrusoscalavericos");
         if (spiderman) ids.add("spiderman");
         if (enderGhast) ids.add("enderghast");
@@ -542,6 +573,7 @@ public class CursosActivos {
         if (berserker) ids.add("berserker");
         if (nigromanteCriptas) ids.add("nigromantecriptas");
         if (creeperFantasma) ids.add("creeperfantasma");
+        if (mimic) ids.add("mimic");
         if (permadeath) ids.add("permadeath");
         if (apocalipsisMinecraftTotal) ids.add("apocalipsis6");
         if (maldicionLunaDeSangre) ids.add("lunasangre");
@@ -577,6 +609,10 @@ public class CursosActivos {
             case "inventariopesado" -> activarInventarioPesado();
             case "caidabrutal" -> activarCaidaBrutal();
             case "ojosenlaoscuridad" -> activarOjosEnLaOscuridad();
+            case "escupitajomortal" -> activarEscupitajoMortal();
+            case "camellosfuriosos" -> activarCamellosFuriosos();
+            case "toteminestable" -> activarTotemInestable();
+            case "supermurcielago" -> activarSuperMurcielago();
             case "speedpers" -> activarSpeedpers();
             case "filomortal" -> activarFiloMortal();
             case "muerteespinosa" -> activarMuerteEspinosa();
@@ -620,6 +656,7 @@ public class CursosActivos {
             case "tensionmuscular" -> activarTensionMuscular();
             case "colosalfusion" -> activarColosalFusion();
             case "cazadorigneo" -> activarCazadorIgneo();
+            case "cordura" -> activarCordura();
             case "intrusoscalavericos" -> activarIntrusosCalavericos();
             case "spiderman" -> activarSpiderman();
             case "enderghast" -> activarEnderGhast();
@@ -638,6 +675,7 @@ public class CursosActivos {
             case "berserker" -> activarBerserker();
             case "nigromantecriptas" -> activarNigromanteCriptas();
             case "creeperfantasma" -> activarCreeperFantasma();
+            case "mimic" -> activarMimic();
             case "permadeath" -> activarPermadeath();
             case "apocalipsis6", "apocalipsistotal" -> activarApocalipsisMinecraftTotal();
             case "lunasangre", "bloodmoon" -> activarLunaDeSangre();
@@ -706,6 +744,18 @@ public class CursosActivos {
         }
         if (ojosEnLaOscuridad) {
             lista.add(Component.literal("  §5👁 OJOS EN LA OSCURIDAD:§r Los Enderman se vuelven agresivos si te acercas a menos de 3 bloques, incluso sin mirarlos."));
+        }
+        if (escupitajoMortal) {
+            lista.add(Component.literal("  §f🦙 ESCUPITAJO MORTAL:§r Los escupitajos de las llamas causan 5 corazones de daño ignorando armadura y resistencia."));
+        }
+        if (camellosFuriosos) {
+            lista.add(Component.literal("  §6🐫 CAMELLOS FURIOSOS:§r Todos los camellos son agresivos hacia los jugadores, causando 3 corazones de daño por golpe."));
+        }
+        if (totemInestable) {
+            lista.add(Component.literal("  §e✝ TÓTEM INESTABLE:§r Cuando se activa un tótem, el jugador recibe Lentitud II durante 3 segundos después de salvarse."));
+        }
+        if (superMurcielago) {
+            lista.add(Component.literal("  §8🦇 SUPER MURCIÉLAGO:§r Murciélagos agresivos del doble de tamaño, 10 HP, 2 corazones de daño y 50% de omnivampirismo."));
         }
         if (speedpers) {
             lista.add(Component.literal("  §e⚡ SPEEDPERS:§r Todos los Creepers del Overworld (excepto Creepers Escondidos) tienen Velocidad II."));
@@ -836,6 +886,12 @@ public class CursosActivos {
         if (cazadorIgneo) {
             lista.add(Component.literal("  §b🏹 CAZADOR ÍGNEO:§r 15% de los Wither Skeletons en el Nether portan arcos de fuego fatuo azul que infligen Wither I por 6s."));
         }
+        if (cordura) {
+            lista.add(Component.literal("  §d🧠 CORDURA:§r Un medidor de cordura disminuye en la oscuridad o peligro, provocando alucinaciones auditivas y visuales al llegar a niveles críticos."));
+        }
+        if (mimic) {
+            lista.add(Component.literal("  §6📦 MIMIC:§r Cofres trampa en cuevas y estructuras que despiertan en forma arácnida al acercarse o intentar abrirlos (80 HP, 16 daño y Lentitud III)."));
+        }
         if (intrusosCalavericos) {
             lista.add(Component.literal("  §8💀 INTRUSOS CALAVÉRICOS:§r Wither Skeletons aparecen de noche en el Overworld con Diamante Prot IV, Espada Filo V, Velocidad I y Fuerza II."));
         }
@@ -950,6 +1006,10 @@ public class CursosActivos {
         if (inventarioPesado) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Inventario Pesado", "Si tienes todos los slots del inventario ocupados, no puedes correr."));
         if (caidaBrutal) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Caída Brutal", "El daño por caída aumenta un 25%, sin importar la armadura que lleves."));
         if (ojosEnLaOscuridad) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Ojos en la Oscuridad", "Los Enderman pueden volverse agresivos si te acercas a menos de 3 bloques."));
+        if (escupitajoMortal) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Escupitajo Mortal", "Los escupitajos de las llamas causan 5 corazones de daño ignorando armadura y resistencia."));
+        if (camellosFuriosos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Camellos Furiosos", "Todos los camellos son agresivos hacia los jugadores, causando 3 corazones de daño por golpe."));
+        if (totemInestable) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Tótem Inestable", "Cuando se activa un tótem, recibes Lentitud II durante 3 segundos tras salvarte."));
+        if (superMurcielago) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Super Murciélago", "Murciélagos agresivos del doble de tamaño, 10 HP, 2 corazones de daño y 50% de omnivampirismo."));
 
         // Nivel 2
         if (speedpers) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Speedpers", "Todos los Creepers del Overworld tienen Velocidad II permanente."));
@@ -990,6 +1050,8 @@ public class CursosActivos {
         if (pykete) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Pykete", "Tridente con cuerda de algas: arrastra 8 bloques al agua si no usas escudo y rompe barcos de un golpe."));
         if (fragmentacionHelada) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Fragmentación Helada", "Al morir un Stray, transforma el suelo en hielo resbaladizo (4 bloques) e inflige Congelación Profunda."));
         if (comoPedro) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Como Pedro", "Los Creepers caminan sobre el agua y mientras la pisan su velocidad se multiplica por 3."));
+        if (creeperAvispon) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Creeper Avispón", "Pequeños creepers voladores del tamaño de una abeja bebé. Al detonar no rompen bloques e infligen 2/3 de daño."));
+        if (hombreRoca) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Hombre Roca", "Aparece día y noche (80 HP, 4 armadura) arrojando rocas gigantes que infligen 13 de daño, Lentitud II y desactivan escudo."));
 
         // Nivel 4
         if (danoColateral) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Daño Colateral", "Las Ender Pearls hacen x3 su daño original e ignoran armadura."));
@@ -1002,6 +1064,7 @@ public class CursosActivos {
         if (tensionMuscular) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Tensión Muscular", "Tensar arco/ballesta >3s provoca fatiga, temblor de puntería y Debilidad II."));
         if (colosalFusion) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Colosal de Fusión", "Magma Cubes colosales en el Nether que crean cráteres de magma al aterrizar y lanzan crías al morir."));
         if (cazadorIgneo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Cazador Ígneo", "15% de Wither Skeletons en el Nether portan arcos de fuego azul que aplican Wither I por 6s."));
+        if (cordura) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Cordura", "Un medidor de cordura baja en la oscuridad o peligro, provocando alucinaciones auditivas y visuales."));
 
         // Nivel 5
         if (intrusosCalavericos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Intrusos Calavéricos", "Wither Skeletons con armadura de diamante y Filo V aparecen de noche."));
@@ -1020,6 +1083,7 @@ public class CursosActivos {
         if (berserker) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Berserker", "Vindicadores con Netherite (+60% vel.), ignoran 50% de armadura y rompen el escudo por 10s."));
         if (nigromanteCriptas) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "El Nigromante de las Criptas", "Stray con báculo de hielo que congela el suelo con un rayo e invoca mini-strays con hachas."));
         if (creeperFantasma) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Creeper Fantasma", "Creeper espectral con manta translúcida que flota estilo Vex, atraviesa bloques e inmune a proyectiles."));
+        if (mimic) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Mimic", "Cofres trampa indistinguibles de un cofre normal que despiertan en forma arácnida al acercarse (80 HP, 16 daño y Lentitud III)."));
 
         // Nivel 6
         if (permadeath) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(6, "PERMADEATH", "Se elimina permanentemente la regeneración natural de salud."));
@@ -1056,6 +1120,10 @@ public class CursosActivos {
         inventarioPesado = false;
         caidaBrutal = false;
         ojosEnLaOscuridad = false;
+        escupitajoMortal = false;
+        camellosFuriosos = false;
+        totemInestable = false;
+        superMurcielago = false;
         speedpers = false;
         filoMortal = false;
         muerteEspinosa = false;
@@ -1099,6 +1167,7 @@ public class CursosActivos {
         tensionMuscular = false;
         colosalFusion = false;
         cazadorIgneo = false;
+        cordura = false;
         intrusosCalavericos = false;
         spiderman = false;
         enderGhast = false;
@@ -1117,6 +1186,7 @@ public class CursosActivos {
         berserker = false;
         nigromanteCriptas = false;
         creeperFantasma = false;
+        mimic = false;
         permadeath = false;
         apocalipsisMinecraftTotal = false;
         maldicionLunaDeSangre = false;
