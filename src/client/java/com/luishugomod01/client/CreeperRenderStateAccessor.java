@@ -13,4 +13,6 @@ public interface CreeperRenderStateAccessor {
     void ruleta$setAntimateria(boolean antimateria);
     float ruleta$getAgeInTicks();
     void ruleta$setAgeInTicks(float age);
+    int ruleta$getTemperaturaTermonuclear();
+    void ruleta$setTemperaturaTermonuclear(int temperatura);
 }

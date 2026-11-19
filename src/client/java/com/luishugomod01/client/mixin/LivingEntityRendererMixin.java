@@ -25,6 +25,8 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
+import net.minecraft.util.Mth;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -49,10 +51,16 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
     private static final Identifier COSMICO_EYES_TEXTURE = Identifier.fromNamespaceAndPath("ruleta_hardcore", "textures/entity/creeper_cosmico_eyes.png");
 
     @Unique
+    private static final Identifier ANTIMATERIA_EYES_TEXTURE = Identifier.fromNamespaceAndPath("ruleta_hardcore", "textures/entity/creeper_antimateria_eyes.png");
+
+    @Unique
     private static final Identifier COLOSO_EYES_TEXTURE = Identifier.fromNamespaceAndPath("ruleta_hardcore", "textures/entity/coloso_ruina_eyes.png");
 
     @Unique
     private static final Identifier REY_PROFUNDO_EYES_TEXTURE = Identifier.fromNamespaceAndPath("ruleta_hardcore", "textures/entity/rey_profundo_eyes.png");
+
+    @Unique
+    private static final Identifier COSMIC_SWIRL_TEXTURE = Identifier.withDefaultNamespace("textures/entity/creeper/creeper_armor.png");
 
     @Shadow
     protected M model;
@@ -109,8 +117,7 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
             this.ruleta$activeEyesTexture = REY_PROFUNDO_EYES_TEXTURE;
             this.model = (M) this.ruleta$reyProfundoModel;
         } else if ((Object) this instanceof IronGolemRenderer
-                && ((state instanceof IronGolemRenderStateAccessor acc && acc.ruleta$isColosoRuina())
-                || (state.scale > 1.40f && state.scale < 1.55f))) {
+                && state instanceof IronGolemRenderStateAccessor acc && acc.ruleta$isColosoRuina()) {
             if (this.ruleta$colosoRuinaModel == null) {
                 this.ruleta$colosoRuinaModel = new ColosoRuinaModel(
                         Minecraft.getInstance().getEntityModels().bakeLayer(ColosoRuinaModel.LAYER_LOCATION)
@@ -119,15 +126,11 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
             this.ruleta$savedVanillaModel = this.model;
             this.ruleta$activeEyesTexture = COLOSO_EYES_TEXTURE;
             this.model = (M) this.ruleta$colosoRuinaModel;
-        } else if ((Object) this instanceof CreeperRenderer) {
-            boolean isFantasma = (state instanceof CreeperRenderStateAccessor acc && acc.ruleta$isFantasma())
-                    || (state.scale > 1.015f && state.scale < 1.055f);
-            boolean isCosmico = (state instanceof CreeperRenderStateAccessor acc && acc.ruleta$isCosmico())
-                    || (state.scale > 1.125f && state.scale < 1.165f);
-            boolean isAntimateria = (state instanceof CreeperRenderStateAccessor acc && acc.ruleta$isAntimateria())
-                    || (state.scale > 1.06f && state.scale < 1.12f);
-            boolean isTermonuclear = (state instanceof CreeperRenderStateAccessor acc && acc.ruleta$isTermonuclear())
-                    || (state.scale > 1.18f && state.scale < 1.26f);
+        } else if ((Object) this instanceof CreeperRenderer && state instanceof CreeperRenderStateAccessor acc) {
+            boolean isFantasma = acc.ruleta$isFantasma();
+            boolean isCosmico = acc.ruleta$isCosmico();
+            boolean isAntimateria = acc.ruleta$isAntimateria();
+            boolean isTermonuclear = acc.ruleta$isTermonuclear();
             if (isFantasma) {
                 if (this.ruleta$creeperFantasmaModel == null) {
                     this.ruleta$creeperFantasmaModel = new CreeperFantasmaModel(
@@ -162,6 +165,7 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
                     );
                 }
                 this.ruleta$savedVanillaModel = this.model;
+                this.ruleta$activeEyesTexture = ANTIMATERIA_EYES_TEXTURE;
                 this.model = (M) this.ruleta$creeperAntimateriaModel;
             }
         }
@@ -176,6 +180,33 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
     )
     private void ruleta$submitCustomModelGlow(S state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState cameraState, CallbackInfo ci) {
         if (this.ruleta$savedVanillaModel != null && this.ruleta$activeEyesTexture != null && !state.isInvisible) {
+            int tintColor = -1;
+
+            // Creeper Termonuclear: brillo emisivo progresivo según temperatura real (0..100%)
+            if (this.ruleta$activeEyesTexture == TERMONUCLEAR_EYES_TEXTURE && state instanceof CreeperRenderStateAccessor acc) {
+                int temp = acc.ruleta$getTemperaturaTermonuclear();
+                float age = acc.ruleta$getAgeInTicks() > 0.0F ? acc.ruleta$getAgeInTicks() : state.ageInTicks;
+                if (temp < 35) {
+                    float f = temp / 35.0F;
+                    int r = (int) Mth.lerp(f, 135.0F, 225.0F);
+                    int g = (int) Mth.lerp(f, 55.0F, 110.0F);
+                    int b = (int) Mth.lerp(f, 20.0F, 35.0F);
+                    tintColor = ARGB.color(255, r, g, b);
+                } else if (temp < 70) {
+                    float f = (temp - 35) / 35.0F;
+                    int r = 255;
+                    int g = (int) Mth.lerp(f, 120.0F, 185.0F);
+                    int b = (int) Mth.lerp(f, 35.0F, 75.0F);
+                    tintColor = ARGB.color(255, r, g, b);
+                } else {
+                    float pulse = 0.5F + 0.5F * Mth.sin(age * 0.55F);
+                    int r = 255;
+                    int g = (int) Mth.lerp(pulse, 95.0F, 255.0F);
+                    int b = (int) Mth.lerp(pulse, 30.0F, 220.0F);
+                    tintColor = ARGB.color(255, r, g, b);
+                }
+            }
+
             collector.submitModel(
                     this.model,
                     state,
@@ -183,10 +214,30 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
                     RenderTypes.eyes(this.ruleta$activeEyesTexture),
                     15728880,
                     OverlayTexture.NO_OVERLAY,
-                    -1,
+                    tintColor,
                     null,
                     state.outlineColor
             );
+
+            // Creeper Cósmico: capa eléctrica/cósmica giratoria ceñida al modelo custom
+            if (this.ruleta$activeEyesTexture == COSMICO_EYES_TEXTURE) {
+                float age = (state instanceof CreeperRenderStateAccessor acc && acc.ruleta$getAgeInTicks() > 0.0F)
+                        ? acc.ruleta$getAgeInTicks()
+                        : state.ageInTicks;
+                float uOff = (age * 0.012F) % 1.0F;
+                float vOff = (age * 0.008F) % 1.0F;
+                collector.submitModel(
+                        this.model,
+                        state,
+                        poseStack,
+                        RenderTypes.energySwirl(COSMIC_SWIRL_TEXTURE, uOff, vOff),
+                        15728880,
+                        OverlayTexture.NO_OVERLAY,
+                        ARGB.color(135, 165, 95, 255),
+                        null,
+                        state.outlineColor
+                );
+            }
         }
     }
 

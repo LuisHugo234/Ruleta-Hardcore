@@ -21,7 +21,8 @@ public abstract class IronGolemRendererMixin {
 
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/animal/golem/IronGolem;Lnet/minecraft/client/renderer/entity/state/IronGolemRenderState;F)V", at = @At("TAIL"))
     private void ruleta$extractColosoState(IronGolem golem, IronGolemRenderState state, float partialTicks, CallbackInfo ci) {
-        boolean esColoso = golem.entityTags().contains("coloso_ruina") || (state.scale > 1.40f && state.scale < 1.55f);
+        boolean esColoso = (golem instanceof ColosoRuinaAccessor colosoAcc && colosoAcc.ruleta$isColosoRuina())
+                || (state.scale > 1.40f && state.scale < 1.55f);
         if (state instanceof IronGolemRenderStateAccessor acc) {
             acc.ruleta$setColosoRuina(esColoso);
             if (esColoso && golem instanceof ColosoRuinaAccessor colosoAcc) {
@@ -35,8 +36,6 @@ public abstract class IronGolemRendererMixin {
     @Inject(method = "getTextureLocation(Lnet/minecraft/client/renderer/entity/state/IronGolemRenderState;)Lnet/minecraft/resources/Identifier;", at = @At("HEAD"), cancellable = true)
     private void ruleta$texturaColosoRuina(IronGolemRenderState state, CallbackInfoReturnable<Identifier> cir) {
         if (state instanceof IronGolemRenderStateAccessor acc && acc.ruleta$isColosoRuina()) {
-            cir.setReturnValue(COLOSO_RUINA_TEXTURE);
-        } else if (state.scale > 1.40f && state.scale < 1.55f) {
             cir.setReturnValue(COLOSO_RUINA_TEXTURE);
         }
     }

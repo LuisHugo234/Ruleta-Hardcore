@@ -31,6 +31,7 @@ public class CursosActivos {
     private static volatile boolean camellosFuriosos          = false;
     private static volatile boolean totemInestable            = false;
     private static volatile boolean superMurcielago           = false;
+    private static volatile boolean esqueletosConEspada       = false;
 
     // Nivel 2
     private static volatile boolean speedpers                 = false;
@@ -72,6 +73,8 @@ public class CursosActivos {
     private static volatile boolean comoPedro                 = false;
     private static volatile boolean creeperAvispon            = false;
     private static volatile boolean hombreRoca                = false;
+    private static volatile boolean brujasNigromantes         = false;
+    private static volatile boolean phantomsRaptores          = false;
 
     // Nivel 4
     private static volatile boolean danoColateral             = false;
@@ -144,6 +147,15 @@ public class CursosActivos {
     public static void activarCreepersEnPerla() { creepersEnPerla = true; }
     public static boolean isCreepersEnPerla() { return creepersEnPerla; }
     public static boolean tieneCreepersEnPerla(UUID playerId) { return creepersEnPerla; }
+
+    public static void activarEsqueletosConEspada() { esqueletosConEspada = true; }
+    public static boolean isEsqueletosConEspada() { return esqueletosConEspada; }
+
+    public static void activarBrujasNigromantes() { brujasNigromantes = true; }
+    public static boolean isBrujasNigromantes() { return brujasNigromantes; }
+
+    public static void activarPhantomsRaptores() { phantomsRaptores = true; }
+    public static boolean isPhantomsRaptores() { return phantomsRaptores; }
 
     public static void activarFuegoFatuo() { fuegoFatuo = true; }
     public static boolean isFuegoFatuo() { return fuegoFatuo; }
@@ -484,8 +496,8 @@ public class CursosActivos {
                 || permadeath || apocalipsisMinecraftTotal || maldicionLunaDeSangre
                 || monturaAcuatica || eclipseSolar || elVerdugo || maresAcidos || pareceQueVaALlover
                 || anomaliaGravitacional || corrupcionVacio || creeperAntimateria || creeperTermonuclear || colosoRuina
-                || escupitajoMortal || camellosFuriosos || totemInestable || superMurcielago
-                || cordura || mimic;
+                || escupitajoMortal || camellosFuriosos || totemInestable || superMurcielago || esqueletosConEspada
+                || cordura || mimic || brujasNigromantes || phantomsRaptores;
     }
 
     public static List<String> obtenerIdsActivas() {
@@ -587,6 +599,9 @@ public class CursosActivos {
         if (creeperAntimateria) ids.add("creeperantimateria");
         if (creeperTermonuclear) ids.add("creepertermonuclear");
         if (colosoRuina) ids.add("colosoruina");
+        if (esqueletosConEspada) ids.add("esqueletosconespada");
+        if (brujasNigromantes) ids.add("brujasnigromantes");
+        if (phantomsRaptores) ids.add("phantomsraptores");
         return ids;
     }
 
@@ -689,6 +704,9 @@ public class CursosActivos {
             case "creeperantimateria" -> activarCreeperAntimateria();
             case "creepertermonuclear" -> activarCreeperTermonuclear();
             case "colosoruina", "coloso_ruina" -> activarColosoRuina();
+            case "esqueletosconespada" -> activarEsqueletosConEspada();
+            case "brujasnigromantes" -> activarBrujasNigromantes();
+            case "phantomsraptores" -> activarPhantomsRaptores();
         }
     }
 
@@ -985,6 +1003,15 @@ public class CursosActivos {
         if (colosoRuina) {
             lista.add(Component.literal("  §4§l☄ EL COLOSO DE RUINA:§r Golem titánico (300 HP) con armadura de basalto. Destruye torres de bloques y desata Golpes Sísmicos esquivables saltando."));
         }
+        if (esqueletosConEspada) {
+            lista.add(Component.literal("  §7⚔ ESQUELETOS CON ESPADA:§r Al acercarte a menos de 3 bloques, los esqueletos tienen 20% de probabilidad de cambiar a espada de hierro cuerpo a cuerpo y vuelven al arco al alejarte."));
+        }
+        if (brujasNigromantes) {
+            lista.add(Component.literal("  §5☠ BRUJAS NIGROMANTES:§r Las brujas invocan grupos de 3 zombis bebés con mitad de vida en combate cada 20 segundos."));
+        }
+        if (phantomsRaptores) {
+            lista.add(Component.literal("  §4🦅 PHANTOMS RAPTORES:§r Phantoms rojizos más grandes con 15% de probabilidad al atacar de levantarte hasta 8 bloques y soltarte."));
+        }
         return lista;
     }
 
@@ -1010,6 +1037,7 @@ public class CursosActivos {
         if (camellosFuriosos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Camellos Furiosos", "Todos los camellos son agresivos hacia los jugadores, causando 3 corazones de daño por golpe."));
         if (totemInestable) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Tótem Inestable", "Cuando se activa un tótem, recibes Lentitud II durante 3 segundos tras salvarte."));
         if (superMurcielago) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Super Murciélago", "Murciélagos agresivos del doble de tamaño, 10 HP, 2 corazones de daño y 50% de omnivampirismo."));
+        if (esqueletosConEspada) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(1, "Esqueletos con Espada", "Al acercarte a <3 bloques, 20% de probabilidad de cambiar a espada de hierro cuerpo a cuerpo y volver al arco al alejarte."));
 
         // Nivel 2
         if (speedpers) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(2, "Speedpers", "Todos los Creepers del Overworld tienen Velocidad II permanente."));
@@ -1052,6 +1080,8 @@ public class CursosActivos {
         if (comoPedro) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Como Pedro", "Los Creepers caminan sobre el agua y mientras la pisan su velocidad se multiplica por 3."));
         if (creeperAvispon) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Creeper Avispón", "Pequeños creepers voladores del tamaño de una abeja bebé. Al detonar no rompen bloques e infligen 2/3 de daño."));
         if (hombreRoca) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Hombre Roca", "Aparece día y noche (80 HP, 4 armadura) arrojando rocas gigantes que infligen 13 de daño, Lentitud II y desactivan escudo."));
+        if (brujasNigromantes) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Brujas Nigromantes", "Las brujas invocan grupos de 3 zombis bebés con mitad de vida durante el combate cada 20 segundos."));
+        if (phantomsRaptores) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(3, "Phantoms Raptores", "Phantoms rojizos más grandes que tienen 15% de probabilidad al atacar de levantarte hasta 8 bloques y soltarte."));
 
         // Nivel 4
         if (danoColateral) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Daño Colateral", "Las Ender Pearls hacen x3 su daño original e ignoran armadura."));
@@ -1200,6 +1230,9 @@ public class CursosActivos {
         creeperAntimateria = false;
         creeperTermonuclear = false;
         colosoRuina = false;
+        esqueletosConEspada = false;
+        brujasNigromantes = false;
+        phantomsRaptores = false;
         isBloodMoonActive = false;
         ultimoDiaBloodMoon = -1L;
         isEclipseActive = false;

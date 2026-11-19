@@ -18,7 +18,7 @@ public class AdminConfigScreen extends Screen {
     public AdminConfigScreen(boolean ruletaAutomaticaInicial, int vidasInicialesActuales) {
         super(Component.literal("Configuración de Administrador - PermaRuleta"));
         this.ruletaAutomatica = ruletaAutomaticaInicial;
-        this.vidasIniciales = Math.max(1, vidasInicialesActuales);
+        this.vidasIniciales = Math.max(1, Math.min(20, vidasInicialesActuales));
     }
 
     @Override
@@ -49,7 +49,7 @@ public class AdminConfigScreen extends Screen {
         this.masVidasButton = Button.builder(
                 Component.literal("§a+"),
                 btn -> {
-                    if (this.vidasIniciales < 99) {
+                    if (this.vidasIniciales < 20) {
                         this.vidasIniciales++;
                         actualizarBotonesVidas();
                     }
@@ -74,7 +74,7 @@ public class AdminConfigScreen extends Screen {
             this.menosVidasButton.active = this.vidasIniciales > 1;
         }
         if (this.masVidasButton != null) {
-            this.masVidasButton.active = this.vidasIniciales < 99;
+            this.masVidasButton.active = this.vidasIniciales < 20;
         }
     }
 

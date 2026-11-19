@@ -149,17 +149,24 @@ public class CreeperTermonuclearModel extends EntityModel<CreeperRenderState> {
         this.body.y += Math.abs(Mth.sin(pos * 0.6662F)) * 0.65F * speed;
         this.body.zRot += Mth.sin(pos * 0.6662F) * 0.04F * speed;
 
-        // Rotor del reactor termonuclear (se acelera cuando avanza o carga calor)
-        float intensity = Mth.clamp(speed + state.swelling + (state.isPowered ? 0.6F : 0.0F), 0.0F, 1.4F);
-        float heatRate = 0.12F + intensity * 0.22F;
+        // Rotor del reactor termonuclear (se acelera drásticamente según temperatura real 0..100%)
+        int temp = (state instanceof CreeperRenderStateAccessor acc) ? acc.ruleta$getTemperaturaTermonuclear() : 0;
+        float tempNorm = Mth.clamp(temp / 100.0F, 0.0F, 1.0F);
+        float intensity = Mth.clamp(speed * 0.4F + tempNorm * 1.6F + (temp >= 70 ? 0.5F : 0.0F), 0.0F, 2.2F);
+        float heatRate = 0.10F + intensity * 0.32F;
         this.reactorRotor.zRot = t * heatRate;
 
-        // Pulsación térmica en hombreras, mochila y conductos
-        float pulse = Mth.sin(t * (0.10F + intensity * 0.22F)) * (0.025F + intensity * 0.045F);
+        // Pulsación térmica en hombreras, mochila y conductos (vibración crítica >70%)
+        float pulse = Mth.sin(t * (0.12F + intensity * 0.30F)) * (0.025F + intensity * 0.055F);
         this.pauldronRight.zRot += -pulse;
         this.pauldronLeft.zRot += pulse;
-        this.reactorPack.z += intensity > 0.2F ? Mth.sin(t * 0.40F) * 0.16F * intensity : 0.0F;
-        this.headVentR.xRot += pulse * 0.7F;
-        this.headVentL.xRot += pulse * 0.7F;
+        this.reactorPack.z += tempNorm > 0.15F ? Mth.sin(t * (0.35F + tempNorm * 0.85F)) * (0.12F + tempNorm * 0.25F) : 0.0F;
+        this.headVentR.xRot += pulse * 0.85F;
+        this.headVentL.xRot += pulse * 0.85F;
+        if (temp >= 70) {
+            float jitter = Mth.sin(t * 1.9F) * 0.04F * tempNorm;
+            this.body.zRot += jitter;
+            this.head.zRot -= jitter * 0.7F;
+        }
     }
 }

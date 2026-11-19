@@ -3,6 +3,7 @@ package com.luishugomod01;
 import com.luishugomod01.entity.HombreRocaEntity;
 import com.luishugomod01.entity.MimicEntity;
 import com.luishugomod01.entity.RocaProyectilEntity;
+import com.luishugomod01.item.PastillaCorduraItem;
 import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
@@ -12,9 +13,12 @@ import com.luishugomod01.network.RuletaAnimacionPayload;
 import com.luishugomod01.network.VidasJugadorPayload;
 import com.luishugomod01.network.VidasSyncPayload;
 import com.luishugomod01.ruleta.CatalogoCastigos;
+import com.luishugomod01.ruleta.ColosoRuinaAccessor;
 import com.luishugomod01.ruleta.CreeperCustomAccessor;
 import com.luishugomod01.ruleta.CursosActivos;
+import com.luishugomod01.ruleta.NigromanteAccessor;
 import com.luishugomod01.ruleta.NivelRuleta;
+import com.luishugomod01.ruleta.PhantomRaptorAccessor;
 import com.luishugomod01.ruleta.RuletaPersistencia;
 import com.luishugomod01.ruleta.WallClimberAccessor;
 import com.luishugomod01.vidas.VidasJugadorAccessor;
@@ -35,8 +39,11 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
@@ -49,6 +56,7 @@ import net.minecraft.commands.arguments.coordinates.Vec3Argument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
+import net.minecraft.core.particles.BlockParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -59,6 +67,7 @@ import net.minecraft.network.protocol.game.ClientboundStopSoundPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.permissions.Permissions;
@@ -68,6 +77,7 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.util.Unit;
+import net.minecraft.world.BossEvent;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.InteractionHand;
@@ -114,6 +124,7 @@ import net.minecraft.world.entity.monster.illager.Illusioner;
 import net.minecraft.world.entity.monster.illager.Pillager;
 import net.minecraft.world.entity.monster.illager.Vindicator;
 import net.minecraft.world.entity.monster.piglin.PiglinBrute;
+import net.minecraft.world.entity.monster.skeleton.Skeleton;
 import net.minecraft.world.entity.monster.skeleton.Stray;
 import net.minecraft.world.entity.monster.skeleton.WitherSkeleton;
 import net.minecraft.world.entity.monster.spider.Spider;
@@ -124,8 +135,10 @@ import net.minecraft.world.entity.projectile.throwableitemprojectile.AbstractThr
 import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
 import net.minecraft.world.entity.raid.Raider;
 import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.Rarity;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
@@ -133,10 +146,14 @@ import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.ChestBlock;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.BuiltinStructures;
+import net.minecraft.world.level.storage.loot.LootTable;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -150,6 +167,20 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static final ResourceKey<EntityType<?>> MIMIC_KEY = ResourceKey.create(
             Registries.ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(MOD_ID, "mimic")
+    );
+
+    public static final ResourceKey<Item> PASTILLA_CORDURA_KEY = ResourceKey.create(
+            Registries.ITEM,
+            Identifier.fromNamespaceAndPath(MOD_ID, "pastilla_cordura")
+    );
+
+    public static final Item PASTILLA_CORDURA = Registry.register(
+            BuiltInRegistries.ITEM,
+            PASTILLA_CORDURA_KEY,
+            new PastillaCorduraItem(new Item.Properties()
+                    .setId(PASTILLA_CORDURA_KEY)
+                    .stacksTo(16)
+                    .rarity(Rarity.UNCOMMON))
     );
 
     public static final EntityType<MimicEntity> MIMIC = Registry.register(
@@ -239,6 +270,7 @@ public class Ruleta_Hardcore implements ModInitializer {
             "intruso_calaverico",
             "giga_endermite",
             "phantom_alfa",
+            "phantom_raptor",
             "slime_gigante",
             "cucco_salvaje",
             "apocalipsis_zombie",
@@ -275,6 +307,12 @@ public class Ruleta_Hardcore implements ModInitializer {
     private static final Map<UUID, Long> DESESTABILIZACION_HOGLIN_EXPIRY = new HashMap<>();
     private static final Map<UUID, Boolean> COLOSAL_SUELO_PREVIO = new HashMap<>();
     private static final Map<UUID, Integer> TEMPERATURA_CREEPER_TERMONUCLEAR = new HashMap<>();
+    private static final Map<UUID, ServerBossEvent> BOSS_BARS_ACTIVOS = new HashMap<>();
+    private static final Map<UUID, ItemStack> ESQUELETO_ARCO_ORIGINAL = new HashMap<>();
+    private static final Set<UUID> ESQUELETO_EVALUADO_MELEE = new HashSet<>();
+    private static final Map<UUID, Long> ULTIMA_INVOCACION_BRUJA = new HashMap<>();
+    private record RaptoPhantom(UUID phantomId, double targetY, long expiryTick) {}
+    private static final Map<UUID, RaptoPhantom> RAPTOS_PHANTOM = new HashMap<>();
     private static final Map<UUID, Long> ULTIMO_GRITO_ENDERMAN = new HashMap<>();
     private static final Map<UUID, Long> ULTIMO_PARPADEO_SOMBRA = new HashMap<>();
     private static final Map<UUID, Integer> CORDURA_JUGADOR = new HashMap<>();
@@ -338,7 +376,10 @@ public class Ruleta_Hardcore implements ModInitializer {
         });
 
         ServerLifecycleEvents.SERVER_STARTED.register(RuletaPersistencia::cargar);
-        ServerLifecycleEvents.SERVER_STOPPING.register(RuletaPersistencia::guardar);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            limpiarBossBars();
+            RuletaPersistencia.guardar(server);
+        });
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(Commands.literal("ruleta")
@@ -457,7 +498,10 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("toteminestable").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "toteminestable")))
                     .then(Commands.literal("supermurcielago").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "supermurcielago")))
                     .then(Commands.literal("cordura").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "cordura")))
-                    .then(Commands.literal("mimic").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "mimic"))))
+                    .then(Commands.literal("mimic").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "mimic")))
+                    .then(Commands.literal("esqueletosconespada").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "esqueletosconespada")))
+                    .then(Commands.literal("brujasnigromantes").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "brujasnigromantes")))
+                    .then(Commands.literal("phantomsraptores").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "phantomsraptores"))))
                 .then(Commands.literal("bloodmoon")
                     .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                     .then(Commands.literal("iniciar").executes(ctx -> {
@@ -551,6 +595,24 @@ public class Ruleta_Hardcore implements ModInitializer {
                                 int pct = IntegerArgumentType.getInteger(ctx, "porcentaje");
                                 return ejecutarSetCordura(ctx.getSource(), target, pct);
                             }))))
+                .then(Commands.literal("vidas")
+                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                    .then(Commands.literal("agregar")
+                        .then(Commands.argument("jugador", EntityArgument.player())
+                            .then(Commands.argument("cantidad", IntegerArgumentType.integer(1, 20))
+                                .executes(ctx -> ejecutarAgregarVidas(
+                                        ctx.getSource(),
+                                        EntityArgument.getPlayer(ctx, "jugador"),
+                                        IntegerArgumentType.getInteger(ctx, "cantidad")
+                                )))))
+                    .then(Commands.literal("quitar")
+                        .then(Commands.argument("jugador", EntityArgument.player())
+                            .then(Commands.argument("cantidad", IntegerArgumentType.integer(1, 20))
+                                .executes(ctx -> ejecutarAgregarVidas(
+                                        ctx.getSource(),
+                                        EntityArgument.getPlayer(ctx, "jugador"),
+                                        -IntegerArgumentType.getInteger(ctx, "cantidad")
+                                ))))))
                 .then(Commands.literal("limpiar")
                     .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                     .executes(ctx -> {
@@ -561,6 +623,11 @@ public class Ruleta_Hardcore implements ModInitializer {
                         VORTICES_ANTIMATERIA.clear();
                         DESESTABILIZACION_HOGLIN_EXPIRY.clear();
                         TEMPERATURA_CREEPER_TERMONUCLEAR.clear();
+                        ESQUELETO_ARCO_ORIGINAL.clear();
+                        ESQUELETO_EVALUADO_MELEE.clear();
+                        ULTIMA_INVOCACION_BRUJA.clear();
+                        RAPTOS_PHANTOM.clear();
+                        limpiarBossBars();
                         ULTIMO_GRITO_ENDERMAN.clear();
                         ULTIMO_PARPADEO_SOMBRA.clear();
                         CORDURA_JUGADOR.clear();
@@ -722,6 +789,25 @@ public class Ruleta_Hardcore implements ModInitializer {
         });
 
         // KA-BOOM (Nivel 5): los Shulkers explotan 3 segundos (60 ticks) después de morir
+        ServerLivingEntityEvents.AFTER_DAMAGE.register((entity, source, baseDamageTaken, damageTaken, blocked) -> {
+            if (!blocked && damageTaken > 0.0F
+                    && CursosActivos.isPhantomsRaptores()
+                    && entity instanceof ServerPlayer sp
+                    && sp.isAlive() && !sp.isCreative() && !sp.isSpectator()
+                    && source.getEntity() instanceof Phantom phantom
+                    && phantom.isAlive()
+                    && !RAPTOS_PHANTOM.containsKey(sp.getUUID())
+                    && sp.level() instanceof ServerLevel sLvl) {
+                if (ThreadLocalRandom.current().nextFloat() < 0.15f) {
+                    long expiry = sLvl.getServer().getTickCount() + 45L;
+                    RAPTOS_PHANTOM.put(sp.getUUID(), new RaptoPhantom(phantom.getUUID(), sp.getY() + 8.0, expiry));
+                    sLvl.playSound(null, sp.getX(), sp.getY(), sp.getZ(),
+                            SoundEvents.PHANTOM_SWOOP, SoundSource.HOSTILE, 1.5f, 0.75f);
+                    sp.sendOverlayMessage(Component.literal("§4🦅 ¡Un Phantom Raptor te ha atrapado en el aire!"));
+                }
+            }
+        });
+
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
             if (entity instanceof ServerPlayer sp && (damageSource.getEntity() instanceof HombreRocaEntity || damageSource.getDirectEntity() instanceof RocaProyectilEntity)) {
                 sp.level().playSound(null, sp.getX(), sp.getY(), sp.getZ(), HOMBRE_ROCA_KILL_SOUND, SoundSource.HOSTILE, 2.0F, 1.0F);
@@ -1691,7 +1777,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Phantom Alfa (Nivel 5): evaluar Phantoms y ataque sónico en picada
+            // Phantom Alfa (Nivel 5) y Phantoms Raptores (Nivel 3): evaluar Phantoms y habilidades aéreas
             if (currentTick % 10 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
@@ -1702,9 +1788,24 @@ public class Ruleta_Hardcore implements ModInitializer {
                             if (phantom.entityTags().contains("phantom_alfa")) {
                                 ejecutarOndaPhantomAlfa(phantom, lvl, currentTick);
                             }
+                            if (CursosActivos.isPhantomsRaptores()
+                                    && !phantom.entityTags().contains("phantom_alfa")
+                                    && !phantom.entityTags().contains("phantom_raptor_evaluado")) {
+                                configurarPhantomRaptor(phantom);
+                            }
                         }
                     }
                 }
+            }
+
+            // Procesar raptos aéreos activos de Phantoms Raptores (subir hasta +8 bloques y soltar)
+            if (!RAPTOS_PHANTOM.isEmpty()) {
+                procesarRaptosPhantom(server, currentTick);
+            }
+
+            // Esqueletos con Espada (Nivel 1) y Brujas Nigromantes (Nivel 3)
+            if ((CursosActivos.isEsqueletosConEspada() || CursosActivos.isBrujasNigromantes()) && currentTick % 5 == 0) {
+                procesarEsqueletosYBrujas(server, currentTick);
             }
 
             // Parece que va´ llover (Nivel 6): Tormentas frecuentes y rayos atraídos por armadura y herramientas metálicas
@@ -2546,6 +2647,11 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
+            // BossBars por proximidad (<32 bloques) para Coloso de Ruina y Rey de lo Profundo
+            if (currentTick % 5 == 0) {
+                actualizarBossBarsServidor(server);
+            }
+
             // Cordura (Nivel 4): Medidor de cordura (0-100) que disminuye en oscuridad, dimensiones hostiles o cerca de monstruos
             if (CursosActivos.isCordura() && currentTick % 20 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -2554,12 +2660,10 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Mimic (Nivel 5): Aparición camuflada como cofre trampa en cuevas y subsuelo
+            // Mimic (Nivel 5): Reemplazo de cofres naturales sin abrir (en cualquier dimensión) o aparición en cuevas
             if (CursosActivos.isMimic() && currentTick % 200 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
-                    if (!player.level().dimension().equals(Level.OVERWORLD)) continue;
-                    if (player.getY() >= 48) continue;
                     ServerLevel sLvl = (ServerLevel) player.level();
                     if (sLvl.getDifficulty() == Difficulty.PEACEFUL) continue;
                     List<MimicEntity> nearbyMimics = sLvl.getEntitiesOfClass(
@@ -2606,7 +2710,7 @@ public class Ruleta_Hardcore implements ModInitializer {
             MinecraftServer server = player.level().getServer();
             if (server == null) return;
             int restantes = accessor.ruleta$getVidas();
-            int maximas = CursosActivos.getVidasIniciales();
+            int maximas = Math.max(CursosActivos.getVidasIniciales(), restantes);
 
             // Sincronizar el HUD personal del jugador
             sincronizarEstadoPeligrosJugador(player);
@@ -2625,7 +2729,7 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (!(player instanceof VidasJugadorAccessor accessor)) return;
         UUID id = player.getUUID();
         int restantes = accessor.ruleta$getVidas();
-        int maximas = CursosActivos.getVidasIniciales();
+        int maximas = Math.max(CursosActivos.getVidasIniciales(), restantes);
 
         int insolacionTicks = CursosActivos.isDesiertoAbrasador() ? TICKS_INSOLACION_DESIERTO.getOrDefault(id, 0) : 0;
         int insolacionPct = Math.clamp((int) Math.round((insolacionTicks / 40.0) * 100.0), 0, 100);
@@ -2679,6 +2783,48 @@ public class Ruleta_Hardcore implements ModInitializer {
                 : " §7(Nota: la dificultad Cordura no está activa aún; usa /ruleta activar cordura)";
         source.sendSuccess(() -> Component.literal(
                 "§d[PermaRuleta] Cordura de §f" + target.getScoreboardName() + " §dajustada a §f" + clamped + "%§d." + extra),
+                true);
+        return 1;
+    }
+
+    private static int ejecutarAgregarVidas(CommandSourceStack source, ServerPlayer target, int delta) {
+        if (!(target instanceof VidasJugadorAccessor accessor)) {
+            source.sendFailure(Component.literal("§c[PermaRuleta] No se pudo acceder a las vidas del jugador."));
+            return 0;
+        }
+        int anteriores = accessor.ruleta$getVidas();
+        int nuevas = Math.clamp(anteriores + delta, 0, 20);
+        return aplicarCambioVidas(source, target, accessor, anteriores, nuevas);
+    }
+
+    private static int aplicarCambioVidas(
+            CommandSourceStack source,
+            ServerPlayer target,
+            VidasJugadorAccessor accessor,
+            int anteriores,
+            int nuevas
+    ) {
+        accessor.ruleta$setVidas(nuevas);
+        accessor.ruleta$setVidasInicializadas(true);
+
+        if (anteriores <= 0 && nuevas > 0 && target.isSpectator()) {
+            target.setGameMode(GameType.SURVIVAL);
+            target.sendSystemMessage(Component.literal("§a§l♥ [PermaRuleta] ¡Has sido revivido con " + nuevas + " vida(s) permanente(s)!"));
+        } else if (nuevas > anteriores) {
+            target.sendSystemMessage(Component.literal("§a§l♥ [PermaRuleta] ¡Recibiste +" + (nuevas - anteriores) + " vida(s) permanente(s)! Total: §e§l" + nuevas));
+        } else if (nuevas < anteriores) {
+            target.sendSystemMessage(Component.literal("§c[PermaRuleta] Tus vidas permanentes fueron ajustadas a §e§l" + nuevas + "§c."));
+        }
+
+        if (target.level() instanceof ServerLevel sLvl) {
+            sLvl.playSound(null, target.getX(), target.getY(), target.getZ(),
+                    nuevas >= anteriores ? SoundEvents.PLAYER_LEVELUP : SoundEvents.WITHER_HURT,
+                    SoundSource.PLAYERS, 1.0F, 1.1F);
+        }
+
+        sincronizarVidasJugador(target);
+        source.sendSuccess(() -> Component.literal(
+                "§6[PermaRuleta] Vidas permanentes de §f" + target.getScoreboardName() + " §6actualizadas: §e" + anteriores + " §7→ §a§l" + nuevas + " ♥"),
                 true);
         return 1;
     }
@@ -2802,6 +2948,45 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     private static void intentarSpawnearMimicSubterraneo(ServerLevel level, BlockPos center) {
         var rng = ThreadLocalRandom.current();
+
+        // 1. Intentar reemplazar un cofre natural sin abrir (con LootTable) cercano, heredando su loot exacto
+        for (int attempt = 0; attempt < 24; attempt++) {
+            int dx = rng.nextInt(-22, 23);
+            int dz = rng.nextInt(-22, 23);
+            if (dx * dx + dz * dz < 64) continue;
+            int dy = rng.nextInt(-10, 11);
+            BlockPos pos = center.offset(dx, dy, dz);
+            BlockState state = level.getBlockState(pos);
+            if (state.getBlock() instanceof ChestBlock) {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof ChestBlockEntity chest && chest.getLootTable() != null) {
+                    ResourceKey<LootTable> lootTable = chest.getLootTable();
+                    long lootSeed = chest.getLootTableSeed();
+                    Direction facing = state.hasProperty(ChestBlock.FACING) ? state.getValue(ChestBlock.FACING) : Direction.NORTH;
+                    float yaw = facing.toYRot();
+
+                    // Limpiar lootTable antes de remover el bloque para evitar drops al reemplazarlo
+                    chest.setLootTable(null);
+                    level.removeBlock(pos, false);
+
+                    MimicEntity mimic = MIMIC.create(level, EntitySpawnReason.NATURAL);
+                    if (mimic != null) {
+                        mimic.setSavedLootTable(lootTable, lootSeed);
+                        mimic.snapTo(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5, yaw, 0.0f);
+                        mimic.setYHeadRot(yaw);
+                        mimic.setYBodyRot(yaw);
+                        mimic.setPersistenceRequired();
+                        level.addFreshEntity(mimic);
+                        return;
+                    }
+                }
+            }
+        }
+
+        // 2. Si no hay cofre natural sin abrir cerca, spawnear camuflado en cuevas del Overworld (Y < 48)
+        if (!level.dimension().equals(Level.OVERWORLD) || center.getY() >= 48) {
+            return;
+        }
         for (int attempt = 0; attempt < 16; attempt++) {
             int dx = rng.nextInt(-24, 25);
             int dz = rng.nextInt(-24, 25);
@@ -2823,6 +3008,223 @@ public class Ruleta_Hardcore implements ModInitializer {
                     mimic.setPersistenceRequired();
                     level.addFreshEntity(mimic);
                     return;
+                }
+            }
+        }
+    }
+
+    private static void actualizarBossBarsServidor(MinecraftServer server) {
+        Set<UUID> vivos = new HashSet<>();
+        for (ServerLevel lvl : server.getAllLevels()) {
+            for (Entity entity : lvl.getAllEntities()) {
+                if (!entity.isAlive()) continue;
+                if (entity instanceof IronGolem golem && golem.entityTags().contains("coloso_ruina")) {
+                    vivos.add(golem.getUUID());
+                    actualizarBossBarProximidad(
+                            golem, lvl,
+                            Component.literal("§4§lColoso de Ruina"),
+                            BossEvent.BossBarColor.RED,
+                            BossEvent.BossBarOverlay.NOTCHED_10
+                    );
+                } else if (entity instanceof ElderGuardian elder && CursosActivos.isReyDeLoProfundo()) {
+                    vivos.add(elder.getUUID());
+                    actualizarBossBarProximidad(
+                            elder, lvl,
+                            Component.literal("§3§lRey de lo Profundo"),
+                            BossEvent.BossBarColor.BLUE,
+                            BossEvent.BossBarOverlay.NOTCHED_6
+                    );
+                }
+            }
+        }
+        Iterator<Map.Entry<UUID, ServerBossEvent>> it = BOSS_BARS_ACTIVOS.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, ServerBossEvent> entry = it.next();
+            if (!vivos.contains(entry.getKey())) {
+                entry.getValue().removeAllPlayers();
+                it.remove();
+            }
+        }
+    }
+
+    private static void actualizarBossBarProximidad(
+            LivingEntity boss,
+            ServerLevel level,
+            Component titulo,
+            BossEvent.BossBarColor color,
+            BossEvent.BossBarOverlay overlay
+    ) {
+        UUID bossId = boss.getUUID();
+        ServerBossEvent bar = BOSS_BARS_ACTIVOS.computeIfAbsent(
+                bossId,
+                id -> new ServerBossEvent(UUID.randomUUID(), titulo, color, overlay)
+        );
+        float progress = Math.clamp(boss.getHealth() / Math.max(1.0F, boss.getMaxHealth()), 0.0F, 1.0F);
+        bar.setProgress(progress);
+
+        Set<ServerPlayer> cercanos = new HashSet<>();
+        for (ServerPlayer player : level.players()) {
+            if (player.isAlive() && !player.isSpectator() && player.distanceToSqr(boss) <= 1024.0) { // 32 bloques
+                cercanos.add(player);
+                if (!bar.getPlayers().contains(player)) {
+                    bar.addPlayer(player);
+                }
+            }
+        }
+        List<ServerPlayer> aRemover = new ArrayList<>();
+        for (ServerPlayer tracked : bar.getPlayers()) {
+            if (!cercanos.contains(tracked)) {
+                aRemover.add(tracked);
+            }
+        }
+        for (ServerPlayer p : aRemover) {
+            bar.removePlayer(p);
+        }
+    }
+
+    private static void limpiarBossBars() {
+        for (ServerBossEvent bar : BOSS_BARS_ACTIVOS.values()) {
+            bar.removeAllPlayers();
+        }
+        BOSS_BARS_ACTIVOS.clear();
+    }
+
+    public static void configurarPhantomRaptor(Phantom phantom) {
+        phantom.addTag("phantom_raptor_evaluado");
+        phantom.addTag("phantom_raptor");
+        if (phantom instanceof PhantomRaptorAccessor accessor) {
+            accessor.ruleta$setPhantomRaptor(true);
+        }
+        AttributeInstance scaleAttr = phantom.getAttribute(Attributes.SCALE);
+        if (scaleAttr != null) {
+            scaleAttr.setBaseValue(1.35);
+        }
+        AttributeInstance hpAttr = phantom.getAttribute(Attributes.MAX_HEALTH);
+        if (hpAttr != null) {
+            hpAttr.setBaseValue(30.0);
+            phantom.setHealth(30.0f);
+        }
+    }
+
+    private static void procesarRaptosPhantom(MinecraftServer server, long currentTick) {
+        Iterator<Map.Entry<UUID, RaptoPhantom>> it = RAPTOS_PHANTOM.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, RaptoPhantom> entry = it.next();
+            ServerPlayer sp = server.getPlayerList().getPlayer(entry.getKey());
+            RaptoPhantom rapto = entry.getValue();
+            if (sp == null || !sp.isAlive() || sp.isCreative() || sp.isSpectator() || !(sp.level() instanceof ServerLevel sLvl)) {
+                it.remove();
+                continue;
+            }
+            Entity phantomEnt = sLvl.getEntity(rapto.phantomId());
+            if (!(phantomEnt instanceof Phantom phantom) || !phantom.isAlive()) {
+                it.remove();
+                continue;
+            }
+
+            if (sp.getY() >= rapto.targetY() || currentTick >= rapto.expiryTick()) {
+                // Soltar al jugador desde las alturas
+                sLvl.playSound(null, sp.getX(), sp.getY(), sp.getZ(),
+                        SoundEvents.PHANTOM_BITE, SoundSource.HOSTILE, 1.3f, 0.7f);
+                sp.setDeltaMovement(0.0, -0.15, 0.0);
+                sp.connection.send(new ClientboundSetEntityMotionPacket(sp));
+                it.remove();
+                continue;
+            }
+
+            // Elevar suavemente al Phantom y al jugador debajo de sus garras
+            phantom.setDeltaMovement(phantom.getDeltaMovement().x * 0.5, 0.30, phantom.getDeltaMovement().z * 0.5);
+            double dx = (phantom.getX() - sp.getX()) * 0.35;
+            double dz = (phantom.getZ() - sp.getZ()) * 0.35;
+            sp.setDeltaMovement(dx, 0.30, dz);
+            sp.resetFallDistance();
+            sp.connection.send(new ClientboundSetEntityMotionPacket(sp));
+            if (currentTick % 4 == 0) {
+                sLvl.sendParticles(ParticleTypes.CRIMSON_SPORE, sp.getX(), sp.getY() + 1.5, sp.getZ(), 4, 0.3, 0.2, 0.3, 0.02);
+            }
+        }
+    }
+
+    private static void procesarEsqueletosYBrujas(MinecraftServer server, long currentTick) {
+        for (ServerLevel lvl : server.getAllLevels()) {
+            List<Witch> brujasAInvocar = new ArrayList<>();
+            for (Entity entity : lvl.getAllEntities()) {
+                if (!entity.isAlive()) continue;
+
+                // Esqueletos con Espada (Nivel 1)
+                if (CursosActivos.isEsqueletosConEspada() && entity instanceof Skeleton skeleton) {
+                    UUID id = skeleton.getUUID();
+                    Player nearest = lvl.getNearestPlayer(
+                            skeleton.getX(), skeleton.getY(), skeleton.getZ(),
+                            12.0,
+                            e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+                    );
+                    if (nearest != null && skeleton.distanceToSqr(nearest) <= 9.0) { // <= 3 bloques
+                        if (!ESQUELETO_EVALUADO_MELEE.contains(id) && skeleton.getMainHandItem().is(Items.BOW)) {
+                            ESQUELETO_EVALUADO_MELEE.add(id);
+                            if (ThreadLocalRandom.current().nextFloat() < 0.20f) {
+                                ESQUELETO_ARCO_ORIGINAL.put(id, skeleton.getMainHandItem().copy());
+                                skeleton.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.IRON_SWORD));
+                                skeleton.reassessWeaponGoal();
+                                lvl.playSound(null, skeleton.getX(), skeleton.getY(), skeleton.getZ(),
+                                        SoundEvents.ARMOR_EQUIP_IRON.value(), SoundSource.HOSTILE, 0.9f, 1.2f);
+                            }
+                        }
+                    } else if (nearest == null || skeleton.distanceToSqr(nearest) > 16.0) { // > 4 bloques
+                        ESQUELETO_EVALUADO_MELEE.remove(id);
+                        ItemStack arcoOriginal = ESQUELETO_ARCO_ORIGINAL.remove(id);
+                        if (arcoOriginal != null) {
+                            skeleton.setItemSlot(EquipmentSlot.MAINHAND, arcoOriginal);
+                            skeleton.reassessWeaponGoal();
+                        }
+                    }
+                }
+
+                // Brujas Nigromantes (Nivel 3)
+                if (CursosActivos.isBrujasNigromantes() && currentTick % 10 == 0 && entity instanceof Witch witch) {
+                    LivingEntity target = witch.getTarget();
+                    if (target instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+                            && witch.distanceToSqr(p) <= 400.0) {
+                        long lastSummon = ULTIMA_INVOCACION_BRUJA.getOrDefault(witch.getUUID(), -500L);
+                        if (currentTick - lastSummon >= 400L) { // 20 segundos
+                            ULTIMA_INVOCACION_BRUJA.put(witch.getUUID(), currentTick);
+                            brujasAInvocar.add(witch);
+                        }
+                    }
+                }
+            }
+
+            if (!brujasAInvocar.isEmpty()) {
+                EntityType<?> zombieType = BuiltInRegistries.ENTITY_TYPE
+                        .getOptional(Identifier.fromNamespaceAndPath("minecraft", "zombie"))
+                        .orElse(null);
+                if (zombieType != null) {
+                    for (Witch witch : brujasAInvocar) {
+                        LivingEntity target = witch.getTarget();
+                        lvl.playSound(null, witch.getX(), witch.getY(), witch.getZ(),
+                                SoundEvents.EVOKER_CAST_SPELL, SoundSource.HOSTILE, 1.3f, 0.9f);
+                        lvl.sendParticles(ParticleTypes.WITCH, witch.getX(), witch.getY() + 1.0, witch.getZ(), 24, 0.6, 0.5, 0.6, 0.06);
+                        lvl.sendParticles(ParticleTypes.SOUL, witch.getX(), witch.getY() + 0.8, witch.getZ(), 12, 0.5, 0.3, 0.5, 0.03);
+                        for (int i = 0; i < 3; i++) {
+                            double ang = (Math.PI * 2.0 * i) / 3.0;
+                            double zx = witch.getX() + Math.cos(ang) * 1.4;
+                            double zz = witch.getZ() + Math.sin(ang) * 1.4;
+                            Entity created = zombieType.create(lvl, EntitySpawnReason.MOB_SUMMONED);
+                            if (created instanceof Zombie baby) {
+                                baby.setBaby(true);
+                                baby.snapTo(zx, witch.getY(), zz, witch.getYRot(), 0.0f);
+                                AttributeInstance hp = baby.getAttribute(Attributes.MAX_HEALTH);
+                                if (hp != null) {
+                                    hp.setBaseValue(10.0); // Mitad de vida (10 HP = 5 corazones)
+                                }
+                                baby.setHealth(10.0f);
+                                if (target != null && target.isAlive()) {
+                                    baby.setTarget(target);
+                                }
+                                lvl.addFreshEntity(baby);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -3764,6 +4166,7 @@ public class Ruleta_Hardcore implements ModInitializer {
         }
         creeper.removeEffect(MobEffects.SLOWNESS);
         if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setTipoCreeper(CreeperCustomAccessor.TIPO_COSMICO);
             accessor.ruleta$setPowered(true);
             // En Creeper#explodeCreeper, cuando isPowered() es true, el radio se multiplica por 2.0f -> 15 * 2 = 30 bloques
             accessor.ruleta$setExplosionRadius(15);
@@ -3925,6 +4328,9 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static void configurarCreeperAntimateria(Creeper creeper) {
         creeper.addTag("creeper_antimateria_evaluado");
         creeper.addTag("creeper_antimateria");
+        if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setTipoCreeper(CreeperCustomAccessor.TIPO_ANTIMATERIA);
+        }
         AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
         if (scaleAttr != null) {
             // Escala 1.08 detectada por CreeperRendererMixin para renderizar la textura negra de Antimateria
@@ -4164,15 +4570,17 @@ public class Ruleta_Hardcore implements ModInitializer {
         var players = srv.getPlayerList().getPlayers();
 
         return CatalogoCastigos.activarYEliminarPorId(id).map(entrada -> {
-            if (!players.isEmpty()) {
-                players.forEach(p -> entrada.castigo().ejecutar((ServerLevel) p.level(), p));
-            } else {
+            if (players.isEmpty()) {
                 entrada.castigo().ejecutar(srv.overworld(), null);
+                RuletaPersistencia.guardar(srv);
+                sincronizarLunaSangreClientes(srv);
+                source.sendSuccess(() -> Component.literal(
+                        "§a[PermaRuleta] Maldición '§e" + entrada.nombre() + "§a' activada y retirada del catálogo de la ruleta."), true);
+            } else {
+                iniciarAnimacionYActivarEntrada(srv, entrada);
+                source.sendSuccess(() -> Component.literal(
+                        "§a[PermaRuleta] Girando ruleta (" + entrada.nivel().getNombreVisible() + ") para activar '§e" + entrada.nombre() + "§a'..."), true);
             }
-            RuletaPersistencia.guardar(srv);
-            sincronizarLunaSangreClientes(srv);
-            source.sendSuccess(() -> Component.literal(
-                    "§a[PermaRuleta] Maldición '§e" + entrada.nombre() + "§a' activada y retirada del catálogo de la ruleta."), true);
             return 1;
         }).orElseGet(() -> {
             source.sendFailure(Component.literal(
@@ -4244,7 +4652,6 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     private static void ejecutarGiroParaNivel(CommandSourceStack source, NivelRuleta nivel) {
         var srv = source.getServer();
-        var players = srv.getPlayerList().getPlayers();
 
         var optEntrada = CatalogoCastigos.elegirYEliminar(nivel);
         if (optEntrada.isEmpty()) {
@@ -4252,7 +4659,12 @@ public class Ruleta_Hardcore implements ModInitializer {
             return;
         }
 
-        var entrada = optEntrada.get();
+        iniciarAnimacionYActivarEntrada(srv, optEntrada.get());
+    }
+
+    private static void iniciarAnimacionYActivarEntrada(MinecraftServer srv, CatalogoCastigos.EntradaCastigo entrada) {
+        var players = srv.getPlayerList().getPlayers();
+        NivelRuleta nivel = entrada.nivel();
         float targetAngle = calcularAnguloRuleta(nivel);
         int duracionTicks = 100; // 5 segundos de animación
 
@@ -4271,8 +4683,12 @@ public class Ruleta_Hardcore implements ModInitializer {
         long tickFinal = srv.getTickCount() + duracionTicks;
         programarTarea(tickFinal, () -> {
             var currentPlayers = srv.getPlayerList().getPlayers();
-            for (ServerPlayer p : currentPlayers) {
-                entrada.castigo().ejecutar((ServerLevel) p.level(), p);
+            if (!currentPlayers.isEmpty()) {
+                for (ServerPlayer p : currentPlayers) {
+                    entrada.castigo().ejecutar((ServerLevel) p.level(), p);
+                }
+            } else {
+                entrada.castigo().ejecutar(srv.overworld(), null);
             }
             RuletaPersistencia.guardar(srv);
             sincronizarLunaSangreClientes(srv);
@@ -4452,6 +4868,14 @@ public class Ruleta_Hardcore implements ModInitializer {
                     configurarPhantomAlfa(phantom);
                     entity = phantom;
                     mobNombre = "§9§l✦ Phantom Alfa ✦";
+                }
+            }
+            case "phantom_raptor" -> {
+                EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "phantom")).orElse(null);
+                if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof Phantom phantom) {
+                    configurarPhantomRaptor(phantom);
+                    entity = phantom;
+                    mobNombre = "§4§l🦅 Phantom Raptor 🦅";
                 }
             }
             case "slime_gigante" -> {
@@ -5092,6 +5516,9 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static void configurarNigromanteCriptas(Stray stray, ServerLevel level) {
         stray.addTag("nigromante_evaluado");
         stray.addTag("nigromante_criptas");
+        if (stray instanceof NigromanteAccessor accessor) {
+            accessor.ruleta$setNigromante(true);
+        }
 
         AttributeInstance hpAttr = stray.getAttribute(Attributes.MAX_HEALTH);
         if (hpAttr != null) {
@@ -5236,6 +5663,9 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static void configurarCreeperFantasma(Creeper creeper) {
         creeper.addTag("creeper_fantasma_evaluado");
         creeper.addTag("creeper_fantasma");
+        if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setTipoCreeper(CreeperCustomAccessor.TIPO_FANTASMA);
+        }
         creeper.setNoGravity(true);
         AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
         if (scaleAttr != null) {
@@ -5332,6 +5762,8 @@ public class Ruleta_Hardcore implements ModInitializer {
         TEMPERATURA_CREEPER_TERMONUCLEAR.put(creeper.getUUID(), 0);
 
         if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setTipoCreeper(CreeperCustomAccessor.TIPO_TERMONUCLEAR);
+            accessor.ruleta$setTemperaturaTermonuclear(0);
             accessor.ruleta$setMaxSwell(Integer.MAX_VALUE);
         }
 
@@ -5361,6 +5793,9 @@ public class Ruleta_Hardcore implements ModInitializer {
         int actual = TEMPERATURA_CREEPER_TERMONUCLEAR.getOrDefault(id, 0);
         int nueva = Math.max(0, actual - reduccion);
         TEMPERATURA_CREEPER_TERMONUCLEAR.put(id, nueva);
+        if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setTemperaturaTermonuclear(nueva);
+        }
 
         level.sendParticles(ParticleTypes.CLOUD, creeper.getX(), creeper.getY() + 1.0, creeper.getZ(), 20, 0.35, 0.5, 0.35, 0.05);
         level.sendParticles(ParticleTypes.SNOWFLAKE, creeper.getX(), creeper.getY() + 1.0, creeper.getZ(), 15, 0.35, 0.5, 0.35, 0.04);
@@ -5370,7 +5805,8 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     public static void procesarCreeperTermonuclear(Creeper creeper, ServerLevel level, long currentTick) {
         UUID id = creeper.getUUID();
-        int temp = TEMPERATURA_CREEPER_TERMONUCLEAR.getOrDefault(id, 0);
+        int prevTemp = TEMPERATURA_CREEPER_TERMONUCLEAR.getOrDefault(id, 0);
+        int temp = prevTemp;
 
         // Enfriamiento por contacto con agua, lluvia o proyectiles fríos cercanos
         if (creeper.isInWaterOrRain()) {
@@ -5423,6 +5859,9 @@ public class Ruleta_Hardcore implements ModInitializer {
             temp = Math.max(0, temp - 2);
         }
         TEMPERATURA_CREEPER_TERMONUCLEAR.put(id, temp);
+        if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setTemperaturaTermonuclear(temp);
+        }
 
         double bellyX = creeper.getX();
         double bellyY = creeper.getY() + 0.65;
@@ -5450,9 +5889,16 @@ public class Ruleta_Hardcore implements ModInitializer {
             level.sendParticles(ParticleTypes.LAVA, bellyX, bellyY, bellyZ, 4, 0.2, 0.25, 0.2, 0.03);
             level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, bellyX, headY, bellyZ, 3, 0.1, 0.2, 0.1, 0.05);
 
-            if (currentTick % 10 == 0) {
+            if (prevTemp < 70) {
                 level.playSound(null, creeper.getX(), creeper.getY(), creeper.getZ(),
-                        SoundEvents.BLAZE_BURN, SoundSource.HOSTILE, 1.2f, 0.5f);
+                        SoundEvents.BEACON_DEACTIVATE, SoundSource.HOSTILE, 1.8f, 1.6f);
+            }
+            if (currentTick % 10 == 0) {
+                float pitch = 0.6f + ((temp - 70) / 30.0f) * 1.1f;
+                level.playSound(null, creeper.getX(), creeper.getY(), creeper.getZ(),
+                        SoundEvents.BLAZE_BURN, SoundSource.HOSTILE, 1.3f, 0.55f);
+                level.playSound(null, creeper.getX(), creeper.getY(), creeper.getZ(),
+                        SoundEvents.NOTE_BLOCK_PLING.value(), SoundSource.HOSTILE, 1.1f, pitch);
             }
 
             List<Player> burnedPlayers = level.getEntitiesOfClass(
@@ -5504,6 +5950,9 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static void configurarCreeperAvispon(Creeper creeper) {
         creeper.addTag("creeper_avispon_evaluado");
         creeper.addTag("creeper_avispon");
+        if (creeper instanceof CreeperCustomAccessor accessor) {
+            accessor.ruleta$setTipoCreeper(CreeperCustomAccessor.TIPO_AVISPON);
+        }
 
         // Tamaño de una abeja bebé (escala 0.28)
         AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
@@ -5693,6 +6142,9 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static void configurarColosoRuina(IronGolem golem) {
         golem.addTag("coloso_ruina_evaluado");
         golem.addTag("coloso_ruina");
+        if (golem instanceof ColosoRuinaAccessor accessor) {
+            accessor.ruleta$setColosoRuina(true);
+        }
 
         // Escala x1.45 imponente
         AttributeInstance scaleAttr = golem.getAttribute(Attributes.SCALE);
@@ -5840,6 +6292,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                 double pz = gz + sin * r;
                 level.sendParticles(ParticleTypes.CAMPFIRE_COSY_SMOKE, px, gy + 0.15, pz, 1, 0.0, 0.06, 0.0, 0.02);
                 level.sendParticles(ParticleTypes.LAVA, px, gy + 0.15, pz, 1, 0.08, 0.04, 0.08, 0.04);
+                level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.BASALT.defaultBlockState()),
+                        px, gy + 0.2, pz, 2, 0.15, 0.12, 0.15, 0.12);
             }
         }
 
@@ -5916,6 +6370,9 @@ public class Ruleta_Hardcore implements ModInitializer {
                 double fz = golem.getZ() + colosoFacing.z * 0.8;
                 level.sendParticles(ParticleTypes.CRIT, fx, fy, fz, 12, 0.3, 0.3, 0.3, 0.2);
                 level.sendParticles(ParticleTypes.LAVA, fx, fy, fz, 5, 0.2, 0.2, 0.2, 0.1);
+                if (attacker instanceof ServerPlayer sp) {
+                    sp.sendOverlayMessage(Component.literal("§7🛡 Armadura frontal (-60% daño) — ¡Ataca su fisura dorsal!"));
+                }
 
                 return amount * 0.40f;
             } else {

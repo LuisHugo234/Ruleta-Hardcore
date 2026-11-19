@@ -1,0 +1,17 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "Q": "minecraft:quartz",
+    "S": "minecraft:sugar"
+  },
+  "pattern": [
+    " Q ",
+    "QSQ",
+    " Q "
+  ],
+  "result": {
+    "id": "ruleta_hardcore:pastilla_cordura",
+    "count": 1
+  }
+}

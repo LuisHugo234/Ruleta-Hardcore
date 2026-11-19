@@ -25,6 +25,9 @@ public class CreeperRenderStateMixin implements CreeperRenderStateAccessor {
     @Unique
     private float ruleta$ageInTicks;
 
+    @Unique
+    private int ruleta$temperaturaTermonuclear;
+
     @Override
     public boolean ruleta$isAvispon() {
         return this.ruleta$isAvispon;
@@ -83,5 +86,15 @@ public class CreeperRenderStateMixin implements CreeperRenderStateAccessor {
     @Override
     public void ruleta$setAgeInTicks(float age) {
         this.ruleta$ageInTicks = age;
+    }
+
+    @Override
+    public int ruleta$getTemperaturaTermonuclear() {
+        return this.ruleta$temperaturaTermonuclear;
+    }
+
+    @Override
+    public void ruleta$setTemperaturaTermonuclear(int temperatura) {
+        this.ruleta$temperaturaTermonuclear = temperatura;
     }
 }

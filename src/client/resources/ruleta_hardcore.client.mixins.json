@@ -23,7 +23,10 @@
 		"AbstractSkeletonRendererMixin",
 		"StrayRendererMixin",
 		"ElderGuardianRendererMixin",
-		"LivingEntityRendererMixin"
+		"LivingEntityRendererMixin",
+		"BossHealthOverlayMixin",
+		"PhantomRenderStateMixin",
+		"PhantomRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

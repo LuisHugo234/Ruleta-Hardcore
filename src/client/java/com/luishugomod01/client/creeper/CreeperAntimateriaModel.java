@@ -20,24 +20,38 @@ public class CreeperAntimateriaModel extends EntityModel<CreeperRenderState> {
 
     private final ModelPart body;
     private final ModelPart core;
+    private final ModelPart ribTopL;
+    private final ModelPart ribTopR;
+    private final ModelPart ribMidL;
+    private final ModelPart ribMidR;
     private final ModelPart head;
+    private final ModelPart jawLower;
     private final ModelPart leg1;
     private final ModelPart leg2;
     private final ModelPart leg3;
     private final ModelPart leg4;
     private final ModelPart spikes;
+    private final ModelPart shardL;
+    private final ModelPart shardR;
 
     public CreeperAntimateriaModel(ModelPart root) {
         super(root);
         ModelPart rootPart = root.getChild("root");
         this.body = rootPart.getChild("body");
         this.core = this.body.getChild("core");
+        this.ribTopL = this.body.getChild("rib_top_l");
+        this.ribTopR = this.body.getChild("rib_top_r");
+        this.ribMidL = this.body.getChild("rib_mid_l");
+        this.ribMidR = this.body.getChild("rib_mid_r");
         this.head = this.body.getChild("head");
+        this.jawLower = this.head.getChild("jaw_lower");
         this.leg1 = this.body.getChild("leg1");
         this.leg2 = this.body.getChild("leg2");
         this.leg3 = this.body.getChild("leg3");
         this.leg4 = this.body.getChild("leg4");
         this.spikes = this.body.getChild("spikes");
+        this.shardL = this.spikes.getChild("shard_l");
+        this.shardR = this.spikes.getChild("shard_r");
     }
 
     public static LayerDefinition createBodyLayer() {
@@ -118,20 +132,46 @@ public class CreeperAntimateriaModel extends EntityModel<CreeperRenderState> {
     @Override
     public void setupAnim(CreeperRenderState state) {
         super.setupAnim(state);
-        float age = state instanceof CreeperRenderStateAccessor acc ? acc.ruleta$getAgeInTicks() : state.ageInTicks;
+        this.resetPose();
 
-        this.head.yRot = state.yRot * ((float) Math.PI / 180.0F);
-        this.head.xRot = state.xRot * ((float) Math.PI / 180.0F);
+        float age = (state instanceof CreeperRenderStateAccessor acc && acc.ruleta$getAgeInTicks() > 0.0F)
+                ? acc.ruleta$getAgeInTicks()
+                : state.ageInTicks;
+        float swell = Mth.clamp(state.swelling, 0.0F, 1.0F);
+        float spinBoost = 1.0F + swell * 4.5F;
+
+        this.head.yRot += state.yRot * Mth.DEG_TO_RAD;
+        this.head.xRot += state.xRot * Mth.DEG_TO_RAD;
 
         float walkPos = state.walkAnimationPos;
         float walkSpeed = state.walkAnimationSpeed;
-        this.leg1.xRot = Mth.cos(walkPos * 0.6662F) * 1.4F * walkSpeed;
-        this.leg4.xRot = Mth.cos(walkPos * 0.6662F) * 1.4F * walkSpeed;
-        this.leg2.xRot = Mth.cos(walkPos * 0.6662F + (float) Math.PI) * 1.4F * walkSpeed;
-        this.leg3.xRot = Mth.cos(walkPos * 0.6662F + (float) Math.PI) * 1.4F * walkSpeed;
+        this.leg1.xRot += Mth.cos(walkPos * 0.6662F) * 1.4F * walkSpeed;
+        this.leg4.xRot += Mth.cos(walkPos * 0.6662F) * 1.4F * walkSpeed;
+        this.leg2.xRot += Mth.cos(walkPos * 0.6662F + Mth.PI) * 1.4F * walkSpeed;
+        this.leg3.xRot += Mth.cos(walkPos * 0.6662F + Mth.PI) * 1.4F * walkSpeed;
 
-        this.core.yRot = age * 0.12F;
-        this.core.xRot = age * 0.08F;
-        this.spikes.y = -8.0F + Mth.sin(age * 0.1F) * 0.45F;
+        // Núcleo de antimateria giratorio (se acelera violentamente al cargar implosión)
+        this.core.yRot += age * 0.14F * spinBoost;
+        this.core.xRot += age * 0.10F * spinBoost;
+        this.core.zRot += Mth.sin(age * 0.08F) * 0.35F * spinBoost;
+
+        // Costillas abiertas latiendo con inestabilidad gravitacional
+        float ribBreath = Mth.sin(age * (0.12F + swell * 0.45F)) * (0.06F + swell * 0.14F);
+        this.ribTopL.zRot -= ribBreath;
+        this.ribTopR.zRot += ribBreath;
+        this.ribMidL.zRot -= ribBreath * 0.85F;
+        this.ribMidR.zRot += ribBreath * 0.85F;
+
+        // Mandíbula desencajada que se abre y tiembla al prepararse para implotar
+        this.jawLower.xRot += Mth.sin(age * 0.16F) * 0.05F + swell * 0.42F + (swell > 0.1F ? Mth.sin(age * 1.6F) * 0.08F * swell : 0.0F);
+
+        // Púas dorsales y fragmentos flotantes levitando y rotando
+        this.spikes.y += Mth.sin(age * 0.11F) * 0.55F;
+        this.shardL.y += Mth.sin(age * 0.15F) * 0.9F;
+        this.shardL.yRot += age * 0.10F * spinBoost;
+        this.shardL.zRot += Mth.cos(age * 0.12F) * 0.25F;
+        this.shardR.y += Mth.cos(age * 0.15F + 1.2F) * 0.9F;
+        this.shardR.yRot -= age * 0.10F * spinBoost;
+        this.shardR.zRot -= Mth.sin(age * 0.12F) * 0.25F;
     }
 }

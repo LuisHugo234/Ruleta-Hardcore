@@ -156,6 +156,10 @@ public class CatalogoCastigos {
                 "Los murciélagos son agresivos hacia los jugadores, tienen el doble de tamaño, 10 puntos de vida, poseen omnivampirismo (recuperando 50% del daño infligido) e infligen 2 corazones de daño por golpe.",
                 (level, player) -> CursosActivos.activarSuperMurcielago());
 
+        registrar("esqueletosconespada", NivelRuleta.NIVEL_1, "Esqueletos con Espada",
+                "Cuando un jugador se acerca a menos de 3 bloques, los esqueletos tienen un 20% de probabilidad de cambiar a una espada de hierro para combatir cuerpo a cuerpo. En cuanto se alejen vuelven a sacar el arco.",
+                (level, player) -> CursosActivos.activarEsqueletosConEspada());
+
         // --- NIVEL 2 ---
         registrar("speedpers", NivelRuleta.NIVEL_2, "Speedpers",
                 "Todos los Creepers del Overworld (excepto Creepers Escondidos) tienen Velocidad II permanente.",
@@ -309,6 +313,14 @@ public class CatalogoCastigos {
         registrar("hombreroca", NivelRuleta.NIVEL_3, "Hombre Roca",
                 "Aparece de día y de noche en cualquier bioma (80 HP, 4 de armadura, 50% resistencia al empuje) para atormentar a los jugadores arrojando rocas gigantes que infligen 13 de daño directo (6 en área pequeña), gran empuje, Lentitud II por 2.5s y desactivan el escudo por 2s.",
                 (level, player) -> CursosActivos.activarHombreRoca());
+
+        registrar("brujasnigromantes", NivelRuleta.NIVEL_3, "Brujas Nigromantes",
+                "Las brujas invocan grupos de 3 zombis bebés con mitad de vida durante el combate, con un enfriamiento de 20 segundos.",
+                (level, player) -> CursosActivos.activarBrujasNigromantes());
+
+        registrar("phantomsraptores", NivelRuleta.NIVEL_3, "Phantoms Raptores",
+                "Phantoms rojizos más grandes que tienen un 15% de probabilidad al atacar de levantar al jugador hasta 8 bloques de altura y soltarlo.",
+                (level, player) -> CursosActivos.activarPhantomsRaptores());
 
         // --- NIVEL 4 ---
         registrar("danocolateral", NivelRuleta.NIVEL_4, "Daño Colateral",

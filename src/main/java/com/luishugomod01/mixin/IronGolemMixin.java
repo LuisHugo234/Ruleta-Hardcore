@@ -2,6 +2,9 @@ package com.luishugomod01.mixin;
 
 import com.luishugomod01.Ruleta_Hardcore;
 import com.luishugomod01.ruleta.ColosoRuinaAccessor;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.LivingEntity;
@@ -19,16 +22,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class IronGolemMixin implements ColosoRuinaAccessor {
 
     @Unique
+    private static final EntityDataAccessor<Boolean> RULETA$DATA_COLOSO =
+            SynchedEntityData.defineId(IronGolem.class, EntityDataSerializers.BOOLEAN);
+
+    @Unique
     private int ruleta$slamAnimationTicks = 0;
+
+    @Inject(method = "defineSynchedData", at = @At("TAIL"))
+    private void ruleta$defineColosoData(SynchedEntityData.Builder builder, CallbackInfo ci) {
+        builder.define(RULETA$DATA_COLOSO, false);
+    }
 
     @Override
     public boolean ruleta$isColosoRuina() {
-        return ((IronGolem) (Object) this).entityTags().contains("coloso_ruina");
+        IronGolem golem = (IronGolem) (Object) this;
+        return golem.getEntityData().get(RULETA$DATA_COLOSO) || golem.entityTags().contains("coloso_ruina");
     }
 
     @Override
     public void ruleta$setColosoRuina(boolean coloso) {
         IronGolem golem = (IronGolem) (Object) this;
+        golem.getEntityData().set(RULETA$DATA_COLOSO, coloso);
         if (coloso) {
             golem.addTag("coloso_ruina");
         } else {
@@ -65,6 +79,12 @@ public abstract class IronGolemMixin implements ColosoRuinaAccessor {
 
     @Inject(method = "aiStep", at = @At("HEAD"))
     private void ruleta$tickSlam(CallbackInfo ci) {
+        IronGolem golem = (IronGolem) (Object) this;
+        if (!golem.level().isClientSide()
+                && !golem.getEntityData().get(RULETA$DATA_COLOSO)
+                && golem.entityTags().contains("coloso_ruina")) {
+            golem.getEntityData().set(RULETA$DATA_COLOSO, true);
+        }
         if (this.ruleta$slamAnimationTicks > 0) {
             this.ruleta$slamAnimationTicks--;
         }

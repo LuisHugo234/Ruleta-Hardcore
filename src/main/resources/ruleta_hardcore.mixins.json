@@ -20,7 +20,8 @@
 		"CreeperMixin",
 		"SmallFireballMixin",
 		"AnvilMenuMixin",
-		"IronGolemMixin"
+		"IronGolemMixin",
+		"CraftingMenuMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
