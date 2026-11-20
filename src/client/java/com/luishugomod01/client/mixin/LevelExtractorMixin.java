@@ -1,6 +1,7 @@
 package com.luishugomod01.client.mixin;
 
 import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
+import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.renderer.extract.LevelExtractor;
@@ -53,13 +54,22 @@ public abstract class LevelExtractorMixin {
         }
 
         float intensity = BloodMoonClientState.getIntensity(partialTick);
-        if (intensity <= 0.001f) {
-            return;
+        if (intensity > 0.001f) {
+            int r = Math.round(Mth.lerp(intensity, (float) ARGB.red(current), (float) CLOUD_TARGET_R));
+            int g = Math.round(Mth.lerp(intensity, (float) ARGB.green(current), (float) CLOUD_TARGET_G));
+            int b = Math.round(Mth.lerp(intensity, (float) ARGB.blue(current), (float) CLOUD_TARGET_B));
+            current = ARGB.color(alpha, r, g, b);
+            this.levelRenderState.cloudColor = current;
         }
 
-        int r = Math.round(Mth.lerp(intensity, (float) ARGB.red(current), (float) CLOUD_TARGET_R));
-        int g = Math.round(Mth.lerp(intensity, (float) ARGB.green(current), (float) CLOUD_TARGET_G));
-        int b = Math.round(Mth.lerp(intensity, (float) ARGB.blue(current), (float) CLOUD_TARGET_B));
-        this.levelRenderState.cloudColor = ARGB.color(alpha, r, g, b);
+        // Nubes teñidas de oro celestial durante el Ritual de Revivir
+        float ritualSky = ReviveRitualClientManager.getSkyIntensity();
+        if (ritualSky > 0.001f) {
+            float blend = ritualSky * 0.80f;
+            int r = Math.round(Mth.lerp(blend, (float) ARGB.red(current), 255.0f));
+            int g = Math.round(Mth.lerp(blend, (float) ARGB.green(current), 226.0f));
+            int b = Math.round(Mth.lerp(blend, (float) ARGB.blue(current), 138.0f));
+            this.levelRenderState.cloudColor = ARGB.color(alpha, r, g, b);
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.luishugomod01.client;
 import com.luishugomod01.Ruleta_Hardcore;
 import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
 import com.luishugomod01.client.gui.AdminConfigScreen;
+import com.luishugomod01.client.gui.EventCinematicOverlay;
 import com.luishugomod01.client.gui.FantasmaMuerteHudOverlay;
 import com.luishugomod01.client.gui.RuletaEstadoScreen;
 import com.luishugomod01.client.gui.RuletaHudOverlay;
@@ -18,11 +19,15 @@ import com.luishugomod01.client.hombre.RocaProyectilRenderer;
 import com.luishugomod01.client.mimic.MimicModel;
 import com.luishugomod01.client.mimic.MimicRenderer;
 import com.luishugomod01.client.nigromante.NigromanteModel;
+import com.luishugomod01.client.ritual.AngelRevivirModel;
+import com.luishugomod01.client.ritual.ReviveRitualClientManager;
+import com.luishugomod01.client.ritual.RitualRevivirVfxModel;
 import com.luishugomod01.client.vidas.VidasClientState;
 import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.MuerteFantasmaPayload;
+import com.luishugomod01.network.RitualRevivirPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
 import com.luishugomod01.network.VidasJugadorPayload;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
@@ -46,6 +51,8 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
         ModelLayerRegistry.registerModelLayer(ColosoRuinaModel.LAYER_LOCATION, ColosoRuinaModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(ReyProfundoModel.LAYER_LOCATION, ReyProfundoModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(HombreRocaModel.LAYER_LOCATION, HombreRocaModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(AngelRevivirModel.LAYER_LOCATION, AngelRevivirModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(RitualRevivirVfxModel.LAYER_LOCATION, RitualRevivirVfxModel::createBodyLayer);
         EntityRendererRegistry.register(Ruleta_Hardcore.MIMIC, MimicRenderer::new);
         EntityRendererRegistry.register(Ruleta_Hardcore.HOMBRE_ROCA, HombreRocaRenderer::new);
         EntityRendererRegistry.register(Ruleta_Hardcore.ROCA_PROYECTIL, RocaProyectilRenderer::new);
@@ -59,6 +66,17 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
                 Ruleta_Hardcore.id("fantasma_muerte_hud"),
                 new FantasmaMuerteHudOverlay()
         );
+
+        HudElementRegistry.addLast(
+                Ruleta_Hardcore.id("event_cinematic_hud"),
+                new EventCinematicOverlay()
+        );
+
+        ClientPlayNetworking.registerGlobalReceiver(RitualRevivirPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                ReviveRitualClientManager.iniciarRitual(payload);
+            });
+        });
 
         ClientPlayNetworking.registerGlobalReceiver(MuerteFantasmaPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
@@ -123,6 +141,8 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             BloodMoonClientState.reset();
             VidasClientState.reset();
+            ReviveRitualClientManager.reset();
+            EventCinematicOverlay.reset();
         });
     }
 }

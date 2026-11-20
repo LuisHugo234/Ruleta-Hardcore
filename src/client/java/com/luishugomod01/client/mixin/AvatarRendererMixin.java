@@ -1,5 +1,6 @@
 package com.luishugomod01.client.mixin;
 
+import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import com.luishugomod01.client.vidas.VidasClientState;
 import com.luishugomod01.client.vidas.VidasRenderStateAccessor;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -22,6 +23,7 @@ public abstract class AvatarRendererMixin {
         if (state instanceof VidasRenderStateAccessor accessor) {
             Component vidasComp = VidasClientState.crearComponenteVidas(avatar.getUUID());
             accessor.ruleta$setVidasComponent(vidasComp);
+            accessor.ruleta$setHiddenByRitual(ReviveRitualClientManager.shouldHideRealPlayer(avatar.getUUID()));
         }
     }
 

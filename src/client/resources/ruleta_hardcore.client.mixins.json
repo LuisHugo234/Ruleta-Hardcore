@@ -26,7 +26,12 @@
 		"LivingEntityRendererMixin",
 		"BossHealthOverlayMixin",
 		"PhantomRenderStateMixin",
-		"PhantomRendererMixin"
+		"PhantomRendererMixin",
+		"CameraMixin",
+		"GameRendererMixin",
+		"MouseHandlerMixin",
+		"KeyboardInputMixin",
+		"LevelRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

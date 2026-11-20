@@ -1,5 +1,7 @@
 package com.luishugomod01.client.bloodmoon;
 
+import com.luishugomod01.client.gui.EventCinematicOverlay;
+import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -42,6 +44,14 @@ public final class BloodMoonClientState {
     private static long lastAnnouncedDay = -1L;
     private static long lastAnnouncedEclipseDay = -1L;
 
+    // Destello "Anillo de Diamante" al entrar el Eclipse Solar en totalidad
+    private static long diamondRingStartMs = 0L;
+    private static long lastDiamondRingDay = -1L;
+    private static final long DIAMOND_RING_DURATION_MS = 2800L;
+
+    // Latido sutil ambiental en Blood Moon al aire libre
+    private static int heartbeatSoundCooldown = 0;
+
     private BloodMoonClientState() {}
 
     public static void updateFromPayload(
@@ -81,6 +91,9 @@ public final class BloodMoonClientState {
                     eclipseFadeOutLatch = true;
                 } else {
                     eclipseFadeOutLatch = false;
+                    // Detención manual: permitir que un reinicio manual el mismo día vuelva a lanzar el título y anillo de diamante
+                    lastAnnouncedEclipseDay = -1L;
+                    lastDiamondRingDay = -1L;
                 }
             }
         } else if (active) {
@@ -99,6 +112,8 @@ public final class BloodMoonClientState {
                     fadeOutLatch = true;
                 } else {
                     fadeOutLatch = false;
+                    // Detención manual: permitir que un reinicio manual la misma noche vuelva a lanzar el título cinematográfico
+                    lastAnnouncedDay = -1L;
                 }
             }
         } else if (active) {
@@ -173,7 +188,7 @@ public final class BloodMoonClientState {
             long clockTime = mc.level.getOverworldClockTime();
             float exactDayTime = (float) (((clockTime % 24000L) + 24000L) % 24000L) + tickDelta;
             float exactCurve = calcularCurvaEclipsePorTick(exactDayTime);
-            if (Math.abs(exactCurve - lerpedTickIntensity) < 0.025f) {
+            if (Math.abs(exactCurve - lerpedTickIntensity) < 0.006f) {
                 currentEclipseRenderIntensity = exactCurve;
                 return exactCurve;
             }
@@ -211,6 +226,29 @@ public final class BloodMoonClientState {
         currentEclipseRenderIntensity = 0.0f;
         lastAnnouncedDay = -1L;
         lastAnnouncedEclipseDay = -1L;
+        diamondRingStartMs = 0L;
+        lastDiamondRingDay = -1L;
+        heartbeatSoundCooldown = 0;
+    }
+
+    /** Intensidad 0..1 del destello "Anillo de Diamante" en el instante de totalidad del Eclipse Solar. */
+    public static float getDiamondRingFlash() {
+        if (diamondRingStartMs <= 0L) {
+            return 0.0f;
+        }
+        long elapsed = System.currentTimeMillis() - diamondRingStartMs;
+        if (elapsed < 0L || elapsed >= DIAMOND_RING_DURATION_MS) {
+            diamondRingStartMs = 0L;
+            return 0.0f;
+        }
+        float t = (float) elapsed / (float) DIAMOND_RING_DURATION_MS;
+        // Pico brillante rápido (0..0.18) y decaimiento sedoso hasta 1.0
+        if (t < 0.18f) {
+            float u = t / 0.18f;
+            return u * u * (3.0f - 2.0f * u);
+        }
+        float d = (t - 0.18f) / 0.82f;
+        return (1.0f - d) * (1.0f - d);
     }
 
     /**
@@ -266,6 +304,7 @@ public final class BloodMoonClientState {
     }
 
     public static void tick(Minecraft client) {
+        ReviveRitualClientManager.tick(client);
         prevBloodMoonIntensity = bloodMoonIntensity;
         prevEclipseIntensity = eclipseIntensity;
 
@@ -340,7 +379,8 @@ public final class BloodMoonClientState {
         } else if (eclipseFadeOutLatch) {
             eclipseTarget = calcularCurvaEclipsePorTick((float) dayTime);
         }
-        float eclipseStep = 0.02f;
+        // Tránsito lento y astronómico (~11 segundos de 0.0 -> 1.0) al entrar; salida suave al terminar
+        float eclipseStep = (eclipseTarget > eclipseIntensity) ? 0.0045f : 0.008f;
         if (Math.abs(eclipseTarget - eclipseIntensity) <= eclipseStep) {
             eclipseIntensity = eclipseTarget;
         } else {
@@ -348,8 +388,8 @@ public final class BloodMoonClientState {
         }
         eclipseIntensity = Mth.clamp(eclipseIntensity, 0.0f, 1.0f);
 
-        // Al alcanzar el tick 13000: sonido grave y ominoso + título/actionbar rojo oscuro
-        if (serverBloodMoonActive && dayTime >= 13000L && dayTime < 22500L && lastAnnouncedDay != dayNumber) {
+        // Al iniciar la noche de Luna de Sangre (>= 12500): sonido grave y ominoso + título cinematográfico
+        if (serverBloodMoonActive && dayTime >= 12500L && dayTime < 22500L && lastAnnouncedDay != dayNumber) {
             lastAnnouncedDay = dayNumber;
             reproducirInicioOminoso(client, level, player);
         }
@@ -360,9 +400,53 @@ public final class BloodMoonClientState {
             reproducirInicioEclipse(client, level, player);
         }
 
-        // Partículas flotantes cuando bloodMoonIntensity > 0.5f y el jugador está al aire libre
+        // Destello "Anillo de Diamante" sincronizado exactamente al cierre total del Eclipse Solar (~95%)
+        if (serverEclipseActive && eclipseIntensity >= 0.95f && lastDiamondRingDay != dayNumber) {
+            lastDiamondRingDay = dayNumber;
+            diamondRingStartMs = System.currentTimeMillis();
+            EventCinematicOverlay.triggerFlash(0xFFD080, 0.32f, 1200L);
+            ReviveRitualClientManager.triggerShake(1.15f, 600L);
+            level.playLocalSound(
+                    player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.BEACON_ACTIVATE,
+                    SoundSource.AMBIENT,
+                    0.90f,
+                    0.58f,
+                    false
+            );
+            level.playLocalSound(
+                    player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.AMETHYST_BLOCK_CHIME,
+                    SoundSource.AMBIENT,
+                    0.75f,
+                    0.55f,
+                    false
+            );
+        }
+
+        // Partículas sutiles de ceniza oscura flotando despacio durante la totalidad del Eclipse Solar
+        if (!client.isPaused() && eclipseIntensity > 0.65f && estaAlAireLibre(level, player)) {
+            generarParticulasEclipse(level, player);
+        }
+
+        // Partículas flotantes (esporas, cenizas y brasas ascendentes) + latido ambiental suave en Blood Moon al aire libre
         if (!client.isPaused() && bloodMoonIntensity > 0.5f && estaAlAireLibre(level, player)) {
             generarParticulasAmbientales(level, player);
+            if (bloodMoonIntensity > 0.78f) {
+                if (heartbeatSoundCooldown > 0) {
+                    heartbeatSoundCooldown--;
+                } else {
+                    heartbeatSoundCooldown = 140; // cada 7 segundos, muy sutil para ambientar sin molestar
+                    level.playLocalSound(
+                            player.getX(), player.getY(), player.getZ(),
+                            SoundEvents.WARDEN_HEARTBEAT,
+                            SoundSource.AMBIENT,
+                            0.28f * bloodMoonIntensity,
+                            0.72f,
+                            false
+                    );
+                }
+            }
         }
 
         // Partículas de humo y esporas tóxicas para ¿Contaminación? sobre la capa Y=160
@@ -380,20 +464,37 @@ public final class BloodMoonClientState {
                 0.5f,
                 false
         );
-        client.gui.hud.setTimes(15, 70, 25);
-        client.gui.hud.setTitle(
-                Component.literal("ECLIPSE SOLAR")
-                        .withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD)
-        );
-        client.gui.hud.setSubtitle(
-                Component.literal("El sol se oscurece y los cielos cobran vida...")
-                        .withStyle(ChatFormatting.LIGHT_PURPLE)
-        );
-        client.gui.hud.setOverlayMessage(
-                Component.literal("☼ ¡Un Eclipse Solar cubre el mundo! ☼")
-                        .withStyle(ChatFormatting.DARK_PURPLE),
+        level.playLocalSound(
+                player.getX(), player.getY(), player.getZ(),
+                SoundEvents.LIGHTNING_BOLT_THUNDER,
+                SoundSource.AMBIENT,
+                0.45f,
+                0.65f,
                 false
         );
+        EventCinematicOverlay.mostrarEclipseSolar();
+        ReviveRitualClientManager.triggerShake(1.75f, 800L);
+        client.gui.hud.setOverlayMessage(
+                Component.literal("☼ ¡Un Eclipse Solar cubre el mundo! ☼")
+                        .withStyle(ChatFormatting.GOLD),
+                false
+        );
+    }
+
+    private static void generarParticulasEclipse(ClientLevel level, LocalPlayer player) {
+        ThreadLocalRandom rng = ThreadLocalRandom.current();
+        for (int i = 0; i < 4; i++) {
+            double px = player.getX() + (rng.nextDouble() - 0.5) * 28.0;
+            double py = player.getY() + rng.nextDouble() * 12.0;
+            double pz = player.getZ() + (rng.nextDouble() - 0.5) * 28.0;
+            level.addParticle(
+                    ParticleTypes.ASH,
+                    px, py, pz,
+                    (rng.nextDouble() - 0.5) * 0.015,
+                    -0.008 - rng.nextDouble() * 0.01,
+                    (rng.nextDouble() - 0.5) * 0.015
+            );
+        }
     }
 
     private static void generarParticulasContaminacion(ClientLevel level, LocalPlayer player) {
@@ -439,15 +540,8 @@ public final class BloodMoonClientState {
                 false
         );
 
-        client.gui.hud.setTimes(15, 70, 25);
-        client.gui.hud.setTitle(
-                Component.literal("LUNA DE SANGRE")
-                        .withStyle(ChatFormatting.DARK_RED, ChatFormatting.BOLD)
-        );
-        client.gui.hud.setSubtitle(
-                Component.literal("La noche se tiñe de sangre...")
-                        .withStyle(ChatFormatting.RED)
-        );
+        EventCinematicOverlay.mostrarBloodMoon();
+        ReviveRitualClientManager.triggerShake(2.15f, 950L);
         client.gui.hud.setOverlayMessage(
                 Component.literal("☠ La Luna de Sangre se alza sobre el mundo... ☠")
                         .withStyle(ChatFormatting.DARK_RED),
@@ -487,11 +581,20 @@ public final class BloodMoonClientState {
                 continue;
             }
 
-            var particle = (rng.nextFloat() < 0.65f) ? ParticleTypes.CRIMSON_SPORE : ParticleTypes.ASH;
-            double vx = (rng.nextDouble() - 0.5) * 0.01;
-            double vy = -0.008 - rng.nextDouble() * 0.012;
-            double vz = (rng.nextDouble() - 0.5) * 0.01;
-            level.addParticle(particle, px, py, pz, vx, vy, vz);
+            float roll = rng.nextFloat();
+            if (roll < 0.22f) {
+                // Brasas rojas ascendentes lentas
+                double vx = (rng.nextDouble() - 0.5) * 0.018;
+                double vy = 0.022 + rng.nextDouble() * 0.026;
+                double vz = (rng.nextDouble() - 0.5) * 0.018;
+                level.addParticle(ParticleTypes.SMALL_FLAME, px, py, pz, vx, vy, vz);
+            } else {
+                var particle = (roll < 0.72f) ? ParticleTypes.CRIMSON_SPORE : ParticleTypes.ASH;
+                double vx = (rng.nextDouble() - 0.5) * 0.014;
+                double vy = (roll < 0.48f) ? (0.010 + rng.nextDouble() * 0.016) : (-0.008 - rng.nextDouble() * 0.012);
+                double vz = (rng.nextDouble() - 0.5) * 0.014;
+                level.addParticle(particle, px, py, pz, vx, vy, vz);
+            }
         }
     }
 }

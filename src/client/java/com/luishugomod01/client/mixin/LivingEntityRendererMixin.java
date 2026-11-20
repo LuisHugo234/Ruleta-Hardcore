@@ -11,6 +11,7 @@ import com.luishugomod01.client.creeper.CreeperTermonuclearModel;
 import com.luishugomod01.client.elder.ReyProfundoModel;
 import com.luishugomod01.client.nigromante.NigromanteModel;
 import com.luishugomod01.client.nigromante.NigromanteRenderStateAccessor;
+import com.luishugomod01.client.vidas.VidasRenderStateAccessor;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
@@ -95,9 +96,14 @@ public abstract class LivingEntityRendererMixin<S extends LivingEntityRenderStat
     @SuppressWarnings("unchecked")
     @Inject(
             method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
-            at = @At("HEAD")
+            at = @At("HEAD"),
+            cancellable = true
     )
     private void ruleta$swapToCustomModel(S state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState cameraState, CallbackInfo ci) {
+        if (state instanceof VidasRenderStateAccessor acc && acc.ruleta$isHiddenByRitual()) {
+            ci.cancel();
+            return;
+        }
         if ((Object) this instanceof StrayRenderer && state instanceof NigromanteRenderStateAccessor acc && acc.ruleta$isNigromante()) {
             if (this.ruleta$nigromanteModel == null) {
                 this.ruleta$nigromanteModel = new NigromanteModel(

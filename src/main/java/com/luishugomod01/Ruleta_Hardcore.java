@@ -9,6 +9,7 @@ import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.GuardarConfigAdminPayload;
 import com.luishugomod01.network.MuerteFantasmaPayload;
+import com.luishugomod01.network.RitualRevivirPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
 import com.luishugomod01.network.VidasJugadorPayload;
 import com.luishugomod01.network.VidasSyncPayload;
@@ -341,6 +342,7 @@ public class Ruleta_Hardcore implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(AbrirMenuEstadoPayload.TYPE, AbrirMenuEstadoPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(VidasSyncPayload.TYPE, VidasSyncPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(VidasJugadorPayload.TYPE, VidasJugadorPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RitualRevivirPayload.TYPE, RitualRevivirPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(GuardarConfigAdminPayload.TYPE, GuardarConfigAdminPayload.STREAM_CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(GuardarConfigAdminPayload.TYPE, (payload, context) -> {
@@ -665,6 +667,15 @@ public class Ruleta_Hardcore implements ModInitializer {
                         ctx.getSource().sendSuccess(() -> Component.literal("§4[PermaRuleta] Animación de prueba de ELIMINACIÓN enviada a todos los jugadores."), false);
                         return 1;
                     })))
+                .then(Commands.literal("revivir")
+                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                    .then(Commands.argument("jugador", EntityArgument.player())
+                        .executes(ctx -> ejecutarRitualRevivirComando(ctx.getSource(), EntityArgument.getPlayer(ctx, "jugador"), 1))
+                        .then(Commands.argument("vidas", IntegerArgumentType.integer(1, 20))
+                            .executes(ctx -> ejecutarRitualRevivirComando(ctx.getSource(), EntityArgument.getPlayer(ctx, "jugador"), IntegerArgumentType.getInteger(ctx, "vidas"))))))
+                .then(Commands.literal("test_revivir")
+                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                    .executes(ctx -> ejecutarTestRitualRevivir(ctx.getSource())))
                 .then(construirComandoRuletaSummon()
                     .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER)))
             );
@@ -927,6 +938,15 @@ public class Ruleta_Hardcore implements ModInitializer {
             }
         });
 
+        // Protección de desconexión durante un Ritual de Revivir: si sale antes de aterrizar, finalizar en Survival
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
+            ServerPlayer player = handler.getPlayer();
+            RitualRevivirServidor pendiente = RITUALES_REVIVIR_ACTIVOS.remove(player.getUUID());
+            if (pendiente != null) {
+                finalizarAterrizajeRitualRevivir(server, player, pendiente, false);
+            }
+        });
+
         // Notificación de bienvenida con las maldiciones activas al unirse al servidor
         ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
             ServerPlayer player = handler.getPlayer();
@@ -1175,6 +1195,27 @@ public class Ruleta_Hardcore implements ModInitializer {
                         } catch (Exception e) {
                             LOGGER.error("Error al ejecutar tarea programada de la ruleta", e);
                         }
+                    }
+                }
+            }
+
+            // Rituales de Revivir activos: mantener anclado en espectador durante el descenso y spawnear en Survival al aterrizar (7.0s = 140 ticks)
+            if (!RITUALES_REVIVIR_ACTIVOS.isEmpty()) {
+                for (var entry : new ArrayList<>(RITUALES_REVIVIR_ACTIVOS.entrySet())) {
+                    RitualRevivirServidor ritual = entry.getValue();
+                    ServerPlayer sp = server.getPlayerList().getPlayer(ritual.jugadorUuid());
+                    if (sp == null || sp.hasDisconnected()) {
+                        RITUALES_REVIVIR_ACTIVOS.remove(ritual.jugadorUuid());
+                        continue;
+                    }
+                    if (currentTick < ritual.tickAterrizaje()) {
+                        if (sp.distanceToSqr(ritual.destX(), ritual.destY(), ritual.destZ()) > 0.04) {
+                            sp.teleportTo(ritual.destX(), ritual.destY(), ritual.destZ());
+                        }
+                        sp.setDeltaMovement(Vec3.ZERO);
+                    } else {
+                        RITUALES_REVIVIR_ACTIVOS.remove(ritual.jugadorUuid());
+                        finalizarAterrizajeRitualRevivir(server, sp, ritual, true);
                     }
                 }
             }
@@ -2807,16 +2848,16 @@ public class Ruleta_Hardcore implements ModInitializer {
         accessor.ruleta$setVidas(nuevas);
         accessor.ruleta$setVidasInicializadas(true);
 
-        if (anteriores <= 0 && nuevas > 0 && target.isSpectator()) {
-            target.setGameMode(GameType.SURVIVAL);
-            target.sendSystemMessage(Component.literal("§a§l♥ [PermaRuleta] ¡Has sido revivido con " + nuevas + " vida(s) permanente(s)!"));
+        boolean revivioDesdeEliminado = (anteriores <= 0 && nuevas > 0 && target.isSpectator());
+        if (revivioDesdeEliminado) {
+            dispararRitualRevivir(target, nuevas, true);
         } else if (nuevas > anteriores) {
             target.sendSystemMessage(Component.literal("§a§l♥ [PermaRuleta] ¡Recibiste +" + (nuevas - anteriores) + " vida(s) permanente(s)! Total: §e§l" + nuevas));
         } else if (nuevas < anteriores) {
             target.sendSystemMessage(Component.literal("§c[PermaRuleta] Tus vidas permanentes fueron ajustadas a §e§l" + nuevas + "§c."));
         }
 
-        if (target.level() instanceof ServerLevel sLvl) {
+        if (!revivioDesdeEliminado && target.level() instanceof ServerLevel sLvl) {
             sLvl.playSound(null, target.getX(), target.getY(), target.getZ(),
                     nuevas >= anteriores ? SoundEvents.PLAYER_LEVELUP : SoundEvents.WITHER_HURT,
                     SoundSource.PLAYERS, 1.0F, 1.1F);
@@ -2827,6 +2868,181 @@ public class Ruleta_Hardcore implements ModInitializer {
                 "§6[PermaRuleta] Vidas permanentes de §f" + target.getScoreboardName() + " §6actualizadas: §e" + anteriores + " §7→ §a§l" + nuevas + " ♥"),
                 true);
         return 1;
+    }
+
+    private record RitualRevivirServidor(
+            UUID jugadorUuid,
+            double destX,
+            double destY,
+            double destZ,
+            int vidasNuevas,
+            long tickAterrizaje
+    ) {}
+
+    private static final java.util.Map<UUID, RitualRevivirServidor> RITUALES_REVIVIR_ACTIVOS = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final int RITUAL_REVIVIR_TICKS_ATERRIZAJE = 140; // 7.0s sincronizado con CHAIN_SHATTER_MS
+
+    private static int ejecutarRitualRevivirComando(CommandSourceStack source, ServerPlayer target, int vidas) {
+        if (target == null || target.hasDisconnected()) {
+            source.sendFailure(Component.literal("§c[PermaRuleta] El jugador debe estar en línea para iniciar el Ritual de Revivir."));
+            return 0;
+        }
+        if (!(target instanceof VidasJugadorAccessor accessor)) {
+            source.sendFailure(Component.literal("§c[PermaRuleta] No se pudo acceder a las vidas del jugador."));
+            return 0;
+        }
+        int nuevas = Math.clamp(Math.max(vidas, accessor.ruleta$getVidas()), 1, 20);
+        accessor.ruleta$setVidas(nuevas);
+        accessor.ruleta$setVidasInicializadas(true);
+        dispararRitualRevivir(target, nuevas, true);
+        sincronizarVidasJugador(target);
+        source.sendSuccess(() -> Component.literal(
+                "§6[PermaRuleta] ¡Ritual de Revivir §eCELESTIAL §6iniciado para §f" + target.getScoreboardName() + " §7(" + nuevas + " ♥)!"),
+                true);
+        return 1;
+    }
+
+    private static int ejecutarTestRitualRevivir(CommandSourceStack source) {
+        ServerPlayer sp = source.getPlayer();
+        if (sp == null || sp.hasDisconnected()) {
+            source.sendFailure(Component.literal("§c[PermaRuleta] Este comando de prueba debe ejecutarlo un jugador en línea."));
+            return 0;
+        }
+        int vidasActuales = (sp instanceof VidasJugadorAccessor acc) ? Math.max(1, acc.ruleta$getVidas()) : 1;
+        dispararRitualRevivir(sp, vidasActuales, false);
+        source.sendSuccess(() -> Component.literal(
+                "§a[PermaRuleta] Cinemática de prueba del Ritual de Revivir (§6CELESTIAL§a) activada."),
+                false);
+        return 1;
+    }
+
+    private static void dispararRitualRevivir(ServerPlayer target, int vidasNuevas, boolean cambiarASurvival) {
+        if (target == null || target.hasDisconnected() || !(target.level() instanceof ServerLevel sLvl)) {
+            return;
+        }
+        MinecraftServer srv = sLvl.getServer();
+
+        double destX = target.getX();
+        double destY = target.getY();
+        double destZ = target.getZ();
+
+        // Si el jugador está volando (p. ej. espectador en el aire), anclar el punto de aterrizaje al suelo firme debajo
+        if (target.isSpectator() || !target.onGround()) {
+            BlockPos safeGround = buscarSueloSeguroDebajo(sLvl, target.blockPosition());
+            if (safeGround != null) {
+                destX = safeGround.getX() + 0.5;
+                destY = safeGround.getY();
+                destZ = safeGround.getZ() + 0.5;
+            }
+        }
+
+        if (cambiarASurvival) {
+            // Mantener al jugador en SPECTATOR (oculto e invulnerable) anclado en el punto exacto hasta el aterrizaje (tick +140 = 7.0s)
+            if (!target.isSpectator()) {
+                target.setGameMode(GameType.SPECTATOR);
+            }
+            target.teleportTo(destX, destY, destZ);
+            target.setDeltaMovement(Vec3.ZERO);
+            RITUALES_REVIVIR_ACTIVOS.put(
+                    target.getUUID(),
+                    new RitualRevivirServidor(
+                            target.getUUID(),
+                            destX,
+                            destY,
+                            destZ,
+                            vidasNuevas,
+                            srv.getTickCount() + RITUAL_REVIVIR_TICKS_ATERRIZAJE
+                    )
+            );
+        } else {
+            // Modo prueba (/ruleta test_revivir): proteger temporalmente sin cambiar el modo de juego
+            target.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 250, 4, false, false, false));
+            target.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 250, 0, false, false, false));
+            target.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 250, 0, false, false, false));
+        }
+
+        String dimId = sLvl.dimension().identifier().toString();
+        RitualRevivirPayload payload = new RitualRevivirPayload(
+                target.getUUID(),
+                target.getScoreboardName(),
+                dimId,
+                destX,
+                destY,
+                destZ,
+                vidasNuevas
+        );
+
+        for (ServerPlayer player : srv.getPlayerList().getPlayers()) {
+            ServerPlayNetworking.send(player, payload);
+        }
+    }
+
+    private static void finalizarAterrizajeRitualRevivir(
+            MinecraftServer server,
+            ServerPlayer target,
+            RitualRevivirServidor ritual,
+            boolean anunciar
+    ) {
+        target.teleportTo(ritual.destX(), ritual.destY(), ritual.destZ());
+        target.setDeltaMovement(Vec3.ZERO);
+        target.fallDistance = 0.0f;
+        target.setGameMode(GameType.SURVIVAL);
+        target.setHealth(target.getMaxHealth());
+        target.getFoodData().setFoodLevel(20);
+        target.getFoodData().setSaturation(12.0f);
+
+        // Protección breve post-aterrizaje (5s) para que termine de acomodarse la cámara sin recibir daño injusto
+        target.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 100, 4, false, false, false));
+        target.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 100, 0, false, false, false));
+
+        // Onda expansiva física: empuja suavemente a los mobs hostiles cercanos (radio 6.5 bloques) para despejar el punto de aterrizaje
+        if (target.level() instanceof ServerLevel sLvl) {
+            AABB area = new AABB(
+                    ritual.destX() - 6.5, ritual.destY() - 3.0, ritual.destZ() - 6.5,
+                    ritual.destX() + 6.5, ritual.destY() + 4.5, ritual.destZ() + 6.5
+            );
+            for (Monster mob : sLvl.getEntitiesOfClass(Monster.class, area, Entity::isAlive)) {
+                double dx = mob.getX() - ritual.destX();
+                double dz = mob.getZ() - ritual.destZ();
+                double distSq = dx * dx + dz * dz;
+                if (distSq > 6.5 * 6.5) {
+                    continue;
+                }
+                double dist = Math.max(0.25, Math.sqrt(distSq));
+                double strength = 0.75 + 0.45 * (1.0 - dist / 6.5);
+                mob.setDeltaMovement(
+                        mob.getDeltaMovement().x + (dx / dist) * strength,
+                        Math.max(mob.getDeltaMovement().y, 0.34),
+                        mob.getDeltaMovement().z + (dz / dist) * strength
+                );
+            }
+        }
+
+        if (anunciar) {
+            target.sendSystemMessage(Component.literal(
+                    "§6§l✦ [PermaRuleta] ¡Los cielos te han devuelto la vida con §e§l" + ritual.vidasNuevas() + " §6vida(s) permanente(s)!"
+            ));
+            server.getPlayerList().broadcastSystemMessage(
+                    Component.literal("§6§l✦ §e" + target.getScoreboardName() + " HA REGRESADO §7(" + ritual.vidasNuevas() + " ♥)"),
+                    false
+            );
+        }
+    }
+
+    private static BlockPos buscarSueloSeguroDebajo(ServerLevel level, BlockPos start) {
+        int minY = level.getMinY() + 1;
+        BlockPos.MutableBlockPos cursor = start.mutable();
+        for (int i = 0; i < 64 && cursor.getY() > minY; i++) {
+            BlockPos below = cursor.below();
+            if (!level.getBlockState(below).isAir()
+                    && !level.getBlockState(below).getCollisionShape(level, below).isEmpty()
+                    && level.getBlockState(cursor).isAir()
+                    && level.getBlockState(cursor.above()).isAir()) {
+                return cursor.immutable();
+            }
+            cursor.move(0, -1, 0);
+        }
+        return null;
     }
 
     private static void procesarCorduraJugador(ServerPlayer player, ServerLevel level, long currentTick) {

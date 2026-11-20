@@ -11,6 +11,9 @@ public class AvatarRenderStateMixin implements VidasRenderStateAccessor {
     @Unique
     private Component ruleta$vidasComponent;
 
+    @Unique
+    private boolean ruleta$hiddenByRitual;
+
     @Override
     public Component ruleta$getVidasComponent() {
         return this.ruleta$vidasComponent;
@@ -19,5 +22,15 @@ public class AvatarRenderStateMixin implements VidasRenderStateAccessor {
     @Override
     public void ruleta$setVidasComponent(Component component) {
         this.ruleta$vidasComponent = component;
+    }
+
+    @Override
+    public boolean ruleta$isHiddenByRitual() {
+        return this.ruleta$hiddenByRitual;
+    }
+
+    @Override
+    public void ruleta$setHiddenByRitual(boolean hidden) {
+        this.ruleta$hiddenByRitual = hidden;
     }
 }

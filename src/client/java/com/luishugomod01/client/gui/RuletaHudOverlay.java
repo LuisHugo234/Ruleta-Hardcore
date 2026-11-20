@@ -1,6 +1,7 @@
 package com.luishugomod01.client.gui;
 
 import com.luishugomod01.Ruleta_Hardcore;
+import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import com.luishugomod01.client.vidas.VidasClientState;
 import com.luishugomod01.network.RuletaAnimacionPayload;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
@@ -41,6 +42,16 @@ public class RuletaHudOverlay implements HudElement {
             Identifier.withDefaultNamespace("hud/heart/container_hardcore");
     private static final Identifier SPRITE_HEART_FULL =
             Identifier.withDefaultNamespace("hud/heart/hardcore_full");
+
+    // Paleta RGB de los 6 niveles para halo, gema de la aguja y barra indicadora inferior
+    private static final int[] LEVEL_RGB = {
+            0x2EE034, // Nivel 1: Verde
+            0xFAE026, // Nivel 2: Amarillo
+            0xF57612, // Nivel 3: Naranja
+            0xEB4C56, // Nivel 4: Coral
+            0xBC1CDE, // Nivel 5: Púrpura
+            0xD9162C  // Nivel 6: Carmesí
+    };
 
     private static RuletaAnimacionPayload payloadActual = null;
     private static long startTime = 0L;
@@ -96,14 +107,23 @@ public class RuletaHudOverlay implements HudElement {
             }
         }
 
-        // Celebración sonora de parada
+        // Celebración sonora diferenciada por nivel de peligro + screen shake en Niveles 5 y 6
         if (progress >= 1.0f && !landed) {
             landed = true;
             landedTime = now;
+            int winLvl = parseNivel(payloadActual.nivelNombre());
             if (mc.getSoundManager() != null) {
-                mc.getSoundManager().play(
-                        SimpleSoundInstance.forUI(SoundEvents.PLAYER_LEVELUP, 1.0f)
-                );
+                if (winLvl <= 2) {
+                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.15f, 0.9f));
+                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.AMETHYST_BLOCK_CHIME, 1.25f, 0.85f));
+                } else if (winLvl <= 4) {
+                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.ANVIL_LAND, 0.85f, 0.45f));
+                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.BELL_BLOCK, 0.82f, 0.9f));
+                } else {
+                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.WITHER_SPAWN, winLvl == 6 ? 0.58f : 0.72f, 0.55f));
+                    mc.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.LIGHTNING_BOLT_THUNDER, 0.70f, 0.45f));
+                    ReviveRitualClientManager.triggerShake(winLvl == 6 ? 2.4f : 1.45f, winLvl == 6 ? 700L : 480L);
+                }
             }
         }
 
@@ -159,18 +179,27 @@ public class RuletaHudOverlay implements HudElement {
                 int wheelLeft = centerX - wheelDiameter / 2;
                 int wheelTop = centerY - wheelDiameter / 2;
 
+                int activeLevel = landed
+                        ? parseNivel(payloadActual.nivelNombre())
+                        : getNivelBajoAguja(currentAngle);
+                int activeRgb = LEVEL_RGB[Math.clamp(activeLevel - 1, 0, 5)];
+
                 extractor.pose().pushMatrix();
                 extractor.pose().translate(centerX, centerY + totalOffsetY);
                 extractor.pose().scale(totalScale, totalScale);
                 extractor.pose().translate(-centerX, -centerY);
 
-                Identifier texturaDisco = obtenerTexturaDisco(payloadActual, landed, now);
+                // 1. Contraste radial suave detrás de la ruleta + destello del color ganador al detenerse
+                dibujarHaloFondoRuleta(extractor, centerX, centerY, wheelDiameter / 2, activeRgb, landed, now);
 
+                // 2. Disco rotatorio de la ruleta
+                Identifier texturaDisco = obtenerTexturaDisco(payloadActual, landed, now);
                 extractor.pose().pushMatrix();
                 extractor.pose().rotateAbout((float) Math.toRadians(currentAngle), centerX, centerY);
                 extractor.blit(texturaDisco, wheelLeft, wheelTop, wheelLeft + wheelDiameter, wheelTop + wheelDiameter, 0.0f, 1.0f, 0.0f, 1.0f);
                 extractor.pose().popMatrix();
 
+                // 3. Aguja con física de tensión/"clack" al cruzar remaches y gema central iluminada por nivel
                 int needleW = 24;
                 int needleH = 38;
                 int needleX = centerX - needleW / 2;
@@ -178,18 +207,18 @@ public class RuletaHudOverlay implements HudElement {
                 int needlePivotX = centerX;
                 int needlePivotY = needleY + 8;
 
-                float needleAngle = 0.0f;
-                if (progress < 1.0f) {
-                    float pegFraction = (currentAngle % pegInterval) / (float) pegInterval;
-                    needleAngle = (float) Math.sin(pegFraction * Math.PI) * 7.5f;
-                }
+                float needleAngle = calcularAnguloAgujaConTension(currentAngle, pegInterval, progress, landed, now);
 
                 extractor.pose().pushMatrix();
                 if (needleAngle != 0.0f) {
                     extractor.pose().rotateAbout((float) Math.toRadians(needleAngle), needlePivotX, needlePivotY);
                 }
                 extractor.blit(TEXTURE_AGUJA, needleX, needleY, needleX + needleW, needleY + needleH, 0.0f, 1.0f, 0.0f, 1.0f);
+                dibujarGemaAguja(extractor, needlePivotX, needlePivotY, activeRgb, landed, now);
                 extractor.pose().popMatrix();
+
+                // 4. Barra de 6 indicadores luminosos de peligro (Opción B) debajo del disco
+                dibujarBarraIndicadoresNivel(extractor, centerX, wheelTop + wheelDiameter + 10, activeLevel, landed, now);
 
                 extractor.pose().popMatrix();
             }
@@ -463,6 +492,137 @@ public class RuletaHudOverlay implements HudElement {
         }
         extractor.outline(x, y, w, h, borderColor);
         extractor.text(mc.font, Component.literal(label), x + 4, y + 2, 0xFFFFFFFF, true);
+    }
+
+    private static int getNivelBajoAguja(float currentAngle) {
+        float wheelAngle = ((360.0f - (currentAngle % 360.0f)) % 360.0f + 360.0f) % 360.0f;
+        return Math.clamp((int) (wheelAngle / 60.0f) + 1, 1, 6);
+    }
+
+    /**
+     * Física de aguja con tensión real al chocar contra cada remache y latigazo seco ("clack") al soltarse.
+     * Más marcada cuando la ruleta va frenando en los últimos remaches para maximizar el suspenso.
+     */
+    private static float calcularAnguloAgujaConTension(float currentAngle, int pegInterval, float progress, boolean landed, long now) {
+        if (landed) {
+            long dt = now - landedTime;
+            if (dt < 260L) {
+                float t = dt / 260.0f;
+                return (float) Math.sin(t * Math.PI * 2.5) * 4.2f * (1.0f - t);
+            }
+            return 0.0f;
+        }
+        float pegFraction = (currentAngle % pegInterval) / (float) pegInterval;
+        // Más tensión conforme la ruleta desacelera (progress 0 -> 1)
+        float maxBend = 10.5f + 6.5f * progress;
+        if (pegFraction < 0.78f) {
+            float push = pegFraction / 0.78f;
+            return (float) Math.pow(push, 1.35) * maxBend;
+        } else {
+            // Latigazo seco de regreso con ligero sobreimpulso negativo (-2.8°)
+            float snap = (pegFraction - 0.78f) / 0.22f;
+            return maxBend * (1.0f - snap) * (1.0f - snap) - (float) Math.sin(snap * Math.PI) * 2.8f;
+        }
+    }
+
+    private static void dibujarHaloFondoRuleta(
+            GuiGraphicsExtractor extractor,
+            int cx, int cy, int wheelRadius,
+            int activeRgb, boolean landed, long now
+    ) {
+        // Sombra radial suave detrás de la ruleta para darle contraste sobre cualquier fondo
+        int[] shadowRadii = { wheelRadius + 24, wheelRadius + 16, wheelRadius + 9, wheelRadius + 3 };
+        int[] shadowAlphas = { 0x1A, 0x2A, 0x3C, 0x52 };
+        for (int i = 0; i < shadowRadii.length; i++) {
+            dibujarDiscoSuave(extractor, cx, cy, shadowRadii[i], (shadowAlphas[i] << 24));
+        }
+
+        // Halo suave del color del nivel activo + destello expansivo al detenerse
+        if (landed) {
+            long dt = Math.max(0L, now - landedTime);
+            if (dt < 1100L) {
+                float t = dt / 1100.0f;
+                float ease = 1.0f - (1.0f - t) * (1.0f - t);
+                int burstR = wheelRadius + 6 + Math.round(ease * 30.0f);
+                int burstAlpha = Math.round((1.0f - t) * (1.0f - t) * 115.0f);
+                if (burstAlpha > 2) {
+                    dibujarDiscoSuave(extractor, cx, cy, burstR, (burstAlpha << 24) | activeRgb);
+                }
+            }
+            float pulse = 0.75f + 0.25f * (float) Math.sin((now - landedTime) * 0.012);
+            int glowA = Math.round(58.0f * pulse);
+            dibujarDiscoSuave(extractor, cx, cy, wheelRadius + 10, (glowA << 24) | activeRgb);
+        } else {
+            dibujarDiscoSuave(extractor, cx, cy, wheelRadius + 7, (0x24 << 24) | activeRgb);
+        }
+    }
+
+    private static void dibujarDiscoSuave(GuiGraphicsExtractor extractor, int cx, int cy, int radius, int argb) {
+        int r2 = radius * radius;
+        for (int dy = -radius; dy <= radius; dy += 2) {
+            int span = (int) Math.floor(Math.sqrt(Math.max(0, r2 - dy * dy)));
+            if (span > 0) {
+                extractor.fill(cx - span, cy + dy, cx + span, cy + dy + 2, argb);
+            }
+        }
+    }
+
+    private static void dibujarGemaAguja(
+            GuiGraphicsExtractor extractor,
+            int px, int py,
+            int rgb, boolean landed, long now
+    ) {
+        float pulse = landed ? (0.85f + 0.15f * (float) Math.sin((now - landedTime) * 0.015)) : 0.72f;
+        int glowA = Math.round((landed ? 120.0f : 55.0f) * pulse);
+        // Pequeño halo alrededor de la gema
+        extractor.fill(px - 3, py - 2, px + 3, py + 2, (glowA << 24) | rgb);
+        extractor.fill(px - 2, py - 3, px + 2, py + 3, (glowA << 24) | rgb);
+        // Núcleo sólido de la gema en el centro del engaste dorado
+        extractor.fill(px - 2, py - 2, px + 2, py + 2, 0xFF000000 | rgb);
+        // Brillo especular blanco arriba-izquierda
+        extractor.fill(px - 1, py - 1, px, py, 0xDDFFFFFF);
+    }
+
+    /**
+     * Barra de 6 indicadores luminosos de peligro (Opción B) debajo de la ruleta.
+     * Ilumina en tiempo real el nivel que pasa bajo la aguja y resalta el ganador al detenerse.
+     */
+    private static void dibujarBarraIndicadoresNivel(
+            GuiGraphicsExtractor extractor,
+            int centerX, int topY,
+            int activeLevel, boolean landed, long now
+    ) {
+        int segW = 14;
+        int gap = 4;
+        int totalW = 6 * segW + 5 * gap;
+        int startX = centerX - totalW / 2;
+
+        // Fondo discreto oscuro redondeado detrás de los 6 indicadores
+        extractor.fill(startX - 5, topY - 3, startX + totalW + 5, topY + 10, 0xAA0A0C12);
+        extractor.fill(startX - 4, topY - 4, startX + totalW + 4, topY - 3, 0x662A3040);
+        extractor.fill(startX - 4, topY + 10, startX + totalW + 4, topY + 11, 0x662A3040);
+
+        for (int i = 0; i < 6; i++) {
+            int lvl = i + 1;
+            boolean isActive = (lvl == activeLevel);
+            int rgb = LEVEL_RGB[i];
+            int sx = startX + i * (segW + gap);
+
+            if (isActive) {
+                float pulse = landed ? (0.85f + 0.15f * (float) Math.sin((now - landedTime) * 0.015)) : 1.0f;
+                int glowA = Math.round((landed ? 125.0f : 80.0f) * pulse);
+                // Aura suave alrededor del indicador activo
+                extractor.fill(sx - 2, topY - 3, sx + segW + 2, topY + 10, (glowA << 24) | rgb);
+                // Barrita iluminada ligeramente más alta (+2px arriba y abajo)
+                extractor.fill(sx, topY - 1, sx + segW, topY + 8, 0xFF000000 | rgb);
+                // Línea superior brillante tipo gema
+                extractor.fill(sx + 1, topY - 1, sx + segW - 1, topY, 0xBBFFFFFF);
+            } else {
+                // Indicador inactivo atenuado
+                int dimA = landed ? 0x38 : 0x66;
+                extractor.fill(sx, topY + 1, sx + segW, topY + 6, (dimA << 24) | rgb);
+            }
+        }
     }
 
     private static int parseNivel(String nivelNombre) {

@@ -1,6 +1,7 @@
 package com.luishugomod01.client.mixin;
 
 import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
+import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import com.luishugomod01.client.vidas.VidasClientState;
 import net.minecraft.client.Camera;
 import net.minecraft.client.DeltaTracker;
@@ -138,22 +139,29 @@ public abstract class FogRendererMixin {
 
         // Luna de Sangre (Nivel 6)
         float intensity = BloodMoonClientState.getIntensity(partialTick);
-        if (intensity <= 0.001f) {
-            return;
+        if (intensity > 0.001f) {
+            // FogStart al 25% y FogEnd al 65% de la distancia de renderizado actual
+            float targetFogStart = renderDistBlocks * 0.25f;
+            float targetFogEnd = renderDistBlocks * 0.65f;
+
+            fogData.environmentalStart = Mth.lerp(intensity, fogData.environmentalStart, targetFogStart);
+            fogData.environmentalEnd = Mth.lerp(intensity, fogData.environmentalEnd, targetFogEnd);
+            fogData.renderDistanceStart = Mth.lerp(intensity, fogData.renderDistanceStart, targetFogStart);
+            fogData.renderDistanceEnd = Mth.lerp(intensity, fogData.renderDistanceEnd, targetFogEnd);
+
+            // Interpolar el color de la niebla hacia rojo carmesí oscuro (#4A0409)
+            fogData.color.x = Mth.lerp(intensity, fogData.color.x, FOG_TARGET_R);
+            fogData.color.y = Mth.lerp(intensity, fogData.color.y, FOG_TARGET_G);
+            fogData.color.z = Mth.lerp(intensity, fogData.color.z, FOG_TARGET_B);
         }
 
-        // FogStart al 25% y FogEnd al 65% de la distancia de renderizado actual
-        float targetFogStart = renderDistBlocks * 0.25f;
-        float targetFogEnd = renderDistBlocks * 0.65f;
-
-        fogData.environmentalStart = Mth.lerp(intensity, fogData.environmentalStart, targetFogStart);
-        fogData.environmentalEnd = Mth.lerp(intensity, fogData.environmentalEnd, targetFogEnd);
-        fogData.renderDistanceStart = Mth.lerp(intensity, fogData.renderDistanceStart, targetFogStart);
-        fogData.renderDistanceEnd = Mth.lerp(intensity, fogData.renderDistanceEnd, targetFogEnd);
-
-        // Interpolar el color de la niebla hacia rojo carmesí oscuro (#4A0409)
-        fogData.color.x = Mth.lerp(intensity, fogData.color.x, FOG_TARGET_R);
-        fogData.color.y = Mth.lerp(intensity, fogData.color.y, FOG_TARGET_G);
-        fogData.color.z = Mth.lerp(intensity, fogData.color.z, FOG_TARGET_B);
+        // Ritual de Revivir: baña la niebla con luz dorada celestial temporalmente
+        float ritualSky = ReviveRitualClientManager.getSkyIntensity();
+        if (ritualSky > 0.001f) {
+            float blend = ritualSky * 0.70f;
+            fogData.color.x = Mth.lerp(blend, fogData.color.x, 0.96f);
+            fogData.color.y = Mth.lerp(blend, fogData.color.y, 0.78f);
+            fogData.color.z = Mth.lerp(blend, fogData.color.z, 0.36f);
+        }
     }
 }
