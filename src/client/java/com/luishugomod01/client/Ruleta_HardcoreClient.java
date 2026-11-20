@@ -127,7 +127,13 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
 
         ClientPlayNetworking.registerGlobalReceiver(AbrirMenuAdminPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
-                context.client().setScreenAndShow(new AdminConfigScreen(payload.ruletaAutomatica(), payload.vidasIniciales()));
+                context.client().setScreenAndShow(new AdminConfigScreen(
+                        payload.ruletaAutomatica(),
+                        payload.vidasIniciales(),
+                        payload.mundoConfigurado(),
+                        payload.bloodMoonActiva(),
+                        payload.eclipseActivo()
+                ));
             });
         });
 

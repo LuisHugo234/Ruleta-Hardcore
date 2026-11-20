@@ -8,7 +8,10 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record AbrirMenuAdminPayload(
         boolean ruletaAutomatica,
-        int vidasIniciales
+        int vidasIniciales,
+        boolean mundoConfigurado,
+        boolean bloodMoonActiva,
+        boolean eclipseActivo
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<AbrirMenuAdminPayload> TYPE =
@@ -17,6 +20,9 @@ public record AbrirMenuAdminPayload(
     public static final StreamCodec<ByteBuf, AbrirMenuAdminPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.BOOL, AbrirMenuAdminPayload::ruletaAutomatica,
             ByteBufCodecs.VAR_INT, AbrirMenuAdminPayload::vidasIniciales,
+            ByteBufCodecs.BOOL, AbrirMenuAdminPayload::mundoConfigurado,
+            ByteBufCodecs.BOOL, AbrirMenuAdminPayload::bloodMoonActiva,
+            ByteBufCodecs.BOOL, AbrirMenuAdminPayload::eclipseActivo,
             AbrirMenuAdminPayload::new
     );
 

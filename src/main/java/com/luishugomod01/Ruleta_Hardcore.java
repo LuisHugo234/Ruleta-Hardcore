@@ -6,6 +6,7 @@ import com.luishugomod01.entity.RocaProyectilEntity;
 import com.luishugomod01.item.PastillaCorduraItem;
 import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
+import com.luishugomod01.network.AccionAdminPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.GuardarConfigAdminPayload;
 import com.luishugomod01.network.MuerteFantasmaPayload;
@@ -344,6 +345,7 @@ public class Ruleta_Hardcore implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(VidasJugadorPayload.TYPE, VidasJugadorPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RitualRevivirPayload.TYPE, RitualRevivirPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(GuardarConfigAdminPayload.TYPE, GuardarConfigAdminPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(AccionAdminPayload.TYPE, AccionAdminPayload.STREAM_CODEC);
 
         ServerPlayNetworking.registerGlobalReceiver(GuardarConfigAdminPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
@@ -352,34 +354,61 @@ public class Ruleta_Hardcore implements ModInitializer {
                 return;
             }
             srv.execute(() -> {
-                boolean eraConfigurado = CursosActivos.isMundoConfigurado();
-                CursosActivos.setRuletaAutomatica(payload.ruletaAutomatica());
-                CursosActivos.setVidasIniciales(payload.vidasIniciales());
-                CursosActivos.setMundoConfigurado(true);
+                aplicarConfiguracionAdmin(srv, payload.ruletaAutomatica(), payload.vidasIniciales(), payload.aplicarAJugadoresActuales());
+            });
+        });
 
-                for (ServerPlayer p : srv.getPlayerList().getPlayers()) {
-                    if (p instanceof VidasJugadorAccessor accessor) {
-                        if (!eraConfigurado || !accessor.ruleta$isVidasInicializadas()) {
-                            accessor.ruleta$setVidas(CursosActivos.getVidasIniciales());
-                            accessor.ruleta$setVidasInicializadas(true);
+        ServerPlayNetworking.registerGlobalReceiver(AccionAdminPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            MinecraftServer srv = player.level().getServer();
+            if (srv == null || !esAdministrador(player, srv)) {
+                return;
+            }
+            srv.execute(() -> {
+                switch (payload.accion()) {
+                    case "girar" -> ejecutarGiroAleatorio(player.createCommandSourceStack());
+                    case "ver_estado" -> ServerPlayNetworking.send(player, new AbrirMenuEstadoPayload(
+                            CursosActivos.obtenerMaldicionesActivasDetalladas(),
+                            CursosActivos.isBloodMoonActive(),
+                            CursosActivos.isEclipseActive()
+                    ));
+                    case "bloodmoon_toggle" -> {
+                        boolean nuevoEstado = !CursosActivos.isBloodMoonActive();
+                        CursosActivos.setBloodMoonActive(nuevoEstado);
+                        if (nuevoEstado) {
+                            CursosActivos.setUltimoDiaBloodMoon(srv.overworld().getOverworldClockTime() / 24000L);
                         }
-                        sincronizarVidasJugador(p);
+                        RuletaPersistencia.guardar(srv);
+                        sincronizarLunaSangreClientes(srv);
+                        player.sendSystemMessage(Component.literal(
+                                nuevoEstado
+                                        ? "§4[PermaRuleta] §c¡Evento de Luna de Sangre iniciado desde el panel!"
+                                        : "§e[PermaRuleta] Evento de Luna de Sangre detenido."
+                        ));
                     }
+                    case "eclipse_toggle" -> {
+                        boolean nuevoEstado = !CursosActivos.isEclipseActive();
+                        CursosActivos.setEclipseActive(nuevoEstado);
+                        if (nuevoEstado) {
+                            CursosActivos.setUltimoDiaEclipse(srv.overworld().getOverworldClockTime() / 24000L);
+                        }
+                        RuletaPersistencia.guardar(srv);
+                        sincronizarLunaSangreClientes(srv);
+                        player.sendSystemMessage(Component.literal(
+                                nuevoEstado
+                                        ? "§5[PermaRuleta] §d¡Evento de Eclipse Solar iniciado desde el panel!"
+                                        : "§e[PermaRuleta] Evento de Eclipse Solar detenido."
+                        ));
+                    }
+                    default -> {}
                 }
-                RuletaPersistencia.guardar(srv);
-
-                String modoStr = CursosActivos.isRuletaAutomatica() ? "§aAUTOMÁTICO" : "§eMANUAL";
-                srv.getPlayerList().broadcastSystemMessage(
-                        Component.literal("§6§l[PermaRuleta] §fConfiguración guardada: Giro " + modoStr
-                                + " §7| §c♥ Vidas Iniciales: §f§l" + CursosActivos.getVidasIniciales()),
-                        false
-                );
             });
         });
 
         ServerLifecycleEvents.SERVER_STARTED.register(RuletaPersistencia::cargar);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             limpiarBossBars();
+            proximoTickGiroAutomaticoPermitido = 0L;
             RuletaPersistencia.guardar(server);
         });
 
@@ -579,10 +608,38 @@ public class Ruleta_Hardcore implements ModInitializer {
                 .then(Commands.literal("config")
                     .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                     .executes(ctx -> {
-                        ServerPlayer sp = ctx.getSource().getPlayerOrException();
-                        ServerPlayNetworking.send(sp, new AbrirMenuAdminPayload(CursosActivos.isRuletaAutomatica(), CursosActivos.getVidasIniciales()));
+                        ServerPlayer sp = ctx.getSource().getPlayer();
+                        if (sp != null) {
+                            ServerPlayNetworking.send(sp, crearAbrirMenuAdminPayload());
+                        } else {
+                            String modo = CursosActivos.isRuletaAutomatica() ? "AUTOMÁTICO" : "MANUAL";
+                            ctx.getSource().sendSuccess(() -> Component.literal(
+                                    "[PermaRuleta] Config actual: Modo=" + modo + ", VidasIniciales=" + CursosActivos.getVidasIniciales()
+                                            + " | Usa: /ruleta config modo <auto|manual> o /ruleta config vidas <1-20>"), false);
+                        }
                         return 1;
-                    }))
+                    })
+                    .then(Commands.literal("modo")
+                        .then(Commands.literal("auto").executes(ctx -> {
+                            aplicarConfiguracionAdmin(ctx.getSource().getServer(), true, CursosActivos.getVidasIniciales(), false);
+                            return 1;
+                        }))
+                        .then(Commands.literal("manual").executes(ctx -> {
+                            aplicarConfiguracionAdmin(ctx.getSource().getServer(), false, CursosActivos.getVidasIniciales(), false);
+                            return 1;
+                        })))
+                    .then(Commands.literal("vidas")
+                        .then(Commands.argument("cantidad", IntegerArgumentType.integer(1, 20))
+                            .executes(ctx -> {
+                                int cant = IntegerArgumentType.getInteger(ctx, "cantidad");
+                                aplicarConfiguracionAdmin(ctx.getSource().getServer(), CursosActivos.isRuletaAutomatica(), cant, false);
+                                return 1;
+                            })
+                            .then(Commands.literal("aplicar_todos").executes(ctx -> {
+                                int cant = IntegerArgumentType.getInteger(ctx, "cantidad");
+                                aplicarConfiguracionAdmin(ctx.getSource().getServer(), CursosActivos.isRuletaAutomatica(), cant, true);
+                                return 1;
+                            })))))
                 .then(Commands.literal("cordura")
                     .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                     .then(Commands.argument("porcentaje", IntegerArgumentType.integer(0, 100))
@@ -864,8 +921,13 @@ public class Ruleta_Hardcore implements ModInitializer {
                     }
                 }
                 if (srv != null && CursosActivos.isRuletaAutomatica()) {
-                    long tickGiro = srv.getTickCount() + 40;
-                    programarTarea(tickGiro, () -> ejecutarGiroAleatorio(srv.createCommandSourceStack()));
+                    long currentTick = srv.getTickCount();
+                    // Anti-encimamiento: si ya hay un giro automático programado o en curso (p. ej. 2 muertes simultáneas), evitar duplicarlo
+                    if (currentTick >= proximoTickGiroAutomaticoPermitido) {
+                        long tickGiro = currentTick + 120L; // Esperar 6 segundos (120 ticks) tras la muerte
+                        proximoTickGiroAutomaticoPermitido = tickGiro + 140L; // Bloquear duplicados durante espera + animación (7s extra)
+                        programarTarea(tickGiro, () -> ejecutarGiroAleatorio(srv.createCommandSourceStack()));
+                    }
                 }
             }
 
@@ -986,7 +1048,7 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (!CursosActivos.isMundoConfigurado() && esAdministrador(player, server)) {
                 programarTarea(server.getTickCount() + 10, () -> {
                     if (!CursosActivos.isMundoConfigurado() && player.connection != null) {
-                        ServerPlayNetworking.send(player, new AbrirMenuAdminPayload(CursosActivos.isRuletaAutomatica(), CursosActivos.getVidasIniciales()));
+                        ServerPlayNetworking.send(player, crearAbrirMenuAdminPayload());
                     }
                 });
             }
@@ -2828,6 +2890,50 @@ public class Ruleta_Hardcore implements ModInitializer {
         return 1;
     }
 
+    private static AbrirMenuAdminPayload crearAbrirMenuAdminPayload() {
+        return new AbrirMenuAdminPayload(
+                CursosActivos.isRuletaAutomatica(),
+                CursosActivos.getVidasIniciales(),
+                CursosActivos.isMundoConfigurado(),
+                CursosActivos.isBloodMoonActive(),
+                CursosActivos.isEclipseActive()
+        );
+    }
+
+    private static void aplicarConfiguracionAdmin(
+            MinecraftServer srv,
+            boolean ruletaAutomatica,
+            int vidasIniciales,
+            boolean aplicarAJugadoresActuales
+    ) {
+        if (srv == null) {
+            return;
+        }
+        boolean eraConfigurado = CursosActivos.isMundoConfigurado();
+        CursosActivos.setRuletaAutomatica(ruletaAutomatica);
+        CursosActivos.setVidasIniciales(Math.clamp(vidasIniciales, 1, 20));
+        CursosActivos.setMundoConfigurado(true);
+
+        for (ServerPlayer p : srv.getPlayerList().getPlayers()) {
+            if (p instanceof VidasJugadorAccessor accessor) {
+                if (!eraConfigurado || aplicarAJugadoresActuales || !accessor.ruleta$isVidasInicializadas()) {
+                    accessor.ruleta$setVidas(CursosActivos.getVidasIniciales());
+                    accessor.ruleta$setVidasInicializadas(true);
+                }
+                sincronizarVidasJugador(p);
+            }
+        }
+        RuletaPersistencia.guardar(srv);
+
+        String modoStr = CursosActivos.isRuletaAutomatica() ? "§aAUTOMÁTICO" : "§eMANUAL";
+        String extra = aplicarAJugadoresActuales && eraConfigurado ? " §7(aplicadas a conectados)" : "";
+        srv.getPlayerList().broadcastSystemMessage(
+                Component.literal("§6§l[PermaRuleta] §fConfiguración guardada: Giro " + modoStr
+                        + " §7| §c♥ Vidas Iniciales: §f§l" + CursosActivos.getVidasIniciales() + extra),
+                false
+        );
+    }
+
     private static int ejecutarAgregarVidas(CommandSourceStack source, ServerPlayer target, int delta) {
         if (!(target instanceof VidasJugadorAccessor accessor)) {
             source.sendFailure(Component.literal("§c[PermaRuleta] No se pudo acceder a las vidas del jugador."));
@@ -2881,6 +2987,7 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     private static final java.util.Map<UUID, RitualRevivirServidor> RITUALES_REVIVIR_ACTIVOS = new java.util.concurrent.ConcurrentHashMap<>();
     private static final int RITUAL_REVIVIR_TICKS_ATERRIZAJE = 140; // 7.0s sincronizado con CHAIN_SHATTER_MS
+    private static long proximoTickGiroAutomaticoPermitido = 0L;
 
     private static int ejecutarRitualRevivirComando(CommandSourceStack source, ServerPlayer target, int vidas) {
         if (target == null || target.hasDisconnected()) {

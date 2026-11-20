@@ -8,7 +8,8 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
 public record GuardarConfigAdminPayload(
         boolean ruletaAutomatica,
-        int vidasIniciales
+        int vidasIniciales,
+        boolean aplicarAJugadoresActuales
 ) implements CustomPacketPayload {
 
     public static final CustomPacketPayload.Type<GuardarConfigAdminPayload> TYPE =
@@ -17,6 +18,7 @@ public record GuardarConfigAdminPayload(
     public static final StreamCodec<ByteBuf, GuardarConfigAdminPayload> STREAM_CODEC = StreamCodec.composite(
             ByteBufCodecs.BOOL, GuardarConfigAdminPayload::ruletaAutomatica,
             ByteBufCodecs.VAR_INT, GuardarConfigAdminPayload::vidasIniciales,
+            ByteBufCodecs.BOOL, GuardarConfigAdminPayload::aplicarAJugadoresActuales,
             GuardarConfigAdminPayload::new
     );
 
