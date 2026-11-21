@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "G": "minecraft:gold_block",
+    "C": "ruleta_hardcore:cristal_energia",
+    "S": "ruleta_hardcore:nucleo_slime",
+    "A": "minecraft:golden_apple",
+    "H": "ruleta_hardcore:colmillo_hoglin",
+    "E": "ruleta_hardcore:esencia_endermite"
+  },
+  "pattern": [
+    "GCG",
+    "SAH",
+    "GEG"
+  ],
+  "result": {
+    "id": "ruleta_hardcore:corazon_rojo",
+    "count": 1
+  }
+}

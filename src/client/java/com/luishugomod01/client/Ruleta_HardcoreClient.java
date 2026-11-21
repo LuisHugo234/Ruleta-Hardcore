@@ -23,8 +23,10 @@ import com.luishugomod01.client.ritual.AngelRevivirModel;
 import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import com.luishugomod01.client.ritual.RitualRevivirVfxModel;
 import com.luishugomod01.client.vidas.VidasClientState;
+import com.luishugomod01.client.gui.RevivirJugadorScreen;
 import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
+import com.luishugomod01.network.AbrirMenuRevivirPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.MuerteFantasmaPayload;
 import com.luishugomod01.network.RitualRevivirPayload;
@@ -75,6 +77,15 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
         ClientPlayNetworking.registerGlobalReceiver(RitualRevivirPayload.TYPE, (payload, context) -> {
             context.client().execute(() -> {
                 ReviveRitualClientManager.iniciarRitual(payload);
+            });
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(AbrirMenuRevivirPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> {
+                context.client().setScreenAndShow(new RevivirJugadorScreen(
+                        payload.manoPrincipal(),
+                        payload.eliminados()
+                ));
             });
         });
 

@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "C": "ruleta_hardcore:cristal_energia",
+    "W": "ruleta_hardcore:corazon_warden",
+    "S": "ruleta_hardcore:nucleo_slime",
+    "R": "ruleta_hardcore:corazon_rojo",
+    "H": "ruleta_hardcore:colmillo_hoglin",
+    "T": "minecraft:totem_of_undying",
+    "E": "ruleta_hardcore:esencia_endermite"
+  },
+  "pattern": [
+    "CWC",
+    "SRH",
+    "TET"
+  ],
+  "result": {
+    "id": "ruleta_hardcore:corazon_dorado",
+    "count": 1
+  }
+}

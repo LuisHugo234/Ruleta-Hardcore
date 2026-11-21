@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "A": "minecraft:amethyst_shard",
+    "B": "minecraft:blaze_powder",
+    "E": "minecraft:echo_shard",
+    "O": "minecraft:ender_eye"
+  },
+  "pattern": [
+    "ABA",
+    "EOE",
+    "ABA"
+  ],
+  "result": {
+    "id": "ruleta_hardcore:cristal_energia",
+    "count": 1
+  }
+}

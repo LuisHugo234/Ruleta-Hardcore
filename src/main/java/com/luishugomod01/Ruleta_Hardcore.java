@@ -3,15 +3,20 @@ package com.luishugomod01;
 import com.luishugomod01.entity.HombreRocaEntity;
 import com.luishugomod01.entity.MimicEntity;
 import com.luishugomod01.entity.RocaProyectilEntity;
+import com.luishugomod01.item.CorazonDoradoItem;
+import com.luishugomod01.item.CorazonRojoItem;
+import com.luishugomod01.item.MaterialRuletaItem;
 import com.luishugomod01.item.PastillaCorduraItem;
 import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
+import com.luishugomod01.network.AbrirMenuRevivirPayload;
 import com.luishugomod01.network.AccionAdminPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
 import com.luishugomod01.network.GuardarConfigAdminPayload;
 import com.luishugomod01.network.MuerteFantasmaPayload;
 import com.luishugomod01.network.RitualRevivirPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
+import com.luishugomod01.network.SolicitarRevivirJugadorPayload;
 import com.luishugomod01.network.VidasJugadorPayload;
 import com.luishugomod01.network.VidasSyncPayload;
 import com.luishugomod01.ruleta.CatalogoCastigos;
@@ -185,6 +190,65 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .rarity(Rarity.UNCOMMON))
     );
 
+    public static final ResourceKey<Item> NUCLEO_SLIME_KEY = ResourceKey.create(
+            Registries.ITEM, Identifier.fromNamespaceAndPath(MOD_ID, "nucleo_slime"));
+    public static final Item NUCLEO_SLIME = Registry.register(
+            BuiltInRegistries.ITEM, NUCLEO_SLIME_KEY,
+            new MaterialRuletaItem(new Item.Properties().setId(NUCLEO_SLIME_KEY).stacksTo(64).rarity(Rarity.UNCOMMON),
+                    "§aObtenido de Slimes Grandes §7(raro) §ao del Slime Gigante §7(garantizado).",
+                    "§8Ingrediente para forjar Corazones de Vida.")
+    );
+
+    public static final ResourceKey<Item> COLMILLO_HOGLIN_KEY = ResourceKey.create(
+            Registries.ITEM, Identifier.fromNamespaceAndPath(MOD_ID, "colmillo_hoglin"));
+    public static final Item COLMILLO_HOGLIN = Registry.register(
+            BuiltInRegistries.ITEM, COLMILLO_HOGLIN_KEY,
+            new MaterialRuletaItem(new Item.Properties().setId(COLMILLO_HOGLIN_KEY).stacksTo(64).rarity(Rarity.UNCOMMON),
+                    "§eObtenido de Hoglins §7(raro) §eo del Mega Hoglin §7(garantizado).",
+                    "§8Ingrediente para forjar Corazones de Vida.")
+    );
+
+    public static final ResourceKey<Item> ESENCIA_ENDERMITE_KEY = ResourceKey.create(
+            Registries.ITEM, Identifier.fromNamespaceAndPath(MOD_ID, "esencia_endermite"));
+    public static final Item ESENCIA_ENDERMITE = Registry.register(
+            BuiltInRegistries.ITEM, ESENCIA_ENDERMITE_KEY,
+            new MaterialRuletaItem(new Item.Properties().setId(ESENCIA_ENDERMITE_KEY).stacksTo(64).rarity(Rarity.UNCOMMON),
+                    "§dObtenido de Endermites §7(raro) §do del Giga-Endermite §7(garantizado).",
+                    "§8Ingrediente para forjar Corazones de Vida.")
+    );
+
+    public static final ResourceKey<Item> CRISTAL_ENERGIA_KEY = ResourceKey.create(
+            Registries.ITEM, Identifier.fromNamespaceAndPath(MOD_ID, "cristal_energia"));
+    public static final Item CRISTAL_ENERGIA = Registry.register(
+            BuiltInRegistries.ITEM, CRISTAL_ENERGIA_KEY,
+            new MaterialRuletaItem(new Item.Properties().setId(CRISTAL_ENERGIA_KEY).stacksTo(64).rarity(Rarity.RARE),
+                    "§5Crafteable o drop de Breeze / Elder Guardian.",
+                    "§8Catalizador esencial para Corazón Rojo y Dorado.")
+    );
+
+    public static final ResourceKey<Item> CORAZON_WARDEN_KEY = ResourceKey.create(
+            Registries.ITEM, Identifier.fromNamespaceAndPath(MOD_ID, "corazon_warden"));
+    public static final Item CORAZON_WARDEN = Registry.register(
+            BuiltInRegistries.ITEM, CORAZON_WARDEN_KEY,
+            new MaterialRuletaItem(new Item.Properties().setId(CORAZON_WARDEN_KEY).stacksTo(16).rarity(Rarity.EPIC),
+                    "§3Latido abisal obtenido al derrotar al Warden.",
+                    "§8Ingrediente clave para forjar el §6Corazón Dorado§8.")
+    );
+
+    public static final ResourceKey<Item> CORAZON_ROJO_KEY = ResourceKey.create(
+            Registries.ITEM, Identifier.fromNamespaceAndPath(MOD_ID, "corazon_rojo"));
+    public static final Item CORAZON_ROJO = Registry.register(
+            BuiltInRegistries.ITEM, CORAZON_ROJO_KEY,
+            new CorazonRojoItem(new Item.Properties().setId(CORAZON_ROJO_KEY).stacksTo(16).rarity(Rarity.RARE))
+    );
+
+    public static final ResourceKey<Item> CORAZON_DORADO_KEY = ResourceKey.create(
+            Registries.ITEM, Identifier.fromNamespaceAndPath(MOD_ID, "corazon_dorado"));
+    public static final Item CORAZON_DORADO = Registry.register(
+            BuiltInRegistries.ITEM, CORAZON_DORADO_KEY,
+            new CorazonDoradoItem(new Item.Properties().setId(CORAZON_DORADO_KEY).stacksTo(1).rarity(Rarity.EPIC))
+    );
+
     public static final EntityType<MimicEntity> MIMIC = Registry.register(
             BuiltInRegistries.ENTITY_TYPE,
             MIMIC_KEY,
@@ -344,8 +408,36 @@ public class Ruleta_Hardcore implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(VidasSyncPayload.TYPE, VidasSyncPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(VidasJugadorPayload.TYPE, VidasJugadorPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RitualRevivirPayload.TYPE, RitualRevivirPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(AbrirMenuRevivirPayload.TYPE, AbrirMenuRevivirPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(GuardarConfigAdminPayload.TYPE, GuardarConfigAdminPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(AccionAdminPayload.TYPE, AccionAdminPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(SolicitarRevivirJugadorPayload.TYPE, SolicitarRevivirJugadorPayload.STREAM_CODEC);
+
+        ServerPlayNetworking.registerGlobalReceiver(SolicitarRevivirJugadorPayload.TYPE, (payload, context) -> {
+            ServerPlayer invocador = context.player();
+            MinecraftServer srv = invocador.level().getServer();
+            if (srv == null) {
+                return;
+            }
+            srv.execute(() -> procesarSolicitudRevivirJugador(invocador, payload.objetivoUuid(), payload.manoPrincipal()));
+        });
+
+        net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents.modifyOutputEvent(
+                net.minecraft.world.item.CreativeModeTabs.INGREDIENTS
+        ).register(entries -> {
+            entries.accept(NUCLEO_SLIME);
+            entries.accept(COLMILLO_HOGLIN);
+            entries.accept(ESENCIA_ENDERMITE);
+            entries.accept(CRISTAL_ENERGIA);
+            entries.accept(CORAZON_WARDEN);
+        });
+        net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents.modifyOutputEvent(
+                net.minecraft.world.item.CreativeModeTabs.TOOLS_AND_UTILITIES
+        ).register(entries -> {
+            entries.accept(PASTILLA_CORDURA);
+            entries.accept(CORAZON_ROJO);
+            entries.accept(CORAZON_DORADO);
+        });
 
         ServerPlayNetworking.registerGlobalReceiver(GuardarConfigAdminPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
@@ -700,6 +792,25 @@ public class Ruleta_Hardcore implements ModInitializer {
                         ctx.getSource().sendSuccess(() -> Component.literal("§e[PermaRuleta] Se han desactivado todas las maldiciones y reiniciado el catálogo."), true);
                         return 1;
                     }))
+                .then(Commands.literal("test_menu_revivir")
+                    .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
+                    .executes(ctx -> {
+                        ServerPlayer sp = ctx.getSource().getPlayer();
+                        if (sp == null || sp.hasDisconnected()) {
+                            ctx.getSource().sendFailure(Component.literal("§c[PermaRuleta] Este comando debe ejecutarlo un jugador en línea."));
+                            return 0;
+                        }
+                        List<AbrirMenuRevivirPayload.JugadorEliminado> demo = List.of(
+                                new AbrirMenuRevivirPayload.JugadorEliminado(UUID.randomUUID(), "LuisHugo"),
+                                new AbrirMenuRevivirPayload.JugadorEliminado(UUID.randomUUID(), "AlexHardcore"),
+                                new AbrirMenuRevivirPayload.JugadorEliminado(UUID.randomUUID(), "SteveCaido"),
+                                new AbrirMenuRevivirPayload.JugadorEliminado(UUID.randomUUID(), "MinaPro"),
+                                new AbrirMenuRevivirPayload.JugadorEliminado(UUID.randomUUID(), "ElSobreviviente"),
+                                new AbrirMenuRevivirPayload.JugadorEliminado(UUID.randomUUID(), "Fantasma99")
+                        );
+                        ServerPlayNetworking.send(sp, new AbrirMenuRevivirPayload(true, demo));
+                        return 1;
+                    }))
                 .then(Commands.literal("test_fantasma")
                     .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                     .executes(ctx -> {
@@ -877,6 +988,7 @@ public class Ruleta_Hardcore implements ModInitializer {
         });
 
         ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
+            procesarDropsResurreccion(entity, damageSource);
             if (entity instanceof ServerPlayer sp && (damageSource.getEntity() instanceof HombreRocaEntity || damageSource.getDirectEntity() instanceof RocaProyectilEntity)) {
                 sp.level().playSound(null, sp.getX(), sp.getY(), sp.getZ(), HOMBRE_ROCA_KILL_SOUND, SoundSource.HOSTILE, 2.0F, 1.0F);
             }
@@ -2978,9 +3090,11 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     private record RitualRevivirServidor(
             UUID jugadorUuid,
+            ServerLevel destinoNivel,
             double destX,
             double destY,
             double destZ,
+            float facingYaw,
             int vidasNuevas,
             long tickAterrizaje
     ) {}
@@ -3027,13 +3141,10 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (target == null || target.hasDisconnected() || !(target.level() instanceof ServerLevel sLvl)) {
             return;
         }
-        MinecraftServer srv = sLvl.getServer();
-
         double destX = target.getX();
         double destY = target.getY();
         double destZ = target.getZ();
 
-        // Si el jugador está volando (p. ej. espectador en el aire), anclar el punto de aterrizaje al suelo firme debajo
         if (target.isSpectator() || !target.onGround()) {
             BlockPos safeGround = buscarSueloSeguroDebajo(sLvl, target.blockPosition());
             if (safeGround != null) {
@@ -3042,33 +3153,50 @@ public class Ruleta_Hardcore implements ModInitializer {
                 destZ = safeGround.getZ() + 0.5;
             }
         }
+        dispararRitualRevivirEnPosicion(target, sLvl, destX, destY, destZ, target.getYRot(), vidasNuevas, cambiarASurvival);
+    }
+
+    private static void dispararRitualRevivirEnPosicion(
+            ServerPlayer target,
+            ServerLevel destinoNivel,
+            double destX,
+            double destY,
+            double destZ,
+            float facingYaw,
+            int vidasNuevas,
+            boolean cambiarASurvival
+    ) {
+        if (target == null || target.hasDisconnected() || destinoNivel == null) {
+            return;
+        }
+        MinecraftServer srv = destinoNivel.getServer();
 
         if (cambiarASurvival) {
-            // Mantener al jugador en SPECTATOR (oculto e invulnerable) anclado en el punto exacto hasta el aterrizaje (tick +140 = 7.0s)
             if (!target.isSpectator()) {
                 target.setGameMode(GameType.SPECTATOR);
             }
-            target.teleportTo(destX, destY, destZ);
+            target.teleportTo(destinoNivel, destX, destY, destZ, java.util.Set.of(), facingYaw, 0.0f, true);
             target.setDeltaMovement(Vec3.ZERO);
             RITUALES_REVIVIR_ACTIVOS.put(
                     target.getUUID(),
                     new RitualRevivirServidor(
                             target.getUUID(),
+                            destinoNivel,
                             destX,
                             destY,
                             destZ,
+                            facingYaw,
                             vidasNuevas,
                             srv.getTickCount() + RITUAL_REVIVIR_TICKS_ATERRIZAJE
                     )
             );
         } else {
-            // Modo prueba (/ruleta test_revivir): proteger temporalmente sin cambiar el modo de juego
             target.addEffect(new MobEffectInstance(MobEffects.RESISTANCE, 250, 4, false, false, false));
             target.addEffect(new MobEffectInstance(MobEffects.SLOW_FALLING, 250, 0, false, false, false));
             target.addEffect(new MobEffectInstance(MobEffects.FIRE_RESISTANCE, 250, 0, false, false, false));
         }
 
-        String dimId = sLvl.dimension().identifier().toString();
+        String dimId = destinoNivel.dimension().identifier().toString();
         RitualRevivirPayload payload = new RitualRevivirPayload(
                 target.getUUID(),
                 target.getScoreboardName(),
@@ -3084,13 +3212,208 @@ public class Ruleta_Hardcore implements ModInitializer {
         }
     }
 
+    public static boolean intentarAbrirMenuRevivir(ServerPlayer invocador, boolean manoPrincipal) {
+        if (invocador == null || invocador.hasDisconnected() || !(invocador.level() instanceof ServerLevel sLvl)) {
+            return false;
+        }
+        MinecraftServer srv = sLvl.getServer();
+        if (srv == null) {
+            return false;
+        }
+        if (!sLvl.dimension().equals(Level.OVERWORLD)) {
+            invocador.sendOverlayMessage(Component.literal(
+                    "§c✦ Solo puedes revivir jugadores en la superficie del Overworld."));
+            return false;
+        }
+        if (buscarPuntoSuperficieFrontal(sLvl, invocador) == null) {
+            invocador.sendOverlayMessage(Component.literal(
+                    "§c✦ Debes estar al aire libre en la superficie (sin techo ni cuevas) para realizar el ritual."));
+            return false;
+        }
+
+        List<AbrirMenuRevivirPayload.JugadorEliminado> eliminados = new ArrayList<>();
+        for (ServerPlayer sp : srv.getPlayerList().getPlayers()) {
+            if (sp.getUUID().equals(invocador.getUUID()) || sp.hasDisconnected()) {
+                continue;
+            }
+            if (RITUALES_REVIVIR_ACTIVOS.containsKey(sp.getUUID())) {
+                continue;
+            }
+            if (sp instanceof VidasJugadorAccessor acc && acc.ruleta$getVidas() <= 0) {
+                eliminados.add(new AbrirMenuRevivirPayload.JugadorEliminado(sp.getUUID(), sp.getScoreboardName()));
+            }
+        }
+
+        if (eliminados.isEmpty()) {
+            invocador.sendOverlayMessage(Component.literal(
+                    "§e✦ No hay jugadores eliminados (0 ♥) conectados en este momento."));
+            return false;
+        }
+
+        ServerPlayNetworking.send(invocador, new AbrirMenuRevivirPayload(manoPrincipal, eliminados));
+        return true;
+    }
+
+    private static void procesarSolicitudRevivirJugador(ServerPlayer invocador, UUID objetivoUuid, boolean manoPrincipal) {
+        if (invocador == null || invocador.hasDisconnected() || !(invocador.level() instanceof ServerLevel sLvl)) {
+            return;
+        }
+        MinecraftServer srv = sLvl.getServer();
+        if (srv == null) {
+            return;
+        }
+
+        InteractionHand hand = manoPrincipal ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND;
+        ItemStack stack = invocador.getItemInHand(hand);
+        if (!stack.is(CORAZON_DORADO)) {
+            return;
+        }
+
+        if (!sLvl.dimension().equals(Level.OVERWORLD)) {
+            invocador.sendOverlayMessage(Component.literal(
+                    "§c✦ Solo puedes revivir jugadores en la superficie del Overworld."));
+            return;
+        }
+
+        BlockPos puntoRitual = buscarPuntoSuperficieFrontal(sLvl, invocador);
+        if (puntoRitual == null) {
+            invocador.sendOverlayMessage(Component.literal(
+                    "§c✦ Debes estar al aire libre en la superficie (sin techo ni cuevas) para realizar el ritual."));
+            return;
+        }
+
+        ServerPlayer objetivo = srv.getPlayerList().getPlayer(objetivoUuid);
+        if (objetivo == null || objetivo.hasDisconnected()) {
+            invocador.sendOverlayMessage(Component.literal(
+                    "§c✦ Ese jugador ya no está conectado."));
+            return;
+        }
+        if (RITUALES_REVIVIR_ACTIVOS.containsKey(objetivo.getUUID())) {
+            invocador.sendOverlayMessage(Component.literal(
+                    "§e✦ Ese jugador ya está siendo revivido."));
+            return;
+        }
+        if (!(objetivo instanceof VidasJugadorAccessor acc) || acc.ruleta$getVidas() > 0) {
+            invocador.sendOverlayMessage(Component.literal(
+                    "§e✦ Ese jugador ya tiene vidas activas."));
+            return;
+        }
+
+        stack.consume(1, invocador);
+        invocador.getCooldowns().addCooldown(CORAZON_DORADO.getDefaultInstance(), 40);
+
+        acc.ruleta$setVidas(1);
+        acc.ruleta$setVidasInicializadas(true);
+        sincronizarVidasJugador(objetivo);
+
+        double destX = puntoRitual.getX() + 0.5;
+        double destY = puntoRitual.getY();
+        double destZ = puntoRitual.getZ() + 0.5;
+        double dx = invocador.getX() - destX;
+        double dz = invocador.getZ() - destZ;
+        float facingYaw = (float) (Math.atan2(dz, dx) * (180.0 / Math.PI)) - 90.0f;
+
+        dispararRitualRevivirEnPosicion(objetivo, sLvl, destX, destY, destZ, facingYaw, 1, true);
+    }
+
+    private static BlockPos buscarPuntoSuperficieFrontal(ServerLevel overworld, ServerPlayer invocador) {
+        if (!overworld.canSeeSky(invocador.blockPosition().above())) {
+            return null;
+        }
+        Vec3 look = invocador.getLookAngle();
+        double horizLen = Math.hypot(look.x, look.z);
+        double dirX = horizLen > 0.001 ? look.x / horizLen : -Math.sin(Math.toRadians(invocador.getYRot()));
+        double dirZ = horizLen > 0.001 ? look.z / horizLen : Math.cos(Math.toRadians(invocador.getYRot()));
+
+        double[] distancias = { 4.2, 3.2, 2.4, 5.2 };
+        for (double dist : distancias) {
+            int bx = (int) Math.floor(invocador.getX() + dirX * dist);
+            int bz = (int) Math.floor(invocador.getZ() + dirZ * dist);
+            int surfY = overworld.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
+            if (Math.abs(surfY - invocador.getBlockY()) > 6) {
+                continue;
+            }
+            BlockPos candidato = new BlockPos(bx, surfY, bz);
+            BlockPos abajo = candidato.below();
+            if (overworld.canSeeSky(candidato)
+                    && overworld.getBlockState(candidato).isAir()
+                    && overworld.getBlockState(candidato.above()).isAir()
+                    && !overworld.getBlockState(abajo).getCollisionShape(overworld, abajo).isEmpty()
+                    && overworld.getFluidState(abajo).isEmpty()
+                    && overworld.getFluidState(candidato).isEmpty()) {
+                return candidato;
+            }
+        }
+        return null;
+    }
+
+    private static void procesarDropsResurreccion(LivingEntity entity, DamageSource damageSource) {
+        if (entity == null || !(entity.level() instanceof ServerLevel sLvl)) {
+            return;
+        }
+        if (!(damageSource.getEntity() instanceof ServerPlayer) && !(damageSource.getDirectEntity() instanceof ServerPlayer)) {
+            return;
+        }
+
+        ThreadLocalRandom rnd = ThreadLocalRandom.current();
+
+        if (entity instanceof net.minecraft.world.entity.monster.warden.Warden) {
+            entity.spawnAtLocation(sLvl, new ItemStack(CORAZON_WARDEN, 1));
+            return;
+        }
+
+        if (entity instanceof Slime slime && !(entity instanceof MagmaCube)) {
+            boolean esGigante = slime.entityTags().contains("slime_gigante_pantano")
+                    || slime.entityTags().contains("slime_gigante");
+            if (esGigante) {
+                entity.spawnAtLocation(sLvl, new ItemStack(NUCLEO_SLIME, rnd.nextInt(1, 3)));
+            } else if (slime.getSize() >= 4 && rnd.nextFloat() < 0.08f) {
+                entity.spawnAtLocation(sLvl, new ItemStack(NUCLEO_SLIME, 1));
+            }
+            return;
+        }
+
+        if (entity instanceof Hoglin hoglin) {
+            if (hoglin.entityTags().contains("mega_hoglin")) {
+                entity.spawnAtLocation(sLvl, new ItemStack(COLMILLO_HOGLIN, rnd.nextInt(1, 3)));
+            } else if (!hoglin.isBaby() && rnd.nextFloat() < 0.10f) {
+                entity.spawnAtLocation(sLvl, new ItemStack(COLMILLO_HOGLIN, 1));
+            }
+            return;
+        }
+
+        if (entity instanceof Endermite endermite) {
+            if (endermite.entityTags().contains("giga_endermite")) {
+                entity.spawnAtLocation(sLvl, new ItemStack(ESENCIA_ENDERMITE, rnd.nextInt(1, 3)));
+            } else if (rnd.nextFloat() < 0.15f) {
+                entity.spawnAtLocation(sLvl, new ItemStack(ESENCIA_ENDERMITE, 1));
+            }
+            return;
+        }
+
+        if (entity instanceof ElderGuardian elder) {
+            if (elder.entityTags().contains("rey_profundo_aplicado")) {
+                entity.spawnAtLocation(sLvl, new ItemStack(CRISTAL_ENERGIA, rnd.nextInt(1, 3)));
+            } else if (rnd.nextFloat() < 0.25f) {
+                entity.spawnAtLocation(sLvl, new ItemStack(CRISTAL_ENERGIA, 1));
+            }
+            return;
+        }
+
+        if (entity instanceof net.minecraft.world.entity.monster.breeze.Breeze) {
+            if (rnd.nextFloat() < 0.20f) {
+                entity.spawnAtLocation(sLvl, new ItemStack(CRISTAL_ENERGIA, 1));
+            }
+        }
+    }
+
     private static void finalizarAterrizajeRitualRevivir(
             MinecraftServer server,
             ServerPlayer target,
             RitualRevivirServidor ritual,
             boolean anunciar
     ) {
-        target.teleportTo(ritual.destX(), ritual.destY(), ritual.destZ());
+        target.teleportTo(ritual.destinoNivel(), ritual.destX(), ritual.destY(), ritual.destZ(), java.util.Set.of(), ritual.facingYaw(), 0.0f, true);
         target.setDeltaMovement(Vec3.ZERO);
         target.fallDistance = 0.0f;
         target.setGameMode(GameType.SURVIVAL);
