@@ -10,6 +10,7 @@
 		"NaturalSpawnerMixin",
 		"NaturalSpawnerSpawnStateMixin",
 		"AbstractArrowMixin",
+		"ThrownTridentMixin",
 		"GhastShootFireballGoalMixin",
 		"LargeFireballMixin",
 		"BeeMixin",

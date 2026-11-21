@@ -90,6 +90,8 @@ import net.minecraft.world.Difficulty;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.component.SwingAnimation;
+import net.minecraft.world.entity.PositionMoveRotation;
+import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.projectile.arrow.ThrownTrident;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -379,6 +381,8 @@ public class Ruleta_Hardcore implements ModInitializer {
     private static final Map<UUID, Long> ULTIMA_INVOCACION_BRUJA = new HashMap<>();
     private record RaptoPhantom(UUID phantomId, double targetY, long expiryTick) {}
     private static final Map<UUID, RaptoPhantom> RAPTOS_PHANTOM = new HashMap<>();
+    private record ArrastrePykete(UUID drownedId, double destinoX, double destinoY, double destinoZ, int ticksRestantes) {}
+    private static final Map<UUID, ArrastrePykete> ARRASTRES_PYKETE = new HashMap<>();
     private static final Map<UUID, Long> ULTIMO_GRITO_ENDERMAN = new HashMap<>();
     private static final Map<UUID, Long> ULTIMO_PARPADEO_SOMBRA = new HashMap<>();
     private static final Map<UUID, Integer> CORDURA_JUGADOR = new HashMap<>();
@@ -778,6 +782,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                         ESQUELETO_EVALUADO_MELEE.clear();
                         ULTIMA_INVOCACION_BRUJA.clear();
                         RAPTOS_PHANTOM.clear();
+                        ARRASTRES_PYKETE.clear();
                         limpiarBossBars();
                         ULTIMO_GRITO_ENDERMAN.clear();
                         ULTIMO_PARPADEO_SOMBRA.clear();
@@ -975,6 +980,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                     && sp.isAlive() && !sp.isCreative() && !sp.isSpectator()
                     && source.getEntity() instanceof Phantom phantom
                     && phantom.isAlive()
+                    && phantom.entityTags().contains("phantom_raptor")
+                    && !phantom.entityTags().contains("phantom_alfa")
                     && !RAPTOS_PHANTOM.containsKey(sp.getUUID())
                     && sp.level() instanceof ServerLevel sLvl) {
                 if (ThreadLocalRandom.current().nextFloat() < 0.15f) {
@@ -1210,8 +1217,12 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             } else if (entity instanceof Endermite endermite && endermite.entityTags().contains("giga_endermite")) {
                 configurarGigaEndermite(endermite);
-            } else if (entity instanceof Phantom phantom && phantom.entityTags().contains("phantom_alfa")) {
-                configurarPhantomAlfa(phantom);
+            } else if (entity instanceof Phantom phantom) {
+                if (phantom.entityTags().contains("phantom_alfa")) {
+                    configurarPhantomAlfa(phantom);
+                } else if (phantom.entityTags().contains("phantom_raptor")) {
+                    configurarPhantomRaptor(phantom);
+                }
             } else if (entity instanceof Slime slime && !(entity instanceof MagmaCube) && (slime.entityTags().contains("slime_gigante_pantano") || slime.entityTags().contains("slime_gigante"))) {
                 configurarSlimeGigante(slime);
             } else if (entity instanceof Chicken chicken && (chicken.entityTags().contains("cucco_salvaje_aplicado") || chicken.entityTags().contains("cucco_salvaje"))) {
@@ -1230,7 +1241,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                 if (CursosActivos.isApocalipsisZombie()) {
                     evaluarZombieApocalipsis(zombie);
                 }
-                if (CursosActivos.isFiloMortal() && !(zombie instanceof Drowned && (CursosActivos.isArtesMaritimos() || CursosActivos.isEnergiaPoseica() || CursosActivos.isMonturaAcuatica()))) {
+                if (CursosActivos.isFiloMortal() && zombie.getClass() == Zombie.class) {
                     equiparEspadaFiloMortal(zombie, level);
                 }
                 if (CursosActivos.isApocalipsisMinecraftTotal()) {
@@ -1238,8 +1249,11 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
             if (entity instanceof Drowned drowned) {
-                if (CursosActivos.isArtesMaritimos() || CursosActivos.isPykete()) {
+                if (CursosActivos.isArtesMaritimos()) {
                     equiparTridenteArtesMaritimos(drowned);
+                }
+                if (CursosActivos.isPykete()) {
+                    configurarPykete(drowned);
                 }
                 if (CursosActivos.isEnergiaPoseica()) {
                     aplicarEnergiaPoseica(drowned, level);
@@ -1277,7 +1291,8 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (entity instanceof IronGolem golem) {
                 if (CursosActivos.isColosoRuina() && !golem.entityTags().contains("coloso_ruina_evaluado")) {
                     evaluarColosoRuina(golem);
-                } else if (CursosActivos.isFallaMecanica()) {
+                }
+                if (CursosActivos.isFallaMecanica() && !golem.entityTags().contains("coloso_ruina")) {
                     aplicarFallaMecanica(golem, level);
                 }
             }
@@ -1290,24 +1305,31 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (entity instanceof PiglinBrute brute && CursosActivos.isElVerdugo()) {
                 evaluarVerdugo(brute, level);
             }
-            if (entity instanceof Phantom phantom && CursosActivos.isPhantomAlfa()) {
-                evaluarPhantomAlfa(phantom);
+            if (entity instanceof Phantom phantom) {
+                if (CursosActivos.isPhantomAlfa()) {
+                    evaluarPhantomAlfa(phantom);
+                } else if (CursosActivos.isPhantomsRaptores()
+                        && !phantom.entityTags().contains("phantom_alfa")
+                        && !phantom.entityTags().contains("phantom_raptor_evaluado")) {
+                    configurarPhantomRaptor(phantom);
+                }
             }
             if (entity instanceof ElderGuardian elderGuardian && CursosActivos.isReyDeLoProfundo()) {
                 aplicarReyDeLoProfundo(elderGuardian);
             }
             if (entity instanceof WitherSkeleton witherSkeleton) {
-                if (CursosActivos.isIntrusosCalavericos()) {
-                    prepararIntrusoCalaverico(witherSkeleton, level);
-                }
                 if (CursosActivos.isCazadorIgneo()) {
                     evaluarCazadorIgneo(witherSkeleton, level);
+                }
+                if (CursosActivos.isIntrusosCalavericos() && !witherSkeleton.entityTags().contains("cazador_igneo")) {
+                    prepararIntrusoCalaverico(witherSkeleton, level);
                 }
             }
             if (entity instanceof MagmaCube magmaCube && CursosActivos.isColosalFusion()) {
                 evaluarColosalFusion(magmaCube, level);
             }
-            if (entity instanceof Stray stray && CursosActivos.isNigromanteCriptas()) {
+            if (entity instanceof Stray stray && CursosActivos.isNigromanteCriptas()
+                    && !stray.entityTags().contains("eclipse_inmune_sol") && !stray.isPassenger()) {
                 evaluarNigromanteCriptas(stray, level);
             }
             if (entity instanceof Spider spider && CursosActivos.isSpiderman()) {
@@ -1394,16 +1416,6 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Cuevas Tenebrosas (Nivel 1): Oscuridad por debajo de Y=0 (se reduce cuando el jugador porte un farol en la mano secundaria)
-            if (CursosActivos.isCuevasTenebrosas() && currentTick % 20 == 0) {
-                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                    if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
-                    if (player.getY() < 0.0) {
-                        player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 100, 0, false, false, true));
-                    }
-                }
-            }
-
             // Cadáveres Pisados (Nivel 1): Pisar arena de almas otorga Debilidad I
             if (CursosActivos.isCadaveresPisados() && currentTick % 10 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -1456,11 +1468,11 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Falla Mecánica (Nivel 3): Gólems x1.8 con Fuerza y Velocidad escalables por deterioro y locura <25% HP
             if (CursosActivos.isFallaMecanica() && currentTick % 20 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof IronGolem golem && golem.isAlive()) {
+                        if (entity instanceof IronGolem golem && golem.isAlive()
+                                && !golem.entityTags().contains("coloso_ruina")) {
                             aplicarFallaMecanica(golem, lvl);
                         }
                     }
@@ -1495,7 +1507,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                                 || off.is(Items.TORCH) || off.is(Items.SOUL_TORCH) || off.is(Items.REDSTONE_TORCH);
 
                         if (tieneFarol) {
-                            if (player.hasEffect(MobEffects.DARKNESS)) {
+                            if (player.hasEffect(MobEffects.DARKNESS) && !player.hasEffect(MobEffects.BLINDNESS)) {
                                 player.removeEffect(MobEffects.DARKNESS);
                             }
                         } else if (tieneAntorcha) {
@@ -1672,23 +1684,24 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (CursosActivos.isFiloMortal() && currentTick % 40 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Zombie zombie && !esEntidadCordura(zombie) && !zombie.entityTags().contains("filo_mortal_equipado")) {
-                            if (zombie instanceof Drowned && (CursosActivos.isArtesMaritimos() || CursosActivos.isEnergiaPoseica() || CursosActivos.isMonturaAcuatica())) {
-                                continue;
-                            }
+                        if (entity instanceof Zombie zombie && zombie.getClass() == Zombie.class
+                                && !esEntidadCordura(zombie)
+                                && !zombie.entityTags().contains("filo_mortal_equipado")) {
                             equiparEspadaFiloMortal(zombie, lvl);
                         }
                     }
                 }
             }
 
-            // Artes Marítimos (Nivel 3), Pykete (Nivel 3), Energía Poseica (Nivel 3) y Montura Acuática (Nivel 3)
             if ((CursosActivos.isArtesMaritimos() || CursosActivos.isPykete() || CursosActivos.isEnergiaPoseica() || CursosActivos.isMonturaAcuatica()) && currentTick % 40 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
                         if (entity instanceof Drowned drowned && drowned.isAlive()) {
-                            if (CursosActivos.isArtesMaritimos() || CursosActivos.isPykete()) {
+                            if (CursosActivos.isArtesMaritimos()) {
                                 equiparTridenteArtesMaritimos(drowned);
+                            }
+                            if (CursosActivos.isPykete()) {
+                                configurarPykete(drowned);
                             }
                             if (CursosActivos.isEnergiaPoseica()) {
                                 aplicarEnergiaPoseica(drowned, lvl);
@@ -1701,12 +1714,11 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Pykete Arponero (Nivel 3): lanzamiento activo de tridentes con cuerda de algas y arrastre
             if (currentTick % 5 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
                         if (entity instanceof Drowned drowned && drowned.isAlive()
-                                && (drowned.entityTags().contains("pykete_arponero") || (CursosActivos.isPykete() && drowned.entityTags().contains("artes_maritimos_equipado")))) {
+                                && (drowned.entityTags().contains("pykete_arponero") || CursosActivos.isPykete())) {
                             procesarPykete(drowned, lvl, currentTick);
                         }
                     }
@@ -1905,13 +1917,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                         for (EquipmentSlot slot : armorSlots) {
                             ItemStack piece = player.getItemBySlot(slot);
                             if (!piece.isEmpty() && piece.isDamageableItem()) {
-                                int newDmg = piece.getDamageValue() + 3;
-                                if (newDmg >= piece.getMaxDamage()) {
-                                    player.setItemSlot(slot, ItemStack.EMPTY);
-                                    sLvl.playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.0f, 1.0f);
-                                } else {
-                                    piece.setDamageValue(newDmg);
-                                }
+                                piece.hurtAndBreak(3, player, slot);
                             }
                         }
                         sLvl.sendParticles(ParticleTypes.ITEM_SLIME, player.getX(), player.getY() + 0.6, player.getZ(), 14, 0.35, 0.45, 0.35, 0.05);
@@ -1937,9 +1943,11 @@ public class Ruleta_Hardcore implements ModInitializer {
                                     ServerLevel sLvl = (ServerLevel) player.level();
                                     sLvl.sendParticles(ParticleTypes.CRIT, player.getX(), player.getEyeY(), player.getZ(), 2, 0.15, 0.15, 0.15, 0.05);
                                     float jitterPitch = (ThreadLocalRandom.current().nextFloat() - 0.5f) * 3.5f;
-                                    float jitterYaw = (ThreadLocalRandom.current().nextFloat() - 0.5f) * 3.5f;
-                                    player.setXRot(player.getXRot() + jitterPitch);
-                                    player.setYRot(player.getYRot() + jitterYaw);
+                                    float jitterYaw = (ThreadLocalRandom.current().nextFloat() - 0.5f) * 4.5f;
+                                    player.connection.teleport(
+                                            new PositionMoveRotation(Vec3.ZERO, Vec3.ZERO, jitterYaw, jitterPitch),
+                                            Set.of(Relative.X, Relative.Y, Relative.Z, Relative.Y_ROT, Relative.X_ROT,
+                                                    Relative.DELTA_X, Relative.DELTA_Y, Relative.DELTA_Z));
                                 }
 
                                 if (ticks >= 120) {
@@ -2016,6 +2024,9 @@ public class Ruleta_Hardcore implements ModInitializer {
             // Procesar raptos aéreos activos de Phantoms Raptores (subir hasta +8 bloques y soltar)
             if (!RAPTOS_PHANTOM.isEmpty()) {
                 procesarRaptosPhantom(server, currentTick);
+            }
+            if (!ARRASTRES_PYKETE.isEmpty()) {
+                procesarArrastresPykete(server);
             }
 
             // Esqueletos con Espada (Nivel 1) y Brujas Nigromantes (Nivel 3)
@@ -2204,7 +2215,9 @@ public class Ruleta_Hardcore implements ModInitializer {
                 if (currentTick % 40 == 0) {
                     for (ServerLevel lvl : server.getAllLevels()) {
                         for (Entity entity : lvl.getAllEntities()) {
-                            if (entity instanceof WitherSkeleton ws && !ws.entityTags().contains("intruso_calaverico_equipado")) {
+                            if (entity instanceof WitherSkeleton ws
+                                    && !ws.entityTags().contains("intruso_calaverico_equipado")
+                                    && !ws.entityTags().contains("cazador_igneo")) {
                                 prepararIntrusoCalaverico(ws, lvl);
                             }
                         }
@@ -2611,7 +2624,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                         for (LivingEntity victim : victims) {
                             double dist = Math.sqrt(victim.distanceToSqr(v.x(), v.y(), v.z()));
                             if (dist <= 6.0) {
-                                victim.hurtServer(lvl, lvl.damageSources().fellOutOfWorld(), 150.0f);
+                                victim.hurtServer(lvl, lvl.damageSources().magic(), 150.0f);
                             } else if (dist <= 12.0) {
                                 float dmg = (float) (45.0 * (1.0 - (dist - 6.0) / 6.0));
                                 victim.hurtServer(lvl, lvl.damageSources().magic(), Math.max(10.0f, dmg));
@@ -2701,13 +2714,18 @@ public class Ruleta_Hardcore implements ModInitializer {
                         if (tick4) {
                             lvl.sendParticles(ParticleTypes.SCULK_SOUL, entity.getX(), entity.getY() + 1.0, entity.getZ(), 2, 0.25, 0.4, 0.25, 0.01);
                         }
+                        continue;
                     }
 
                     if (entity instanceof Creeper creeper) {
-                        if (CursosActivos.isComoPedro()) {
+                        boolean esVolador = creeper.entityTags().contains("creeper_fantasma")
+                                || creeper.entityTags().contains("creeper_avispon");
+                        if (CursosActivos.isComoPedro() && !esVolador) {
                             procesarCreeperComoPedro(creeper, lvl, currentTick);
                         }
-                        if (CursosActivos.isCreeperFantasma() && !creeper.entityTags().contains("creeper_fantasma_evaluado")) {
+                        if (CursosActivos.isCreeperFantasma()
+                                && !creeper.entityTags().contains("creeper_fantasma_evaluado")
+                                && !creeper.entityTags().contains("creeper_avispon")) {
                             evaluarCreeperFantasma(creeper);
                         }
                         if (creeper.entityTags().contains("creeper_fantasma")) {
@@ -2725,7 +2743,9 @@ public class Ruleta_Hardcore implements ModInitializer {
                             }
                         }
                         if (tick4) {
-                            if (CursosActivos.isCreeperAntimateria() && !creeper.entityTags().contains("creeper_antimateria_evaluado")) {
+                            if (CursosActivos.isCreeperAntimateria()
+                                    && !creeper.entityTags().contains("creeper_antimateria_evaluado")
+                                    && !creeper.entityTags().contains("creeper_avispon")) {
                                 evaluarCreeperAntimateria(creeper);
                             }
                             if (creeper.entityTags().contains("creeper_antimateria")) {
@@ -2741,7 +2761,9 @@ public class Ruleta_Hardcore implements ModInitializer {
                             }
                         }
                         if (tick5) {
-                            if (CursosActivos.isCreeperTermonuclear() && !creeper.entityTags().contains("creeper_termonuclear_evaluado")) {
+                            if (CursosActivos.isCreeperTermonuclear()
+                                    && !creeper.entityTags().contains("creeper_termonuclear_evaluado")
+                                    && !creeper.entityTags().contains("creeper_avispon")) {
                                 evaluarCreeperTermonuclear(creeper);
                             }
                             if (creeper.entityTags().contains("creeper_termonuclear")) {
@@ -2756,7 +2778,10 @@ public class Ruleta_Hardcore implements ModInitializer {
                             colosos.add(golem);
                         }
                     } else if (entity instanceof Stray stray) {
-                        if (tick40 && CursosActivos.isNigromanteCriptas() && !stray.entityTags().contains("nigromante_evaluado")) {
+                        if (tick40 && CursosActivos.isNigromanteCriptas()
+                                && !stray.entityTags().contains("nigromante_evaluado")
+                                && !stray.entityTags().contains("eclipse_inmune_sol")
+                                && !stray.isPassenger()) {
                             evaluarNigromanteCriptas(stray, lvl);
                         }
                         if (tick5 && stray.entityTags().contains("nigromante_criptas")) {
@@ -3741,6 +3766,8 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (phantom instanceof PhantomRaptorAccessor accessor) {
             accessor.ruleta$setPhantomRaptor(true);
         }
+        if (phantom.entityTags().contains("ruleta_stats_init")) return;
+        phantom.addTag("ruleta_stats_init");
         AttributeInstance scaleAttr = phantom.getAttribute(Attributes.SCALE);
         if (scaleAttr != null) {
             scaleAttr.setBaseValue(1.35);
@@ -3985,6 +4012,9 @@ public class Ruleta_Hardcore implements ModInitializer {
     }
 
     public static void aplicarFallaMecanica(IronGolem golem, ServerLevel level) {
+        if (golem.entityTags().contains("coloso_ruina")) {
+            return;
+        }
         if (golem.isPlayerCreated()) {
             golem.setPlayerCreated(false);
         }
@@ -4116,17 +4146,23 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (drowned.entityTags().contains("artes_maritimos_equipado")) {
             return;
         }
-        configurarPykete(drowned);
+        drowned.addTag("artes_maritimos_equipado");
+        if (!drowned.getMainHandItem().is(Items.TRIDENT)) {
+            drowned.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.TRIDENT));
+            drowned.setDropChance(EquipmentSlot.MAINHAND, 0.05f);
+        }
     }
 
     public static void configurarPykete(Drowned drowned) {
+        if (drowned.entityTags().contains("pykete_arponero")) {
+            return;
+        }
         drowned.addTag("artes_maritimos_equipado");
         drowned.addTag("pykete_arponero");
         if (!drowned.getMainHandItem().is(Items.TRIDENT)) {
             drowned.setItemSlot(EquipmentSlot.MAINHAND, new ItemStack(Items.TRIDENT));
             drowned.setDropChance(EquipmentSlot.MAINHAND, 0.05f);
         }
-        // Protección solar cuando está en tierra para evitar que muera quemado
         ItemStack helmet = drowned.getItemBySlot(EquipmentSlot.HEAD);
         if (helmet.isEmpty()) {
             drowned.setItemSlot(EquipmentSlot.HEAD, new ItemStack(Items.TURTLE_HELMET));
@@ -4158,7 +4194,10 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (distSqr >= 9.0 && distSqr <= 576.0 && drowned.hasLineOfSight(target)) {
                 long seed = Math.abs(drowned.getUUID().getMostSignificantBits());
                 if ((currentTick + seed) % 45 == 0) {
-                    ThrownTrident trident = new ThrownTrident(level, drowned, new ItemStack(Items.TRIDENT));
+                    ItemStack tridenteMano = drowned.getMainHandItem().is(Items.TRIDENT)
+                            ? drowned.getMainHandItem().copy()
+                            : new ItemStack(Items.TRIDENT);
+                    ThrownTrident trident = new ThrownTrident(level, drowned, tridenteMano);
                     trident.addTag("tridente_pykete");
                     double dx = target.getX() - drowned.getX();
                     double dy = (target.getY() + target.getEyeHeight() * 0.5) - (drowned.getY() + 1.2);
@@ -4172,6 +4211,124 @@ public class Ruleta_Hardcore implements ModInitializer {
                     level.addFreshEntity(trident);
                 }
             }
+        }
+    }
+
+    public static void iniciarArrastrePykete(ServerPlayer player, Drowned drowned) {
+        if (player == null || drowned == null || !(player.level() instanceof ServerLevel sLvl)) {
+            return;
+        }
+        if (player.level() != drowned.level()) {
+            return;
+        }
+
+        double dx = drowned.getX() - player.getX();
+        double dy = drowned.getY() - player.getY();
+        double dz = drowned.getZ() - player.getZ();
+        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist < 1.2) {
+            return;
+        }
+
+        if (player.isPassenger()) {
+            player.stopRiding();
+        }
+
+        double pullDist = Math.min(8.0, Math.max(0.0, dist - 1.1));
+        double nx = dx / dist;
+        double ny = dy / dist;
+        double nz = dz / dist;
+
+        double destX = player.getX() + nx * pullDist;
+        double destY = player.getY() + ny * pullDist;
+        double destZ = player.getZ() + nz * pullDist;
+
+        trazarCuerdaAlgas(sLvl, player, drowned);
+        sLvl.sendParticles(ParticleTypes.SPLASH, player.getX(), player.getY() + 0.9, player.getZ(), 18, 0.35, 0.4, 0.35, 0.12);
+        sLvl.playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.FISHING_BOBBER_RETRIEVE, SoundSource.HOSTILE, 1.8f, 0.55f);
+
+        double initialLift = drowned.isInWater() && player.isInWater() ? -0.08 : 0.34;
+        player.setDeltaMovement(nx * 1.15, ny * 0.45 + initialLift, nz * 1.15);
+        player.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(player));
+
+        ARRASTRES_PYKETE.put(player.getUUID(), new ArrastrePykete(drowned.getUUID(), destX, destY, destZ, 7));
+    }
+
+    private static void procesarArrastresPykete(MinecraftServer server) {
+        Iterator<Map.Entry<UUID, ArrastrePykete>> it = ARRASTRES_PYKETE.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<UUID, ArrastrePykete> entry = it.next();
+            ServerPlayer sp = server.getPlayerList().getPlayer(entry.getKey());
+            ArrastrePykete arrastre = entry.getValue();
+
+            if (sp == null || !sp.isAlive() || sp.isCreative() || sp.isSpectator()
+                    || !(sp.level() instanceof ServerLevel sLvl)) {
+                it.remove();
+                continue;
+            }
+
+            if (arrastre.ticksRestantes() <= 0 || sp.horizontalCollision) {
+                it.remove();
+                continue;
+            }
+
+            double dx = arrastre.destinoX() - sp.getX();
+            double dy = arrastre.destinoY() - sp.getY();
+            double dz = arrastre.destinoZ() - sp.getZ();
+            double distHoriz = Math.hypot(dx, dz);
+            double distTotal = Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+            if (distTotal < 0.85) {
+                sp.setDeltaMovement(sp.getDeltaMovement().scale(0.35));
+                sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(sp));
+                it.remove();
+                continue;
+            }
+
+            Entity owner = sLvl.getEntity(arrastre.drownedId());
+            if (owner instanceof Drowned drowned && drowned.isAlive()) {
+                trazarCuerdaAlgas(sLvl, sp, drowned);
+            }
+
+            double stepSpeed = Math.min(1.18, Math.max(0.55, distHoriz / Math.max(1, arrastre.ticksRestantes())));
+            double vx = (dx / distTotal) * stepSpeed;
+            double vz = (dz / distTotal) * stepSpeed;
+            double vy = (dy / distTotal) * (stepSpeed * 0.55);
+            if (!sp.isInWater() && sp.onGround()) {
+                vy = Math.max(vy, 0.24);
+            } else if (owner instanceof Drowned d && d.isInWater() && sp.isInWater()) {
+                vy = Math.min(vy, -0.06);
+            }
+
+            sp.setDeltaMovement(vx, vy, vz);
+            sp.connection.send(new net.minecraft.network.protocol.game.ClientboundSetEntityMotionPacket(sp));
+
+            entry.setValue(new ArrastrePykete(
+                    arrastre.drownedId(),
+                    arrastre.destinoX(),
+                    arrastre.destinoY(),
+                    arrastre.destinoZ(),
+                    arrastre.ticksRestantes() - 1
+            ));
+        }
+    }
+
+    private static void trazarCuerdaAlgas(ServerLevel sLvl, ServerPlayer player, Drowned drowned) {
+        double dx = drowned.getX() - player.getX();
+        double dy = (drowned.getY() + 1.1) - (player.getY() + 0.9);
+        double dz = drowned.getZ() - player.getZ();
+        double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        int steps = Math.min(28, Math.max(6, (int) (dist * 2.0)));
+        for (int i = 1; i < steps; i++) {
+            double t = (double) i / steps;
+            sLvl.sendParticles(
+                    ParticleTypes.COMPOSTER,
+                    player.getX() + dx * t,
+                    player.getY() + 0.9 + dy * t,
+                    player.getZ() + dz * t,
+                    1, 0.02, 0.02, 0.02, 0.0
+            );
         }
     }
 
@@ -4427,14 +4584,22 @@ public class Ruleta_Hardcore implements ModInitializer {
 
     public static void evaluarPhantomAlfa(Phantom phantom) {
         if (!CursosActivos.isPhantomAlfa()) return;
-        if (phantom.entityTags().contains("phantom_alfa_evaluado")) return;
+        if (phantom.entityTags().contains("phantom_alfa_evaluado") || phantom.entityTags().contains("phantom_raptor")) return;
+        if (CursosActivos.isPhantomsRaptores() && ThreadLocalRandom.current().nextFloat() < 0.50f) {
+            phantom.addTag("phantom_alfa_evaluado");
+            configurarPhantomRaptor(phantom);
+            return;
+        }
         configurarPhantomAlfa(phantom);
     }
 
     public static void configurarPhantomAlfa(Phantom phantom) {
         phantom.addTag("phantom_alfa_evaluado");
+        phantom.addTag("phantom_raptor_evaluado");
         phantom.addTag("phantom_alfa");
         phantom.addTag("eclipse_inmune_sol");
+        if (phantom.entityTags().contains("ruleta_stats_init")) return;
+        phantom.addTag("ruleta_stats_init");
 
         AttributeInstance scaleAttr = phantom.getAttribute(Attributes.SCALE);
         if (scaleAttr != null) {
@@ -4977,9 +5142,10 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (creeper instanceof CreeperCustomAccessor accessor) {
             accessor.ruleta$setTipoCreeper(CreeperCustomAccessor.TIPO_ANTIMATERIA);
         }
+        if (creeper.entityTags().contains("ruleta_stats_init")) return;
+        creeper.addTag("ruleta_stats_init");
         AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
         if (scaleAttr != null) {
-            // Escala 1.08 detectada por CreeperRendererMixin para renderizar la textura negra de Antimateria
             scaleAttr.setBaseValue(1.08);
         }
         AttributeInstance healthAttr = creeper.getAttribute(Attributes.MAX_HEALTH);
@@ -5025,7 +5191,7 @@ public class Ruleta_Hardcore implements ModInitializer {
     }
 
     public static void evaluarSpawnApocalipsisTotal(Zombie zombie, ServerLevel level) {
-        if (!CursosActivos.isApocalipsisZombie() || esEntidadCordura(zombie)) return;
+        if (!CursosActivos.isApocalipsisMinecraftTotal() || esEntidadCordura(zombie)) return;
         if (zombie.entityTags().contains("apoc6_spawn_evaluado")) return;
         zombie.addTag("apoc6_spawn_evaluado");
 
@@ -5810,6 +5976,8 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static void configurarColosalFusion(MagmaCube magma) {
         magma.addTag("colosal_fusion_evaluado");
         magma.addTag("colosal_fusion");
+        if (magma.entityTags().contains("ruleta_stats_init")) return;
+        magma.addTag("ruleta_stats_init");
         int colosalSize = ThreadLocalRandom.current().nextBoolean() ? 7 : 8;
         magma.setSize(colosalSize, true);
 
@@ -6020,6 +6188,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                     for (ServerPlayer sp : hitPlayers) {
                         DESESTABILIZACION_HOGLIN_EXPIRY.put(sp.getUUID(), expiry);
                         sp.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 60, 1));
+                        sp.addEffect(new MobEffectInstance(MobEffects.JUMP_BOOST, 60, 128, false, false, false));
                         Vec3 push = sp.position().subtract(hoglin.position()).normalize().scale(0.85);
                         sp.setDeltaMovement(push.x, 0.32, push.z);
                         sp.connection.send(new ClientboundSetEntityMotionPacket(sp));
@@ -6165,6 +6334,8 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (stray instanceof NigromanteAccessor accessor) {
             accessor.ruleta$setNigromante(true);
         }
+        if (stray.entityTags().contains("ruleta_stats_init")) return;
+        stray.addTag("ruleta_stats_init");
 
         AttributeInstance hpAttr = stray.getAttribute(Attributes.MAX_HEALTH);
         if (hpAttr != null) {
@@ -6405,13 +6576,15 @@ public class Ruleta_Hardcore implements ModInitializer {
     public static void configurarCreeperTermonuclear(Creeper creeper) {
         creeper.addTag("creeper_termonuclear_evaluado");
         creeper.addTag("creeper_termonuclear");
-        TEMPERATURA_CREEPER_TERMONUCLEAR.put(creeper.getUUID(), 0);
+        int tempActual = TEMPERATURA_CREEPER_TERMONUCLEAR.computeIfAbsent(creeper.getUUID(), k -> 0);
 
         if (creeper instanceof CreeperCustomAccessor accessor) {
             accessor.ruleta$setTipoCreeper(CreeperCustomAccessor.TIPO_TERMONUCLEAR);
-            accessor.ruleta$setTemperaturaTermonuclear(0);
+            accessor.ruleta$setTemperaturaTermonuclear(tempActual);
             accessor.ruleta$setMaxSwell(Integer.MAX_VALUE);
         }
+        if (creeper.entityTags().contains("ruleta_stats_init")) return;
+        creeper.addTag("ruleta_stats_init");
 
         AttributeInstance scaleAttr = creeper.getAttribute(Attributes.SCALE);
         if (scaleAttr != null) {
@@ -6791,8 +6964,9 @@ public class Ruleta_Hardcore implements ModInitializer {
         if (golem instanceof ColosoRuinaAccessor accessor) {
             accessor.ruleta$setColosoRuina(true);
         }
+        if (golem.entityTags().contains("ruleta_stats_init")) return;
+        golem.addTag("ruleta_stats_init");
 
-        // Escala x1.45 imponente
         AttributeInstance scaleAttr = golem.getAttribute(Attributes.SCALE);
         if (scaleAttr != null) {
             scaleAttr.setBaseValue(1.45);
@@ -6949,8 +7123,7 @@ public class Ruleta_Hardcore implements ModInitializer {
         for (LivingEntity victima : victimas) {
             double dist = victima.distanceTo(golem);
             if (dist <= 8.5) {
-                // Si la víctima está tocando el suelo o muy cerca de la superficie
-                boolean enSuelo = victima.onGround() || (victima.getY() <= gy + 0.65);
+                boolean enSuelo = victima.onGround();
                 if (enSuelo) {
                     float factor = (float) (1.0 - (dist / 8.5) * 0.45);
                     float damage = 22.0f * factor;

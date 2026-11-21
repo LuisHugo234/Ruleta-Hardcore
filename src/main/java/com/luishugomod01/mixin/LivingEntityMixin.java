@@ -42,6 +42,8 @@ import net.minecraft.world.entity.projectile.throwableitemprojectile.Snowball;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biomes;
 import org.spongepowered.asm.mixin.Mixin;
@@ -67,6 +69,12 @@ public abstract class LivingEntityMixin {
 
     @Unique
     private boolean ruleta$lastUsedWasFood;
+
+    @Unique
+    private MobEffectInstance ruleta$prevAbsorptionEffect;
+
+    @Unique
+    private float ruleta$prevAbsorptionAmount;
 
     @Unique
     private final java.util.ArrayDeque<Long> ruleta$shieldHitTicks = new java.util.ArrayDeque<>();
@@ -135,11 +143,14 @@ public abstract class LivingEntityMixin {
                 cir.setReturnValue(false);
                 return;
             }
-            if (creeper.entityTags().contains("creeper_termonuclear")
-                    && (damageSource.getDirectEntity() instanceof Snowball
-                    || damageSource.getDirectEntity() instanceof AbstractThrownPotion
-                    || damageSource.is(DamageTypes.FREEZE))) {
-                Ruleta_Hardcore.enfriarCreeperTermonuclear(creeper, level, 45);
+            if (creeper.entityTags().contains("creeper_termonuclear")) {
+                boolean esAguaArrojadiza = damageSource.getDirectEntity() instanceof AbstractThrownPotion thrownPotion
+                        && thrownPotion.getItem().getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).is(Potions.WATER);
+                if (damageSource.getDirectEntity() instanceof Snowball
+                        || esAguaArrojadiza
+                        || damageSource.is(DamageTypes.FREEZE)) {
+                    Ruleta_Hardcore.enfriarCreeperTermonuclear(creeper, level, 45);
+                }
             }
         }
     }
@@ -163,16 +174,6 @@ public abstract class LivingEntityMixin {
                 && damageSource.is(DamageTypeTags.IS_FIRE)) {
             amount *= 10.0f;
         }
-        if (CursosActivos.isEnderGhast() && !((Object) this instanceof Ghast)) {
-            if (damageSource.getDirectEntity() instanceof LargeFireball
-                    || damageSource.getEntity() instanceof Ghast
-                    || (damageSource.is(DamageTypeTags.IS_EXPLOSION) && damageSource.getEntity() instanceof Ghast)) {
-                amount *= 3.0f;
-            }
-        }
-        if (CursosActivos.isVexGrandes() && damageSource.getEntity() instanceof Vex) {
-            amount *= 2.0f;
-        }
         if (CursosActivos.isCreepersEscondidos() && damageSource.getEntity() instanceof Creeper creeper
                 && creeper.entityTags().contains("creeper_escondido")) {
             amount *= (1.0f / 3.0f);
@@ -189,7 +190,8 @@ public abstract class LivingEntityMixin {
         LivingEntity self = (LivingEntity) (Object) this;
 
         // Cuccos Salvajes: al golpear a un pollo, éste y los pollos cercanos se vuelven agresivos contra el jugador
-        if (CursosActivos.isCuccosSalvajes() && self instanceof Chicken chicken && damageSource.getEntity() instanceof Player) {
+        if (CursosActivos.isCuccosSalvajes() && cir.getReturnValueZ()
+                && self instanceof Chicken chicken && damageSource.getEntity() instanceof Player) {
             chicken.addTag("cucco_enfurecido");
             List<Chicken> flock = level.getEntitiesOfClass(Chicken.class, chicken.getBoundingBox().inflate(16.0), Entity::isAlive);
             for (Chicken c : flock) {
@@ -270,10 +272,15 @@ public abstract class LivingEntityMixin {
             Ruleta_Hardcore.colocarTelaranaTemporal(level, sp.blockPosition());
         }
 
-        // Multicreeper (Nivel 5): Creeper sobrevive a golpe cuerpo a cuerpo -> 30% de dividirse en 2 mini-creepers (mecha 1s)
         if (CursosActivos.isMulticreeper() && cir.getReturnValueZ()
                 && self instanceof Creeper creeper && creeper.isAlive()
                 && !creeper.entityTags().contains("mini_multicreeper")
+                && !creeper.entityTags().contains("creeper_fantasma")
+                && !creeper.entityTags().contains("creeper_termonuclear")
+                && !creeper.entityTags().contains("creeper_antimateria")
+                && !creeper.entityTags().contains("creeper_cosmico")
+                && !creeper.entityTags().contains("creeper_avispon")
+                && !creeper.entityTags().contains("creeper_escondido")
                 && damageSource.getDirectEntity() instanceof Player player
                 && !damageSource.is(DamageTypeTags.IS_PROJECTILE)
                 && !damageSource.is(DamageTypeTags.IS_EXPLOSION)) {
@@ -282,14 +289,12 @@ public abstract class LivingEntityMixin {
             }
         }
 
-        // Grito Primal (Nivel 2): Enderman aturde al jugador que ataca y lo deja sordo durante 30 segundos
         if (CursosActivos.isGritoPrimal() && cir.getReturnValueZ()
                 && self instanceof ServerPlayer sp && damageSource.getEntity() instanceof Enderman) {
             Ruleta_Hardcore.aplicarGritoPrimal(sp, level);
         }
 
-        // Sombra Parpadeante (Nivel 5): al golpear cuerpo a cuerpo a un Enderman, se teletransporta instantáneamente a la espalda exacta del jugador
-        if (CursosActivos.isSombraParpadeante()
+        if (CursosActivos.isSombraParpadeante() && cir.getReturnValueZ()
                 && self instanceof Enderman enderman && enderman.isAlive()
                 && damageSource.getEntity() instanceof ServerPlayer sp
                 && !damageSource.is(DamageTypeTags.IS_PROJECTILE)) {
@@ -348,12 +353,23 @@ public abstract class LivingEntityMixin {
 
     @Inject(method = "completeUsingItem", at = @At("HEAD"))
     private void ruleta$capturarItemConsumido(CallbackInfo ci) {
+        LivingEntity self = (LivingEntity) (Object) this;
         if (this.useItem != null && !this.useItem.isEmpty()) {
             this.ruleta$lastUsedItem = this.useItem.getItem();
             this.ruleta$lastUsedWasFood = this.useItem.has(DataComponents.FOOD);
+            if (CursosActivos.isManzanaRegeneradora() && this.ruleta$lastUsedItem == Items.GOLDEN_APPLE) {
+                MobEffectInstance prevAbs = self.getEffect(MobEffects.ABSORPTION);
+                this.ruleta$prevAbsorptionEffect = prevAbs != null ? new MobEffectInstance(prevAbs) : null;
+                this.ruleta$prevAbsorptionAmount = self.getAbsorptionAmount();
+            } else {
+                this.ruleta$prevAbsorptionEffect = null;
+                this.ruleta$prevAbsorptionAmount = 0.0f;
+            }
         } else {
             this.ruleta$lastUsedItem = null;
             this.ruleta$lastUsedWasFood = false;
+            this.ruleta$prevAbsorptionEffect = null;
+            this.ruleta$prevAbsorptionAmount = 0.0f;
         }
     }
 
@@ -364,13 +380,21 @@ public abstract class LivingEntityMixin {
 
         Item consumed = this.ruleta$lastUsedItem;
         boolean wasFood = this.ruleta$lastUsedWasFood;
+        MobEffectInstance prevAbsEffect = this.ruleta$prevAbsorptionEffect;
+        float prevAbsAmount = this.ruleta$prevAbsorptionAmount;
         this.ruleta$lastUsedItem = null;
         this.ruleta$lastUsedWasFood = false;
+        this.ruleta$prevAbsorptionEffect = null;
+        this.ruleta$prevAbsorptionAmount = 0.0f;
 
-        // Manzanas Regeneradoras: las manzanas de oro (exceptuando las Manzanas Doradas Encantadas) no dan absorción
+        // Manzanas Regeneradoras: las manzanas de oro comunes no otorgan absorción, pero preservan una absorción previa más fuerte
         if (CursosActivos.isManzanaRegeneradora() && consumed == Items.GOLDEN_APPLE) {
             self.removeEffect(MobEffects.ABSORPTION);
             self.setAbsorptionAmount(0.0f);
+            if (prevAbsEffect != null && prevAbsAmount > 0.0f) {
+                self.addEffect(prevAbsEffect);
+                self.setAbsorptionAmount(prevAbsAmount);
+            }
         }
 
         // Comida Echada a Perder (Nivel 1): 5% de probabilidad de recibir Infestado por 15s (300 ticks)
@@ -511,24 +535,28 @@ public abstract class LivingEntityMixin {
             return;
 
         LivingEntity self = (LivingEntity) (Object) this;
-        ItemStack totemStack = null;
+        boolean failedAny = false;
         for (InteractionHand hand : InteractionHand.values()) {
             ItemStack held = self.getItemInHand(hand);
-            if (held.has(DataComponents.DEATH_PROTECTION)) {
-                totemStack = held;
-                break;
+            if (!held.has(DataComponents.DEATH_PROTECTION))
+                continue;
+
+            // 2% de probabilidad de fallo por cada tótem disponible
+            if (ThreadLocalRandom.current().nextFloat() < 0.02f) {
+                held.shrink(1);
+                failedAny = true;
+                self.level().playSound(null, self.getX(), self.getY(), self.getZ(),
+                        SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1.0f, 0.4f);
+            } else {
+                if (failedAny && self instanceof ServerPlayer sp) {
+                    sp.sendSystemMessage(Component.literal(
+                            "§e⚠ ¡Un tótem sufrió un §4ERROR TOTÉMICO§e, pero el tótem de tu otra mano te salvó!"));
+                }
+                return;
             }
         }
 
-        if (totemStack == null)
-            return;
-
-        // 2% de probabilidad de fallo
-        if (ThreadLocalRandom.current().nextFloat() < 0.02f) {
-            totemStack.shrink(1);
-            self.level().playSound(null, self.getX(), self.getY(), self.getZ(),
-                    SoundEvents.TOTEM_USE, SoundSource.PLAYERS, 1.0f, 0.4f);
-
+        if (failedAny) {
             if (self instanceof ServerPlayer sp) {
                 sp.sendSystemMessage(Component.literal(
                         "§4§l☠ ¡ERROR TOTÉMICO! §cTu tótem de la inmortalidad ha fallado y no ha podido salvarte..."));
@@ -577,6 +605,13 @@ public abstract class LivingEntityMixin {
 
     @Inject(method = "getDamageAfterArmorAbsorb", at = @At("HEAD"), cancellable = true)
     private void ruleta$anularAbsorcionCorrupcion(DamageSource damageSource, float damage, CallbackInfoReturnable<Float> cir) {
+        if (CursosActivos.isCorrupcionVacio() && this.ruleta$corrupcionVacioExpiry > ((LivingEntity) (Object) this).level().getGameTime()) {
+            cir.setReturnValue(damage);
+        }
+    }
+
+    @Inject(method = "getDamageAfterMagicAbsorb", at = @At("HEAD"), cancellable = true)
+    private void ruleta$anularEncantamientosCorrupcion(DamageSource damageSource, float damage, CallbackInfoReturnable<Float> cir) {
         if (CursosActivos.isCorrupcionVacio() && this.ruleta$corrupcionVacioExpiry > ((LivingEntity) (Object) this).level().getGameTime()) {
             cir.setReturnValue(damage);
         }

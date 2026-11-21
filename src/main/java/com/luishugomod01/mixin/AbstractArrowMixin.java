@@ -76,10 +76,17 @@ public abstract class AbstractArrowMixin {
         }
     }
 
+    @org.spongepowered.asm.mixin.Unique
+    private float ruleta$vidaAntesFlecha = -1.0f;
+
     @Inject(method = "onHitEntity", at = @At("HEAD"), cancellable = true)
     private void ruleta$brujaReflejante(EntityHitResult hitResult, CallbackInfo ci) {
         AbstractArrow self = (AbstractArrow) (Object) this;
+        this.ruleta$vidaAntesFlecha = -1.0f;
         if (!(self.level() instanceof ServerLevel serverLevel)) return;
+        if (hitResult.getEntity() instanceof LivingEntity living) {
+            this.ruleta$vidaAntesFlecha = living.getHealth() + living.getAbsorptionAmount();
+        }
 
         // Creeper Fantasma (Nivel 5): completamente inmune a proyectiles (las flechas y tridentes lo atraviesan sin dañarlo)
         if (CursosActivos.isCreeperFantasma()
@@ -89,21 +96,6 @@ public abstract class AbstractArrowMixin {
             serverLevel.sendParticles(ParticleTypes.SOUL, creeper.getX(), creeper.getY() + 1.0, creeper.getZ(), 12, 0.3, 0.5, 0.3, 0.03);
             serverLevel.sendParticles(ParticleTypes.CLOUD, self.getX(), self.getY(), self.getZ(), 6, 0.15, 0.15, 0.15, 0.02);
             serverLevel.playSound(null, creeper.getX(), creeper.getY(), creeper.getZ(), SoundEvents.SOUL_ESCAPE.value(), SoundSource.HOSTILE, 1.0f, 1.3f);
-            ci.cancel();
-            return;
-        }
-
-        // Pykete (Nivel 3): si el tridente de un ahogado impacta contra un barco de madera, lo rompe instantáneamente de un solo golpe
-        boolean isPyketeHead = CursosActivos.isPykete()
-                || self.entityTags().contains("tridente_pykete")
-                || (self.getOwner() instanceof Drowned d && (d.entityTags().contains("pykete_arponero") || d.entityTags().contains("pykete")));
-        if (isPyketeHead && self instanceof ThrownTrident
-                && self.getOwner() instanceof Drowned
-                && hitResult.getEntity() instanceof AbstractBoat boat && boat.isAlive()) {
-            serverLevel.sendParticles(ParticleTypes.CRIT, boat.getX(), boat.getY() + 0.5, boat.getZ(), 30, 0.6, 0.3, 0.6, 0.15);
-            serverLevel.sendParticles(ParticleTypes.SPLASH, boat.getX(), boat.getY() + 0.5, boat.getZ(), 40, 0.8, 0.3, 0.8, 0.2);
-            serverLevel.playSound(null, boat.getX(), boat.getY(), boat.getZ(), SoundEvents.ZOMBIE_BREAK_WOODEN_DOOR, SoundSource.HOSTILE, 1.5f, 0.8f);
-            boat.kill(serverLevel);
             ci.cancel();
             return;
         }
@@ -158,47 +150,11 @@ public abstract class AbstractArrowMixin {
         AbstractArrow self = (AbstractArrow) (Object) this;
         if (!(self.level() instanceof ServerLevel serverLevel)) return;
 
-        // Pykete (Nivel 3): tridente con cuerda de algas. Si no es bloqueado con escudo, arrastra violentamente 8 bloques hacia el agua
-        boolean isPyketeImpact = CursosActivos.isPykete()
-                || self.entityTags().contains("tridente_pykete")
-                || (self.getOwner() instanceof Drowned d && (d.entityTags().contains("pykete_arponero") || d.entityTags().contains("pykete")));
-        if (isPyketeImpact && self instanceof ThrownTrident
-                && self.getOwner() instanceof Drowned drowned && drowned.isAlive()
-                && hitResult.getEntity() instanceof ServerPlayer player && player.isAlive()
-                && !player.isBlocking()) {
-            double dx = drowned.getX() - player.getX();
-            double dy = drowned.getY() - player.getY();
-            double dz = drowned.getZ() - player.getZ();
-            double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-            if (dist > 0.5) {
-                double pullBlocks = Math.min(8.0, dist);
-                double nx = dx / dist;
-                double ny = dy / dist;
-                double nz = dz / dist;
+        boolean impactoSinBloqueo = !(hitResult.getEntity() instanceof LivingEntity livingHit)
+                || this.ruleta$vidaAntesFlecha < 0.0f
+                || (livingHit.getHealth() + livingHit.getAbsorptionAmount()) < this.ruleta$vidaAntesFlecha - 0.01f;
 
-                int steps = Math.min(36, Math.max(10, (int) (dist * 2.2)));
-                for (int i = 0; i <= steps; i++) {
-                    double t = (double) i / steps;
-                    serverLevel.sendParticles(
-                            ParticleTypes.COMPOSTER,
-                            player.getX() + dx * t,
-                            player.getY() + 0.9 + dy * t,
-                            player.getZ() + dz * t,
-                            1, 0.02, 0.02, 0.02, 0.0
-                    );
-                }
-                serverLevel.playSound(null, player.getX(), player.getY(), player.getZ(),
-                        SoundEvents.FISHING_BOBBER_RETRIEVE, SoundSource.HOSTILE, 1.8f, 0.55f);
-
-                double pullSpeed = Math.min(2.85, 0.48 * pullBlocks);
-                double downPull = (player.isInWater() || drowned.isInWater()) ? -0.26 : 0.18;
-                player.setDeltaMovement(nx * pullSpeed, ny * (pullSpeed * 0.65) + downPull, nz * pullSpeed);
-                player.connection.send(new ClientboundSetEntityMotionPacket(player));
-            }
-        }
-
-        // Cazador Ígneo (Nivel 4): Flechas de fuego fatuo azul prenden fuego e imbuyen Descomposición (Wither I) por 6s
-        if (CursosActivos.isCazadorIgneo() && !(self instanceof ThrownTrident)
+        if (CursosActivos.isCazadorIgneo() && impactoSinBloqueo && !(self instanceof ThrownTrident)
                 && self.getOwner() instanceof WitherSkeleton ws && ws.entityTags().contains("cazador_igneo")
                 && hitResult.getEntity() instanceof LivingEntity target && target.isAlive()) {
             target.igniteForTicks(120);
@@ -210,15 +166,14 @@ public abstract class AbstractArrowMixin {
                     SoundEvents.SOUL_ESCAPE.value(), SoundSource.HOSTILE, 1.4f, 0.8f);
         }
 
-        // Creeper Termonuclear (Nivel 6): Enfriamiento táctico al recibir impacto de flechas
         if (hitResult.getEntity() instanceof Creeper creeper && creeper.isAlive()
                 && creeper.entityTags().contains("creeper_termonuclear")) {
             Ruleta_Hardcore.enfriarCreeperTermonuclear(creeper, serverLevel, 35);
         }
 
-        // Boogie Woogie (Nivel 3): flecha de esqueleto intercambia lugares con el jugador
-        if (CursosActivos.isBoogieWoogie() && !(self instanceof ThrownTrident)) {
+        if (CursosActivos.isBoogieWoogie() && impactoSinBloqueo && !(self instanceof ThrownTrident)) {
             if (self.getOwner() instanceof AbstractSkeleton skeleton && skeleton.isAlive()
+                    && !skeleton.entityTags().contains("cazador_igneo")
                     && hitResult.getEntity() instanceof ServerPlayer player && player.isAlive()) {
 
                 if (skeleton.level() != player.level()) return;
