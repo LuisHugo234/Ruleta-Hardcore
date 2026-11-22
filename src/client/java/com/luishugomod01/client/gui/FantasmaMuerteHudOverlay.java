@@ -32,8 +32,8 @@ public class FantasmaMuerteHudOverlay implements HudElement {
     private static final long DURACION_FLASH_MS = 650L;
     private static final long INICIO_GLITCH_MS = 3900L;
 
-    private static final int GHOST_W = 116;
-    private static final int GHOST_H = 114;
+    private static final int GHOST_W = 154;
+    private static final int GHOST_H = 152;
 
     private static MuerteFantasmaPayload payloadActual = null;
     private static long startTime = 0L;
@@ -209,7 +209,7 @@ public class FantasmaMuerteHudOverlay implements HudElement {
         int tintPrincipal = eliminado && laughPeak > 0.55f ? 0xFFFFD8DE : 0xFFFFFFFF;
         dibujarFantasma(extractor, TEXTURE_FANTASMA, ghostCx, ghostCy, scaleX, scaleY, tilt, tintPrincipal);
 
-        renderizarBannerTextoYCorazones(extractor, mc, centerX, centerY + 44, 1.0f, elapsed, eliminado);
+        renderizarBannerTextoYCorazones(extractor, mc, centerX, centerY + 62, 1.0f, elapsed, eliminado);
     }
 
     private void renderizarFaseGlitch(GuiGraphicsExtractor extractor, Minecraft mc,
@@ -288,7 +288,7 @@ public class FantasmaMuerteHudOverlay implements HudElement {
             }
         }
 
-        renderizarBannerTextoYCorazones(extractor, mc, centerX, centerY + 44, fadeAlpha, elapsed, eliminado);
+        renderizarBannerTextoYCorazones(extractor, mc, centerX, centerY + 62, fadeAlpha, elapsed, eliminado);
     }
 
     private void dibujarFantasma(GuiGraphicsExtractor extractor, Identifier tex,
