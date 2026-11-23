@@ -18,10 +18,12 @@ import java.util.Random;
 
 public class FantasmaMuerteHudOverlay implements HudElement {
 
-    private static final Identifier TEXTURE_FANTASMA =
-            Ruleta_Hardcore.id("textures/gui/fantasma_muerte.png");
+    private static final Identifier TEXTURE_SHEET =
+            Ruleta_Hardcore.id("textures/gui/fantasma_muerte_sheet.png");
     private static final Identifier TEXTURE_SILUETA =
             Ruleta_Hardcore.id("textures/gui/fantasma_muerte_silueta.png");
+    private static final Identifier TEXTURE_HUMO =
+            Ruleta_Hardcore.id("textures/gui/humo_espectral.png");
 
     private static final Identifier SPRITE_HEART_CONTAINER =
             Identifier.withDefaultNamespace("hud/heart/container_hardcore");
@@ -32,8 +34,36 @@ public class FantasmaMuerteHudOverlay implements HudElement {
     private static final long DURACION_FLASH_MS = 650L;
     private static final long INICIO_GLITCH_MS = 3900L;
 
-    private static final int GHOST_W = 154;
-    private static final int GHOST_H = 152;
+    private static final int TOTAL_FRAMES = 24;
+    private static final float BASE_FRAME_MS = 60.0f;
+
+    /**
+     * Tiempo de animación integrado con desaceleración suave: inicia enérgico tras el impacto
+     * y reduce progresivamente la velocidad del ladeo y la risa hasta volverse lento y amenazante.
+     */
+    private static float calcularTiempoAnimacionMs(long elapsed) {
+        long timeSinceBurlas = Math.max(0L, elapsed - DURACION_FLASH_MS);
+        float durBurlas = (float) (INICIO_GLITCH_MS - DURACION_FLASH_MS);
+        float t = Math.min((float) timeSinceBurlas, durBurlas);
+        float u = Mth.clamp(t / durBurlas, 0.0f, 1.0f);
+        float warpedBurlas = t * (1.0f - 0.37f * u);
+        if (timeSinceBurlas <= durBurlas) {
+            return warpedBurlas;
+        }
+        // En fase glitch continúa a la velocidad lenta final (0.26x) sin saltos
+        return warpedBurlas + (timeSinceBurlas - durBurlas) * 0.26f;
+    }
+
+    private static int calcularFrameActual(long elapsed) {
+        float animMs = calcularTiempoAnimacionMs(elapsed);
+        return ((int) (animMs / BASE_FRAME_MS)) % TOTAL_FRAMES;
+    }
+
+    private static int calcularTamanoCabeza(int screenHeight) {
+        int raw = Math.round(screenHeight * 0.63f);
+        int clamped = Mth.clamp(raw, 192, 272);
+        return (clamped / 8) * 8;
+    }
 
     private static MuerteFantasmaPayload payloadActual = null;
     private static long startTime = 0L;
@@ -112,104 +142,133 @@ public class FantasmaMuerteHudOverlay implements HudElement {
                                        int centerX, int centerY, long elapsed, boolean eliminado) {
         float p = (float) elapsed / (float) DURACION_FLASH_MS;
         float flashAlpha = 1.0f - p;
+        float elimBoost = eliminado ? 1.25f : 1.0f;
 
-        renderizarVineta(extractor, width, height, 0.55f + 0.45f * p, flashAlpha, eliminado);
+        renderizarVineta(extractor, width, height, 0.65f + 0.35f * p, flashAlpha * 0.9f, eliminado);
 
-        int flashTint = eliminado ? 0x990018 : 0x5A0A68;
-        int flashA = Math.round(145.0f * flashAlpha * flashAlpha);
+        // Impact frame estilo anime/terror: destello breve negro vacío + carmesí sangre (0% morado)
+        if (elapsed < 95L) {
+            float cutA = 1.0f - (float) elapsed / 95.0f;
+            int darkA = Math.min(235, Math.round(185.0f * cutA * elimBoost));
+            extractor.fill(0, 0, width, height, (darkA << 24) | 0x090104);
+        }
+        int flashA = Math.min(210, Math.round(135.0f * flashAlpha * flashAlpha * elimBoost));
         if (flashA > 2) {
-            extractor.fill(0, 0, width, height, (flashA << 24) | flashTint);
+            extractor.fill(0, 0, width, height, (flashA << 24) | (eliminado ? 0xB80824 : 0x8F061C));
         }
 
-        if (elapsed < 420L) {
-            float boltAlpha = 1.0f - (float) elapsed / 420.0f;
-            int coreCol = (Math.round(240.0f * boltAlpha) << 24) | 0xFFFFFF;
-            int haloCol = (Math.round(165.0f * boltAlpha) << 24) | (eliminado ? 0xFF3355 : 0xC666FF);
-            long seed = elapsed / 45L;
-            dibujarRayoFino(extractor, 0, (int) (height * 0.18), width, (int) (height * 0.82), haloCol, coreCol, seed + 1L);
-            dibujarRayoFino(extractor, (int) (width * 0.84), 0, (int) (width * 0.16), height, haloCol, coreCol, seed + 2L);
-            dibujarRayoFino(extractor, (int) (width * 0.36), 0, (int) (width * 0.64), height, haloCol, coreCol, seed + 3L);
-        }
-
+        int skullSize = calcularTamanoCabeza(height);
         float scaleX;
         float scaleY;
-        Identifier tex;
+        boolean esSilueta;
         if (elapsed < 320L) {
             float t = (float) elapsed / 320.0f;
-            float zoom = 1.0f + 1.55f * (float) Math.pow(1.0f - t, 2.4);
+            float zoom = 1.0f + 1.45f * (float) Math.pow(1.0f - t, 2.4);
             scaleX = zoom;
             scaleY = zoom;
-            tex = TEXTURE_SILUETA;
+            esSilueta = true;
         } else {
             float t = (float) (elapsed - 320L) / (float) (DURACION_FLASH_MS - 320L);
             float bounce = Mth.sin(t * Mth.PI) * (1.0f - t * 0.4f);
-            scaleX = 1.0f + bounce * 0.18f;
-            scaleY = 1.0f - bounce * 0.12f;
-            tex = TEXTURE_FANTASMA;
+            scaleX = 1.0f + bounce * 0.14f;
+            scaleY = 1.0f - bounce * 0.10f;
+            esSilueta = false;
         }
 
-        int ghostY = centerY - 26;
-        if (elapsed >= 320L) {
+        int ghostY = centerY - Math.round(skullSize * 0.06f);
+        if (!esSilueta) {
             float revealT = Mth.clamp((float) (elapsed - 320L) / (float) (DURACION_FLASH_MS - 320L), 0.0f, 1.0f);
-            renderizarHaloContraste(extractor, centerX, ghostY, revealT, 1.0f - revealT, eliminado);
+            renderizarHaloContraste(extractor, centerX, ghostY, skullSize, revealT, (1.0f - revealT) * 1.15f, eliminado);
             renderizarOndaExpansiva(extractor, centerX, ghostY, revealT, eliminado);
+            dibujarFrameCalavera(extractor, 11, centerX, ghostY, skullSize, scaleX, scaleY, 0.0f, 0xFFFFFFFF);
+        } else {
+            // Líneas radiales de impacto en blanco hueso y carmesí detrás de la silueta haciendo slam
+            float slamT = (float) elapsed / 320.0f;
+            renderizarLineasImpacto(extractor, centerX, ghostY, width, height, 1.0f - slamT * 0.5f, eliminado);
+            dibujarSilueta(extractor, centerX, ghostY, skullSize, scaleX, scaleY, 0xFFFFFFFF);
+            dibujarOjosImpacto(extractor, centerX, ghostY, skullSize, scaleX, 0.85f + 0.15f * Mth.sin(slamT * Mth.PI));
         }
-        dibujarFantasma(extractor, tex, centerX, ghostY, scaleX, scaleY, 0.0f, 0xFFFFFFFF);
+        renderizarFiltroVHS(extractor, width, height, elapsed, 0.75f + 0.25f * p);
     }
 
     private void renderizarFaseBurlas(GuiGraphicsExtractor extractor, Minecraft mc,
                                       int width, int height, int centerX, int centerY,
                                       long elapsed, boolean eliminado) {
         long timeInPhase = elapsed - DURACION_FLASH_MS;
+        float phaseProgress = Mth.clamp((float) timeInPhase / (float) (INICIO_GLITCH_MS - DURACION_FLASH_MS), 0.0f, 1.0f);
+        float animMs = calcularTiempoAnimacionMs(elapsed);
+        int skullSize = calcularTamanoCabeza(height);
+        int frameIdx = calcularFrameActual(elapsed);
 
-        float laughCycle = (timeInPhase % 460L) / 460.0f;
-        float laughBeat = Math.max(0.0f, Mth.sin(laughCycle * Mth.PI));
-        float laughPeak = laughBeat * laughBeat;
+        boolean vhsBurst = (elapsed >= 2100L && elapsed <= 2650L);
+        boolean pulseFlash = (elapsed >= 1200L && elapsed <= 1520L) || (elapsed >= 3050L && elapsed <= 3450L);
+        float pulse = 0.5f + 0.5f * Mth.sin(timeInPhase * 0.0045f);
 
-        renderizarVineta(extractor, width, height, 1.0f, laughPeak * 0.45f, eliminado);
-        renderizarChispas(extractor, centerX, centerY - 26, elapsed, 1.0f, eliminado);
+        // Coreografía de risa y flotación en arco sincronizada con el giro 3D (inicia enérgica y desacelera)
+        float decay = 1.0f - 0.58f * phaseProgress;
+        float frameContinuous = (animMs / BASE_FRAME_MS) % TOTAL_FRAMES;
+        float swayAngle = frameContinuous * (2.0f * Mth.PI / (float) TOTAL_FRAMES);
+        float swaySin = Mth.sin(swayAngle);
 
-        float bobbing = Mth.sin(timeInPhase * 0.0052f) * 7.5f - laughPeak * 8.5f;
-        float shakeX = laughPeak > 0.35f ? Mth.sin(timeInPhase * 0.11f) * 2.4f * laughPeak : 0.0f;
-        float tilt = Mth.sin(timeInPhase * 0.0068f) * 5.2f + (laughPeak * 3.5f * ((timeInPhase / 460L) % 2L == 0L ? 1.0f : -1.0f));
-        float scaleX = 1.0f + laughPeak * 0.10f;
-        float scaleY = 1.0f - laughPeak * 0.07f + 0.03f * Mth.sin(timeInPhase * 0.012f);
+        float laughWave = Math.abs(Mth.sin(animMs * 0.0135f));
+        float laughSnap = laughWave * laughWave;
+        float laughBounce = -laughSnap * (10.5f * decay);
+        float arcX = swaySin * (14.0f * decay);
+        float arcY = Mth.cos(swayAngle * 2.0f) * (4.5f * decay);
+        float tiltDeg = swaySin * (9.0f * decay);
 
-        int ghostCx = Math.round(centerX + shakeX);
-        int ghostCy = Math.round(centerY - 28 + bobbing);
+        int baseY = centerY - Math.round(skullSize * 0.06f);
+        // Viñeta carmesí latiendo al ritmo de cada carcajada + cenizas/brasas por toda la pantalla
+        float vignettePulse = pulse * 0.35f + laughSnap * 0.65f * decay + (vhsBurst ? 0.30f : 0.0f);
+        renderizarVineta(extractor, width, height, 1.0f, vignettePulse, eliminado);
+        renderizarCenizasYBrasas(extractor, width, height, elapsed, 1.0f, eliminado);
 
-        renderizarHaloContraste(extractor, ghostCx, ghostCy, 1.0f, laughPeak, eliminado);
+        float laughShakeX = Mth.sin(elapsed * 0.085f) * (2.2f * (1.0f - phaseProgress)) * laughSnap;
+        float jitterX = vhsBurst ? Mth.sin(elapsed * 0.19f) * 6.5f : (pulseFlash ? Mth.sin(elapsed * 0.14f) * 2.0f : laughShakeX);
 
-        int ecoRgb = eliminado ? 0xFF2848 : 0xB855FF;
-        float ecoSpread = 7.0f + laughPeak * 13.0f;
-        int ecoAlpha1 = Math.round(74.0f + laughPeak * 62.0f);
-        int ecoAlpha2 = Math.round(44.0f + laughPeak * 40.0f);
+        float breathe = 1.0f + Mth.sin(timeInPhase * 0.0042f) * 0.022f;
+        float scaleX = breathe * (1.0f + laughSnap * 0.055f * decay);
+        float scaleY = breathe * (1.0f - laughSnap * 0.028f * decay + (1.0f - laughWave) * 0.022f * decay);
 
-        dibujarFantasma(
-                extractor,
-                TEXTURE_FANTASMA,
-                Math.round(ghostCx + ecoSpread),
-                Math.round(ghostCy - ecoSpread * 0.7f),
-                scaleX * (1.06f + laughPeak * 0.08f),
-                scaleY * (1.06f + laughPeak * 0.08f),
-                tilt + 4.0f,
-                (ecoAlpha1 << 24) | ecoRgb
-        );
-        dibujarFantasma(
-                extractor,
-                TEXTURE_FANTASMA,
-                Math.round(ghostCx - ecoSpread * 0.65f),
-                Math.round(ghostCy - ecoSpread * 0.35f),
-                scaleX * 1.03f,
-                scaleY * 1.03f,
-                tilt - 3.0f,
-                (ecoAlpha2 << 24) | ecoRgb
-        );
+        int ghostCx = Math.round(centerX + arcX + jitterX);
+        int ghostCy = Math.round(baseY + arcY + laughBounce);
 
-        int tintPrincipal = eliminado && laughPeak > 0.55f ? 0xFFFFD8DE : 0xFFFFFFFF;
-        dibujarFantasma(extractor, TEXTURE_FANTASMA, ghostCx, ghostCy, scaleX, scaleY, tilt, tintPrincipal);
+        // Aura carmesí detrás de la calavera latiendo en sincronía exacta con cada carcajada
+        renderizarHaloContraste(extractor, ghostCx, ghostCy, skullSize, 1.0f, pulse * 0.45f + laughSnap * 0.95f * decay, eliminado);
 
-        renderizarBannerTextoYCorazones(extractor, mc, centerX, centerY + 62, 1.0f, elapsed, eliminado);
+        if (vhsBurst) {
+            int slices = 8;
+            int sliceH = skullSize / slices;
+            int sheetH = skullSize * TOTAL_FRAMES;
+            float baseV = frameIdx * (float) skullSize;
+            extractor.pose().pushMatrix();
+            extractor.pose().translate(ghostCx, ghostCy);
+            extractor.pose().rotateAbout((float) Math.toRadians(tiltDeg), 0, 0);
+            extractor.pose().scale(scaleX, scaleY);
+            for (int s = 0; s < slices; s++) {
+                float uY = baseV + s * sliceH;
+                float shift = Mth.sin(elapsed * 0.14f + s * 2.3f) * 12.0f;
+                int drawY = -skullSize / 2 + s * sliceH;
+                int drawX = Math.round(-skullSize / 2.0f + shift);
+                extractor.blit(RenderPipelines.GUI_TEXTURED, TEXTURE_SHEET, drawX - 5, drawY, 0.0f, uY, skullSize, sliceH, skullSize, sheetH, 0x8CEFE4E6);
+                extractor.blit(RenderPipelines.GUI_TEXTURED, TEXTURE_SHEET, drawX + 5, drawY, 0.0f, uY, skullSize, sliceH, skullSize, sheetH, 0xB8FF1A38);
+                extractor.blit(RenderPipelines.GUI_TEXTURED, TEXTURE_SHEET, drawX, drawY, 0.0f, uY, skullSize, sliceH, skullSize, sheetH, 0xFFFFFFFF);
+            }
+            extractor.pose().popMatrix();
+        } else {
+            int chromaOff = Math.round(2.5f + laughSnap * 2.2f * decay);
+            dibujarFrameCalavera(extractor, frameIdx, ghostCx - chromaOff, ghostCy, skullSize, scaleX * 1.02f, scaleY * 1.02f, tiltDeg, 0x38EFE4E6);
+            dibujarFrameCalavera(extractor, frameIdx, ghostCx + chromaOff, ghostCy, skullSize, scaleX * 1.02f, scaleY * 1.02f, tiltDeg, 0x62FF1A36);
+            int tintPrincipal = pulseFlash ? 0xFFFFDCE2 : 0xFFFFFFFF;
+            dibujarFrameCalavera(extractor, frameIdx, ghostCx, ghostCy, skullSize, scaleX, scaleY, tiltDeg, tintPrincipal);
+        }
+
+        // Humo espectral detallado saliendo directamente desde las cuencas de ambos ojos (rotando con el ladeo)
+        renderizarHumoOjos(extractor, ghostCx, ghostCy, skullSize, frameIdx, tiltDeg, elapsed, 0.88f + 0.24f * laughSnap);
+
+        renderizarFiltroVHS(extractor, width, height, elapsed, vhsBurst ? 1.0f : 0.72f);
+        int textY = Math.min(height - 32, baseY + Math.round(skullSize * 0.49f));
+        renderizarBannerTextoYCorazones(extractor, mc, centerX, textY, 1.0f, elapsed, eliminado);
     }
 
     private void renderizarFaseGlitch(GuiGraphicsExtractor extractor, Minecraft mc,
@@ -221,11 +280,17 @@ public class FantasmaMuerteHudOverlay implements HudElement {
         float fadeAlpha = (1.0f - p) * (1.0f - p * 0.35f);
 
         renderizarVineta(extractor, width, height, fadeAlpha, 0.0f, eliminado);
+        renderizarCenizasYBrasas(extractor, width, height, elapsed, fadeAlpha, eliminado);
 
-        int ghostY = Math.round(centerY - 28 - p * 12.0f);
-        renderizarHaloContraste(extractor, centerX, ghostY, fadeAlpha, 0.0f, eliminado);
+        int skullSize = calcularTamanoCabeza(height);
+        int baseY = centerY - Math.round(skullSize * 0.06f);
+        int ghostY = Math.round(baseY - p * 12.0f);
+        renderizarHaloContraste(extractor, centerX, ghostY, skullSize, fadeAlpha, 0.0f, eliminado);
         int slices = 8;
-        int sliceH = GHOST_H / slices;
+        int sliceH = skullSize / slices;
+        int sheetH = skullSize * TOTAL_FRAMES;
+        int frameIdx = calcularFrameActual(elapsed);
+        float baseV = frameIdx * (float) skullSize;
         int mainAlpha = Math.round(255.0f * fadeAlpha);
         int chromaAlpha = Math.round(145.0f * fadeAlpha);
 
@@ -233,42 +298,41 @@ public class FantasmaMuerteHudOverlay implements HudElement {
             extractor.pose().pushMatrix();
             extractor.pose().translate(centerX, ghostY);
 
-            Identifier tex = TEXTURE_FANTASMA;
             for (int s = 0; s < slices; s++) {
-                float uY = s * sliceH;
+                float uY = baseV + s * sliceH;
                 float shift = Mth.sin((elapsed * 0.095f) + s * 1.9f) * 14.0f * (0.5f + p * 2.2f);
-                int drawY = -GHOST_H / 2 + s * sliceH;
-                int drawX = Math.round(-GHOST_W / 2.0f + shift);
+                int drawY = -skullSize / 2 + s * sliceH;
+                int drawX = Math.round(-skullSize / 2.0f + shift);
                 int chromaOff = Math.max(2, Math.round(3.0f + p * 7.0f));
 
                 if (chromaAlpha > 2) {
                     extractor.blit(
                             RenderPipelines.GUI_TEXTURED,
-                            tex,
+                            TEXTURE_SHEET,
                             drawX - chromaOff, drawY,
                             0.0f, uY,
-                            GHOST_W, sliceH,
-                            GHOST_W, GHOST_H,
-                            (chromaAlpha << 24) | 0x40F8FF
+                            skullSize, sliceH,
+                            skullSize, sheetH,
+                            (chromaAlpha << 24) | 0xEFE4E6
                     );
                     extractor.blit(
                             RenderPipelines.GUI_TEXTURED,
-                            tex,
+                            TEXTURE_SHEET,
                             drawX + chromaOff, drawY,
                             0.0f, uY,
-                            GHOST_W, sliceH,
-                            GHOST_W, GHOST_H,
-                            (chromaAlpha << 24) | (eliminado ? 0xFF2244 : 0xFF40D8)
+                            skullSize, sliceH,
+                            skullSize, sheetH,
+                            (chromaAlpha << 24) | 0xFF1E3C
                     );
                 }
 
                 extractor.blit(
                         RenderPipelines.GUI_TEXTURED,
-                        tex,
+                        TEXTURE_SHEET,
                         drawX, drawY,
                         0.0f, uY,
-                        GHOST_W, sliceH,
-                        GHOST_W, GHOST_H,
+                        skullSize, sliceH,
+                        skullSize, sheetH,
                         (mainAlpha << 24) | 0xFFFFFF
                 );
             }
@@ -277,10 +341,10 @@ public class FantasmaMuerteHudOverlay implements HudElement {
 
         Random rnd = new Random(elapsed / 35L);
         int particleCount = 30;
-        int pRgb = eliminado ? 0xFF6677 : 0xE2B8FF;
+        int pRgb = eliminado ? 0xFF6677 : 0xFF334C;
         for (int i = 0; i < particleCount; i++) {
-            int px = (int) (centerX - 66 + rnd.nextFloat() * 132);
-            int py = (int) (centerY - 82 + rnd.nextFloat() * 116 - p * 50.0f);
+            int px = (int) (centerX - skullSize * 0.45f + rnd.nextFloat() * skullSize * 0.9f);
+            int py = (int) (centerY - skullSize * 0.5f + rnd.nextFloat() * skullSize * 0.8f - p * 50.0f);
             int sz = 2 + rnd.nextInt(3);
             int pAlpha = Math.round(235.0f * fadeAlpha);
             if (pAlpha > 2) {
@@ -288,12 +352,141 @@ public class FantasmaMuerteHudOverlay implements HudElement {
             }
         }
 
-        renderizarBannerTextoYCorazones(extractor, mc, centerX, centerY + 62, fadeAlpha, elapsed, eliminado);
+        renderizarFiltroVHS(extractor, width, height, elapsed, fadeAlpha * 0.85f);
+        int textY = Math.min(height - 32, baseY + Math.round(skullSize * 0.49f));
+        renderizarBannerTextoYCorazones(extractor, mc, centerX, textY, fadeAlpha, elapsed, eliminado);
     }
 
-    private void dibujarFantasma(GuiGraphicsExtractor extractor, Identifier tex,
-                                 int cx, int cy, float scaleX, float scaleY,
+    private void renderizarHumoOjos(GuiGraphicsExtractor extractor, int cx, int cy, int size,
+                                    int frameIdx, float tiltDeg, long elapsed, float intensity) {
+        // Seguimiento del giro 3D horizontal y del ladeo 2D para mantener el humo anclado exactamente a las cuencas
+        float yawPhase = Mth.sin(frameIdx * (2.0f * Mth.PI / (float) TOTAL_FRAMES));
+        float yawOffX = yawPhase * size * 0.032f;
+        float rad = (float) Math.toRadians(tiltDeg);
+        float cosT = Mth.cos(rad);
+        float sinT = Mth.sin(rad);
+
+        // Coordenadas locales exactas de las cuencas oculares respecto al centro del sprite
+        float localEyeY = size * 0.18f;
+        float localEyeOffX = size * 0.14f;
+
+        for (int side = -1; side <= 1; side += 2) {
+            float lx = yawOffX + side * localEyeOffX;
+            float ly = localEyeY + yawPhase * side * size * 0.012f;
+            int originX = Math.round(cx + lx * cosT - ly * sinT);
+            int originY = Math.round(cy + lx * sinT + ly * cosT);
+
+            // Capa 1: Sombra/volumen oscuro de vacío detrás del humo carmesí (da profundidad y contraste contra cielos/fondos claros)
+            int darkPuffs = 9;
+            for (int i = 0; i < darkPuffs; i++) {
+                float cycle = ((elapsed * 0.00095f) + i / (float) darkPuffs + (side < 0 ? 0.43f : 0.0f)) % 1.0f;
+                float fadeIn = Mth.clamp(cycle / 0.16f, 0.0f, 1.0f);
+                float fadeOut = (1.0f - cycle) * (1.0f - cycle * 0.25f);
+                int a = Math.round(165.0f * fadeIn * fadeOut * intensity);
+                if (a <= 4) continue;
+                float dx = side * (size * 0.02f + cycle * (size * 0.46f));
+                float dy = -cycle * (size * 0.08f) + Mth.sin(cycle * 5.0f + i * 1.6f) * (size * 0.040f) + size * 0.012f;
+                int puffSize = Math.round(size * (0.10f + cycle * 0.25f));
+                float rotDeg = side * (cycle * 75.0f + i * 31.0f);
+                int rgb = (i % 2 == 0) ? 0x22030A : 0x4A0616;
+                dibujarNubeHumo(extractor, Math.round(originX + dx), Math.round(originY + dy), puffSize, rotDeg, (a << 24) | rgb);
+            }
+
+            // Capa 2: Volutas densas de humo carmesí intenso fluyendo en espiral desde el interior de la cuenca
+            int eyePuffs = 14;
+            for (int i = 0; i < eyePuffs; i++) {
+                float cycle = ((elapsed * 0.00112f) + i / (float) eyePuffs + (side < 0 ? 0.37f : 0.0f)) % 1.0f;
+                float fadeIn = Mth.clamp(cycle / 0.12f, 0.0f, 1.0f);
+                float fadeOut = (1.0f - cycle) * (1.0f - cycle * 0.18f);
+                int a = Math.round(235.0f * fadeIn * fadeOut * intensity);
+                if (a <= 4) continue;
+                float dx = side * (cycle * (size * 0.48f));
+                float wave = Mth.sin(cycle * 5.8f + i * 1.25f) * (size * 0.036f);
+                float dy = -cycle * (size * 0.09f) + wave;
+                int puffSize = Math.round(size * (0.075f + cycle * 0.23f));
+                float rotDeg = side * (cycle * 85.0f + i * 27.0f);
+                int rgb = (i % 3 == 0) ? 0xFF1A3C : ((i % 2 == 0) ? 0xE01234 : 0xA80B24);
+                dibujarNubeHumo(extractor, Math.round(originX + dx), Math.round(originY + dy), puffSize, rotDeg, (a << 24) | rgb);
+            }
+
+            // Capa 3: Núcleo incandescente (energía rosada-blanca brotando directamente del ojo brillante)
+            int corePuffs = 8;
+            for (int i = 0; i < corePuffs; i++) {
+                float cycle = ((elapsed * 0.00140f) + i / (float) corePuffs + (side < 0 ? 0.21f : 0.0f)) % 1.0f;
+                float fadeIn = Mth.clamp(cycle / 0.10f, 0.0f, 1.0f);
+                float fadeOut = (1.0f - cycle) * (1.0f - cycle);
+                int a = Math.round(220.0f * fadeIn * fadeOut * intensity);
+                if (a <= 4) continue;
+                float dx = side * (cycle * (size * 0.26f));
+                float dy = -cycle * (size * 0.045f) + Mth.sin(cycle * 6.4f + i * 1.7f) * (size * 0.018f);
+                int puffSize = Math.round(size * (0.055f + cycle * 0.12f));
+                float rotDeg = -side * (cycle * 60.0f + i * 37.0f);
+                int rgb = (cycle < 0.32f) ? 0xFFD0DC : 0xFF4D72;
+                dibujarNubeHumo(extractor, Math.round(originX + dx), Math.round(originY + dy), puffSize, rotDeg, (a << 24) | rgb);
+            }
+
+            // Capa 4: Chispas y brasas pixeladas blancas/carmesí desprendiéndose del chorro de humo
+            int sparks = 10;
+            for (int i = 0; i < sparks; i++) {
+                float cycle = ((elapsed * 0.00128f) + i / (float) sparks + (side < 0 ? 0.5f : 0.0f)) % 1.0f;
+                float env = Mth.sin(cycle * Mth.PI);
+                int a = Math.round(245.0f * env * intensity);
+                if (a <= 5) continue;
+                float sx = originX + side * (size * 0.06f + cycle * size * 0.44f);
+                float sy = originY + Mth.sin(cycle * 4.5f + i * 2.1f) * (size * 0.13f) - cycle * (size * 0.09f);
+                int sz = (i % 3 == 0) ? 3 : 2;
+                int rgb = (i % 3 == 0) ? 0xFFFFFF : ((i % 2 == 0) ? 0xFF708D : 0xFF2244);
+                extractor.fill(Math.round(sx), Math.round(sy), Math.round(sx) + sz, Math.round(sy) + sz, (a << 24) | rgb);
+            }
+        }
+    }
+
+    private void dibujarNubeHumo(GuiGraphicsExtractor extractor, int cx, int cy, int size,
                                  float angleDeg, int tintArgb) {
+        extractor.pose().pushMatrix();
+        extractor.pose().translate(cx, cy);
+        extractor.pose().rotateAbout((float) Math.toRadians(angleDeg), 0, 0);
+        extractor.blit(
+                RenderPipelines.GUI_TEXTURED,
+                TEXTURE_HUMO,
+                -size / 2, -size / 2,
+                0.0f, 0.0f,
+                size, size,
+                size, size,
+                tintArgb
+        );
+        extractor.pose().popMatrix();
+    }
+
+    private void renderizarFiltroVHS(GuiGraphicsExtractor extractor, int width, int height,
+                                     long elapsed, float intensity) {
+        float clamped = Mth.clamp(intensity, 0.0f, 1.0f);
+        if (clamped <= 0.02f) {
+            return;
+        }
+        int veilA = Math.round(46.0f * clamped);
+        if (veilA > 1) {
+            extractor.fill(0, 0, width, height, (veilA << 24) | 0x20030A);
+        }
+        int scanA = Math.round(34.0f * clamped);
+        if (scanA > 1) {
+            int scanCol = (scanA << 24) | 0x050206;
+            for (int y = 0; y < height; y += 3) {
+                extractor.fill(0, y, width, y + 1, scanCol);
+            }
+        }
+        int bandY1 = (int) ((elapsed * 0.14f) % Math.max(1, height));
+        int bandY2 = (int) ((elapsed * 0.09f + height * 0.45f) % Math.max(1, height));
+        int trackA = Math.round(28.0f * clamped);
+        if (trackA > 1) {
+            extractor.fill(0, bandY1, width, Math.min(height, bandY1 + 4), (trackA << 24) | 0xFF2240);
+            extractor.fill(0, bandY2, width, Math.min(height, bandY2 + 2), (trackA << 24) | 0xEFE4E6);
+        }
+    }
+
+    private void dibujarFrameCalavera(GuiGraphicsExtractor extractor, int frameIdx,
+                                      int cx, int cy, int size, float scaleX, float scaleY,
+                                      float angleDeg, int tintArgb) {
         extractor.pose().pushMatrix();
         extractor.pose().translate(cx, cy);
         if (angleDeg != 0.0f) {
@@ -302,27 +495,86 @@ public class FantasmaMuerteHudOverlay implements HudElement {
         extractor.pose().scale(scaleX, scaleY);
         extractor.blit(
                 RenderPipelines.GUI_TEXTURED,
-                tex,
-                -GHOST_W / 2, -GHOST_H / 2,
-                0.0f, 0.0f,
-                GHOST_W, GHOST_H,
-                GHOST_W, GHOST_H,
+                TEXTURE_SHEET,
+                -size / 2, -size / 2,
+                0.0f, frameIdx * (float) size,
+                size, size,
+                size, size * TOTAL_FRAMES,
                 tintArgb
         );
         extractor.pose().popMatrix();
     }
 
+    private void dibujarSilueta(GuiGraphicsExtractor extractor, int cx, int cy, int size,
+                                float scaleX, float scaleY, int tintArgb) {
+        extractor.pose().pushMatrix();
+        extractor.pose().translate(cx, cy);
+        extractor.pose().scale(scaleX, scaleY);
+        extractor.blit(
+                RenderPipelines.GUI_TEXTURED,
+                TEXTURE_SILUETA,
+                -size / 2, -size / 2,
+                0.0f, 0.0f,
+                size, size,
+                size, size,
+                tintArgb
+        );
+        extractor.pose().popMatrix();
+    }
+
+    private void dibujarOjosImpacto(GuiGraphicsExtractor extractor, int cx, int cy, int size,
+                                    float scale, float intensity) {
+        int eyeOffX = Math.round(size * 0.14f * scale);
+        int eyeY = cy + Math.round(size * 0.18f * scale);
+        int haloW = Math.max(5, Math.round(size * 0.055f * scale));
+        int haloH = Math.max(3, Math.round(size * 0.026f * scale));
+        int coreW = Math.max(3, Math.round(haloW * 0.52f));
+        int coreH = Math.max(2, Math.round(haloH * 0.52f));
+        int haloA = Math.min(255, Math.round(235.0f * intensity));
+        int coreA = Math.min(255, Math.round(255.0f * intensity));
+
+        for (int side = -1; side <= 1; side += 2) {
+            int ex = cx + side * eyeOffX;
+            extractor.fill(ex - haloW - 3, eyeY - haloH - 2, ex + haloW + 3, eyeY + haloH + 2, ((haloA / 2) << 24) | 0xB80A26);
+            extractor.fill(ex - haloW, eyeY - haloH, ex + haloW, eyeY + haloH, (haloA << 24) | 0xFF1A3C);
+            extractor.fill(ex - coreW, eyeY - coreH, ex + coreW, eyeY + coreH, (coreA << 24) | 0xFFF5F7);
+        }
+    }
+
+    private void renderizarLineasImpacto(GuiGraphicsExtractor extractor, int cx, int cy,
+                                         int width, int height, float alpha, boolean eliminado) {
+        if (alpha <= 0.03f) {
+            return;
+        }
+        int rays = 12;
+        int outerR = Math.max(width, height) / 2 + 24;
+        int innerR = Math.min(width, height) / 5;
+        int colRed = (Math.round((eliminado ? 170.0f : 135.0f) * alpha) << 24) | 0xFF1E3E;
+        int colWhite = (Math.round(115.0f * alpha) << 24) | 0xF5ECEE;
+        for (int i = 0; i < rays; i++) {
+            float ang = (float) (i * Math.PI * 2.0 / rays) + 0.18f;
+            int x0 = Math.round(cx + Mth.cos(ang) * innerR);
+            int y0 = Math.round(cy + Mth.sin(ang) * innerR);
+            int x1 = Math.round(cx + Mth.cos(ang) * outerR);
+            int y1 = Math.round(cy + Mth.sin(ang) * outerR);
+            dibujarSegmentoLinea(extractor, x0, y0, x1, y1, (i % 3 == 0) ? colWhite : colRed, (i % 2 == 0) ? 2 : 1);
+        }
+    }
+
     private void renderizarVineta(GuiGraphicsExtractor extractor, int width, int height,
                                   float alpha, float pulse, boolean eliminado) {
-        int rgb = eliminado ? 0x3D040E : 0x1E0632;
-        int edgeA = Math.round((128.0f + 38.0f * pulse) * Mth.clamp(alpha, 0.0f, 1.0f));
+        // Siempre paleta carmesí oscuro (más profundo e intenso en eliminación definitiva)
+        int rgb = eliminado ? 0x4A0310 : 0x34040D;
+        float baseEdge = eliminado ? 148.0f : 118.0f;
+        float pulseEdge = eliminado ? 52.0f : 42.0f;
+        int edgeA = Math.min(235, Math.round((baseEdge + pulseEdge * pulse) * Mth.clamp(alpha, 0.0f, 1.0f)));
         if (edgeA <= 2) {
             return;
         }
         int edgeCol = (edgeA << 24) | rgb;
         int clearCol = rgb;
-        int bandV = Math.max(30, height / 4);
-        int bandH = Math.max(26, width / 9);
+        int bandV = Math.max(32, height / 4);
+        int bandH = Math.max(28, width / 8);
 
         extractor.fillGradient(0, 0, width, bandV, edgeCol, clearCol);
         extractor.fillGradient(0, height - bandV, width, height, clearCol, edgeCol);
@@ -330,7 +582,7 @@ public class FantasmaMuerteHudOverlay implements HudElement {
         int steps = 5;
         for (int i = 0; i < steps; i++) {
             float f = 1.0f - (float) i / (float) steps;
-            int sa = Math.round(edgeA * 0.62f * f * f);
+            int sa = Math.round(edgeA * 0.64f * f * f);
             if (sa <= 2) continue;
             int col = (sa << 24) | rgb;
             int x0 = (bandH * i) / steps;
@@ -340,23 +592,31 @@ public class FantasmaMuerteHudOverlay implements HudElement {
         }
     }
 
-    private void renderizarChispas(GuiGraphicsExtractor extractor, int cx, int cy,
-                                   long elapsed, float alpha, boolean eliminado) {
-        int count = 18;
-        int rgbMain = eliminado ? 0xFF4D6A : 0xC878FF;
+    private void renderizarCenizasYBrasas(GuiGraphicsExtractor extractor, int width, int height,
+                                          long elapsed, float alpha, boolean eliminado) {
+        int count = eliminado ? 44 : 28;
         for (int i = 0; i < count; i++) {
-            float speed = 0.00055f + (i % 5) * 0.00012f;
-            float phase = ((elapsed * speed) + i * 0.19f) % 1.0f;
-            float angle = i * 2.39996f;
-            float spread = 42.0f + (i % 4) * 14.0f;
-            int px = Math.round(cx + Mth.cos(angle) * spread + Mth.sin(elapsed * 0.004f + i) * 6.0f);
-            int py = Math.round(cy + 34.0f - phase * 110.0f);
+            float speed = 0.00024f + (i % 6) * 0.00008f;
+            float phase = ((elapsed * speed) + (i * 0.173f)) % 1.0f;
+            float xNorm = ((i * 0.6180339f) % 1.0f);
+            float drift = Mth.sin(elapsed * 0.0022f + i * 1.7f) * (12.0f + (i % 4) * 5.0f);
+            int px = Math.round(xNorm * width + drift);
+            int py = Math.round((1.05f - phase * 1.15f) * height);
             float env = Mth.sin(phase * Mth.PI);
-            int a = Math.round(190.0f * env * alpha);
-            if (a <= 3) continue;
-            int sz = (i % 3 == 0) ? 3 : 2;
-            int col = (a << 24) | ((i % 4 == 0) ? 0xFFFFFF : rgbMain);
-            extractor.fill(px, py, px + sz, py + sz, col);
+            int a = Math.round((eliminado ? 225.0f : 190.0f) * env * alpha);
+            if (a <= 4) continue;
+            int sz = (i % 5 == 0) ? 3 : 2;
+            int rgb;
+            if (i % 5 == 0) {
+                rgb = 0xFFF4F6; // Chispa blanco hueso
+            } else if (i % 3 == 0) {
+                rgb = 0xB8AEB2; // Ceniza gris claro
+            } else if (i % 2 == 0) {
+                rgb = 0xFF2848; // Brasa rojo vivo
+            } else {
+                rgb = 0xC8102E; // Brasa carmesí profundo
+            }
+            extractor.fill(px, py, px + sz, py + sz, (a << 24) | rgb);
         }
     }
 
@@ -438,19 +698,20 @@ public class FantasmaMuerteHudOverlay implements HudElement {
         }
     }
 
-    private void renderizarHaloContraste(GuiGraphicsExtractor extractor, int cx, int cy,
+    private void renderizarHaloContraste(GuiGraphicsExtractor extractor, int cx, int cy, int skullSize,
                                          float alpha, float pulse, boolean eliminado) {
         if (alpha <= 0.02f) {
             return;
         }
-        int baseRgb = eliminado ? 0x26030B : 0x160526;
-        int glowRgb = eliminado ? 0xAA1634 : 0x6E22B8;
+        int baseRgb = 0x22030A;
+        int glowRgb = eliminado ? 0xD81438 : 0xB81232;
         int layers = 6;
-        int maxR = Math.round(78.0f + pulse * 14.0f);
+        int maxR = Math.round(skullSize * 0.44f + pulse * 22.0f);
+        float intensityBoost = eliminado ? 1.18f : 1.0f;
         for (int i = layers; i >= 1; i--) {
             float frac = (float) i / (float) layers;
             int r = Math.round(maxR * frac);
-            int a = Math.round((24.0f + (1.0f - frac) * 28.0f) * alpha);
+            int a = Math.min(200, Math.round((24.0f + (1.0f - frac) * (30.0f + pulse * 18.0f)) * alpha * intensityBoost));
             if (a <= 2) continue;
             int rgb = (i <= 2) ? glowRgb : baseRgb;
             dibujarDiscoSuave(extractor, cx, cy, r, (a << 24) | rgb);
@@ -464,10 +725,10 @@ public class FantasmaMuerteHudOverlay implements HudElement {
             return;
         }
         float ease = 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t);
-        int ringR = Math.round(34.0f + ease * 88.0f);
-        int ringAlpha = Math.round(215.0f * fade);
-        int coreCol = (ringAlpha << 24) | 0xFFFFFF;
-        int glowCol = (Math.round(150.0f * fade) << 24) | (eliminado ? 0xFF3355 : 0xCC66FF);
+        int ringR = Math.round(34.0f + ease * (eliminado ? 105.0f : 90.0f));
+        int ringAlpha = Math.round(220.0f * fade);
+        int coreCol = (ringAlpha << 24) | 0xFFF4F6;
+        int glowCol = (Math.round(165.0f * fade) << 24) | 0xFF1E3E;
 
         int segments = 28;
         for (int i = 0; i < segments; i++) {
@@ -499,31 +760,6 @@ public class FantasmaMuerteHudOverlay implements HudElement {
             if (halfW > 0) {
                 extractor.fill(cx - halfW, cy + dy, cx + halfW, cy + dy + step, color);
             }
-        }
-    }
-
-    private void dibujarRayoFino(GuiGraphicsExtractor extractor, int x1, int y1, int x2, int y2,
-                                 int haloCol, int coreCol, long seed) {
-        int steps = 12;
-        int prevX = x1;
-        int prevY = y1;
-        Random rnd = new Random(seed * 31L + x1 * 17L);
-
-        for (int i = 1; i <= steps; i++) {
-            float frac = (float) i / (float) steps;
-            int nextX = Math.round(x1 + (x2 - x1) * frac);
-            int nextY = Math.round(y1 + (y2 - y1) * frac);
-
-            if (i < steps) {
-                nextX += rnd.nextInt(19) - 9;
-                nextY += rnd.nextInt(19) - 9;
-            }
-
-            dibujarSegmentoLinea(extractor, prevX, prevY, nextX, nextY, haloCol, 2);
-            dibujarSegmentoLinea(extractor, prevX, prevY, nextX, nextY, coreCol, 1);
-
-            prevX = nextX;
-            prevY = nextY;
         }
     }
 
