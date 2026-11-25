@@ -13,6 +13,11 @@ import com.luishugomod01.client.creeper.CreeperCosmicoModel;
 import com.luishugomod01.client.creeper.CreeperFantasmaModel;
 import com.luishugomod01.client.creeper.CreeperTermonuclearModel;
 import com.luishugomod01.client.elder.ReyProfundoModel;
+import com.luishugomod01.client.frogzilla.FrogzillaClientState;
+import com.luishugomod01.client.frogzilla.FrogzillaModel;
+import com.luishugomod01.client.frogzilla.FrogzillaRenderer;
+import com.luishugomod01.client.frogzilla.RanaCamaraClientState;
+import com.luishugomod01.client.gui.FrogzillaDevourHudOverlay;
 import com.luishugomod01.client.hombre.HombreRocaModel;
 import com.luishugomod01.client.hombre.HombreRocaRenderer;
 import com.luishugomod01.client.hombre.RocaProyectilRenderer;
@@ -28,7 +33,9 @@ import com.luishugomod01.network.AbrirMenuAdminPayload;
 import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.AbrirMenuRevivirPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
+import com.luishugomod01.network.FrogzillaDevourSyncPayload;
 import com.luishugomod01.network.MuerteFantasmaPayload;
+import com.luishugomod01.network.RanaCamaraRollPayload;
 import com.luishugomod01.network.RitualRevivirPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
 import com.luishugomod01.network.VidasJugadorPayload;
@@ -53,11 +60,18 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
         ModelLayerRegistry.registerModelLayer(ColosoRuinaModel.LAYER_LOCATION, ColosoRuinaModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(ReyProfundoModel.LAYER_LOCATION, ReyProfundoModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(HombreRocaModel.LAYER_LOCATION, HombreRocaModel::createBodyLayer);
+        ModelLayerRegistry.registerModelLayer(FrogzillaModel.LAYER_LOCATION, FrogzillaModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(AngelRevivirModel.LAYER_LOCATION, AngelRevivirModel::createBodyLayer);
         ModelLayerRegistry.registerModelLayer(RitualRevivirVfxModel.LAYER_LOCATION, RitualRevivirVfxModel::createBodyLayer);
         EntityRendererRegistry.register(Ruleta_Hardcore.MIMIC, MimicRenderer::new);
         EntityRendererRegistry.register(Ruleta_Hardcore.HOMBRE_ROCA, HombreRocaRenderer::new);
         EntityRendererRegistry.register(Ruleta_Hardcore.ROCA_PROYECTIL, RocaProyectilRenderer::new);
+        EntityRendererRegistry.register(Ruleta_Hardcore.FROGZILLA, FrogzillaRenderer::new);
+
+        HudElementRegistry.addLast(
+                Ruleta_Hardcore.id("frogzilla_devour_hud"),
+                new FrogzillaDevourHudOverlay()
+        );
 
         HudElementRegistry.addLast(
                 Ruleta_Hardcore.id("ruleta_hud"),
@@ -154,12 +168,26 @@ public class Ruleta_HardcoreClient implements ClientModInitializer {
             });
         });
 
-        ClientTickEvents.END_CLIENT_TICK.register(BloodMoonClientState::tick);
+        ClientPlayNetworking.registerGlobalReceiver(FrogzillaDevourSyncPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> FrogzillaClientState.updateFromPayload(payload));
+        });
+
+        ClientPlayNetworking.registerGlobalReceiver(RanaCamaraRollPayload.TYPE, (payload, context) -> {
+            context.client().execute(() -> RanaCamaraClientState.aplicarRotacion(payload.targetRollDegrees(), payload.durationTicks()));
+        });
+
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            BloodMoonClientState.tick(client);
+            FrogzillaClientState.tick(client);
+            RanaCamaraClientState.tick(client);
+        });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             BloodMoonClientState.reset();
             VidasClientState.reset();
             ReviveRitualClientManager.reset();
             EventCinematicOverlay.reset();
+            FrogzillaClientState.reset();
+            RanaCamaraClientState.reset();
         });
     }
 }

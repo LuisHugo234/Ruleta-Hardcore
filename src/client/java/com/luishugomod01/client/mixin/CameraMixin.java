@@ -1,10 +1,15 @@
 package com.luishugomod01.client.mixin;
 
+import com.luishugomod01.client.frogzilla.RanaCamaraClientState;
 import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -14,6 +19,26 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
+
+    @Shadow
+    @Final
+    private static Vector3fc UP;
+
+    @Shadow
+    @Final
+    private static Vector3fc LEFT;
+
+    @Shadow
+    @Final
+    private Quaternionf rotation;
+
+    @Shadow
+    @Final
+    private Vector3f up;
+
+    @Shadow
+    @Final
+    private Vector3f left;
 
     @Shadow
     private boolean detached;
@@ -56,6 +81,15 @@ public abstract class CameraMixin {
                     this.yRot + shakeYaw,
                     Mth.clamp(this.xRot + shakePitch, -89.0f, 89.0f)
             );
+        }
+
+        if (RanaCamaraClientState.hasActiveRoll()) {
+            float rollDeg = RanaCamaraClientState.getInterpolatedRollDegrees(partialTick);
+            if (Math.abs(rollDeg) > 0.01f) {
+                this.rotation.rotateZ((float) Math.toRadians(rollDeg));
+                UP.rotate(this.rotation, this.up);
+                LEFT.rotate(this.rotation, this.left);
+            }
         }
     }
 

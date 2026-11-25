@@ -7,9 +7,6 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.LightmapRenderStateExtractor;
 import net.minecraft.client.renderer.state.LightmapRenderState;
 import net.minecraft.util.Mth;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -29,28 +26,8 @@ public abstract class LightmapRenderStateExtractorMixin {
             return;
         }
 
-        // Cuevas Tenebrosas (Nivel 1): si el jugador está bajo Y=0 y porta un farol en la mano secundaria,
-        // reducir el efecto de Oscuridad y añadir iluminación cálida como si estuviera en una fuente de luz
+        // Cuevas Tenebrosas (Nivel 1): se maneja de forma idéntica en ambas manos (sin fullbright artificial)
         LocalPlayer player = Minecraft.getInstance().player;
-        if (BloodMoonClientState.isCuevasTenebrosasActive() && player != null && player.getY() < 0.0) {
-            ItemStack offhand = player.getItemBySlot(EquipmentSlot.OFFHAND);
-            boolean normalLantern = offhand.is(Items.LANTERN);
-            boolean soulLantern = offhand.is(Items.SOUL_LANTERN);
-            if (normalLantern || soulLantern) {
-                state.darknessEffectScale *= 0.20f;
-                state.blockFactor = Math.max(state.blockFactor, 0.85f);
-                if (state.ambientColor != null) {
-                    float targetR = soulLantern ? 0.22f : 0.38f;
-                    float targetG = soulLantern ? 0.34f : 0.30f;
-                    float targetB = soulLantern ? 0.38f : 0.18f;
-                    state.ambientColor = new Vector3f(
-                            Math.max(state.ambientColor.x(), targetR),
-                            Math.max(state.ambientColor.y(), targetG),
-                            Math.max(state.ambientColor.z(), targetB)
-                    );
-                }
-            }
-        }
 
         // Eclipse Solar (Nivel 6): reducir drásticamente el nivel de luz global del Overworld hacia una penumbra fría y lúgubre
         float eclipseIntensity = BloodMoonClientState.getEclipseIntensity(partialTick);

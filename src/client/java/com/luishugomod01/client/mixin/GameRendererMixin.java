@@ -1,5 +1,6 @@
 package com.luishugomod01.client.mixin;
 
+import com.luishugomod01.client.frogzilla.FrogzillaClientState;
 import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import com.mojang.renderpearl.api.textures.GpuTextureView;
 import net.minecraft.client.renderer.GameRenderer;
@@ -20,7 +21,7 @@ public abstract class GameRendererMixin {
             GpuTextureView lightmap,
             CallbackInfo ci
     ) {
-        if (ReviveRitualClientManager.isLocalPlayerInCinematic()) {
+        if (ReviveRitualClientManager.isLocalPlayerInCinematic() || FrogzillaClientState.isDevoured()) {
             ci.cancel();
         }
     }

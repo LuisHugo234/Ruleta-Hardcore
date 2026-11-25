@@ -1,5 +1,6 @@
 package com.luishugomod01;
 
+import com.luishugomod01.entity.FrogzillaEntity;
 import com.luishugomod01.entity.HombreRocaEntity;
 import com.luishugomod01.entity.MimicEntity;
 import com.luishugomod01.entity.RocaProyectilEntity;
@@ -12,8 +13,11 @@ import com.luishugomod01.network.AbrirMenuEstadoPayload;
 import com.luishugomod01.network.AbrirMenuRevivirPayload;
 import com.luishugomod01.network.AccionAdminPayload;
 import com.luishugomod01.network.BloodMoonSyncPayload;
+import com.luishugomod01.network.FrogzillaDevourSyncPayload;
+import com.luishugomod01.network.FrogzillaEscapeTapPayload;
 import com.luishugomod01.network.GuardarConfigAdminPayload;
 import com.luishugomod01.network.MuerteFantasmaPayload;
+import com.luishugomod01.network.RanaCamaraRollPayload;
 import com.luishugomod01.network.RitualRevivirPayload;
 import com.luishugomod01.network.RuletaAnimacionPayload;
 import com.luishugomod01.network.SolicitarRevivirJugadorPayload;
@@ -156,6 +160,7 @@ import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.ChestBlock;
+import net.minecraft.world.level.block.LanternBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -318,9 +323,25 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .build(ROCA_PROYECTIL_KEY)
     );
 
+    public static final ResourceKey<EntityType<?>> FROGZILLA_KEY = ResourceKey.create(
+            Registries.ENTITY_TYPE,
+            Identifier.fromNamespaceAndPath(MOD_ID, "frogzilla")
+    );
+
+    public static final EntityType<FrogzillaEntity> FROGZILLA = Registry.register(
+            BuiltInRegistries.ENTITY_TYPE,
+            FROGZILLA_KEY,
+            EntityType.Builder.of(FrogzillaEntity::new, MobCategory.MONSTER)
+                    .sized(2.1F, 1.8F)
+                    .clientTrackingRange(10)
+                    .updateInterval(2)
+                    .build(FROGZILLA_KEY)
+    );
+
     public static final String[] MOBS_CUSTOM = new String[] {
             "mimic",
             "hombre_roca",
+            "frogzilla",
             "coloso_ruina",
             "creeper_termonuclear",
             "creeper_antimateria",
@@ -403,6 +424,7 @@ public class Ruleta_Hardcore implements ModInitializer {
 
         FabricDefaultAttributeRegistry.register(MIMIC, MimicEntity.createAttributes());
         FabricDefaultAttributeRegistry.register(HOMBRE_ROCA, HombreRocaEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(FROGZILLA, FrogzillaEntity.createAttributes());
 
         PayloadTypeRegistry.clientboundPlay().register(RuletaAnimacionPayload.TYPE, RuletaAnimacionPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(MuerteFantasmaPayload.TYPE, MuerteFantasmaPayload.STREAM_CODEC);
@@ -413,9 +435,20 @@ public class Ruleta_Hardcore implements ModInitializer {
         PayloadTypeRegistry.clientboundPlay().register(VidasJugadorPayload.TYPE, VidasJugadorPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(RitualRevivirPayload.TYPE, RitualRevivirPayload.STREAM_CODEC);
         PayloadTypeRegistry.clientboundPlay().register(AbrirMenuRevivirPayload.TYPE, AbrirMenuRevivirPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(FrogzillaDevourSyncPayload.TYPE, FrogzillaDevourSyncPayload.STREAM_CODEC);
+        PayloadTypeRegistry.clientboundPlay().register(RanaCamaraRollPayload.TYPE, RanaCamaraRollPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(GuardarConfigAdminPayload.TYPE, GuardarConfigAdminPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(AccionAdminPayload.TYPE, AccionAdminPayload.STREAM_CODEC);
         PayloadTypeRegistry.serverboundPlay().register(SolicitarRevivirJugadorPayload.TYPE, SolicitarRevivirJugadorPayload.STREAM_CODEC);
+        PayloadTypeRegistry.serverboundPlay().register(FrogzillaEscapeTapPayload.TYPE, FrogzillaEscapeTapPayload.STREAM_CODEC);
+
+        ServerPlayNetworking.registerGlobalReceiver(FrogzillaEscapeTapPayload.TYPE, (payload, context) -> {
+            ServerPlayer player = context.player();
+            MinecraftServer srv = player.level().getServer();
+            if (srv != null) {
+                srv.execute(() -> FrogzillaEntity.registrarPulsacionEscape(player));
+            }
+        });
 
         ServerPlayNetworking.registerGlobalReceiver(SolicitarRevivirJugadorPayload.TYPE, (payload, context) -> {
             ServerPlayer invocador = context.player();
@@ -620,7 +653,9 @@ public class Ruleta_Hardcore implements ModInitializer {
                     .then(Commands.literal("mimic").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "mimic")))
                     .then(Commands.literal("esqueletosconespada").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "esqueletosconespada")))
                     .then(Commands.literal("brujasnigromantes").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "brujasnigromantes")))
-                    .then(Commands.literal("phantomsraptores").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "phantomsraptores"))))
+                    .then(Commands.literal("phantomsraptores").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "phantomsraptores")))
+                    .then(Commands.literal("travesurasranicas").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "travesurasranicas")))
+                    .then(Commands.literal("frogzilla").executes(ctx -> ejecutarActivacionDirecta(ctx.getSource(), "frogzilla"))))
                 .then(Commands.literal("bloodmoon")
                     .requires(source -> source.permissions().hasPermission(Permissions.COMMANDS_GAMEMASTER))
                     .then(Commands.literal("iniciar").executes(ctx -> {
@@ -1114,6 +1149,8 @@ public class Ruleta_Hardcore implements ModInitializer {
         // Protección de desconexión durante un Ritual de Revivir: si sale antes de aterrizar, finalizar en Survival
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayer player = handler.getPlayer();
+            FrogzillaEntity.liberarSiEstaDevorado(player);
+            ultimoAnguloCamaraRana.remove(player.getUUID());
             RitualRevivirServidor pendiente = RITUALES_REVIVIR_ACTIVOS.remove(player.getUUID());
             if (pendiente != null) {
                 finalizarAterrizajeRitualRevivir(server, player, pendiente, false);
@@ -1460,6 +1497,50 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
+            // Frogzilla (Nivel 4): Spawnea en cualquier bioma del Overworld día o noche (probabilidad baja)
+            if (CursosActivos.isFrogzilla() && currentTick % 160 == 0) {
+                for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                    if (!player.isAlive() || player.isSpectator() || player.isCreative()) continue;
+                    if (player.level() instanceof ServerLevel sLvl && sLvl.dimension() == Level.OVERWORLD) {
+                        if (sLvl.getDifficulty() != net.minecraft.world.Difficulty.PEACEFUL) {
+                            List<FrogzillaEntity> cercanos = sLvl.getEntitiesOfClass(
+                                    FrogzillaEntity.class,
+                                    player.getBoundingBox().inflate(56.0),
+                                    FrogzillaEntity::isAlive
+                            );
+                            if (cercanos.isEmpty() && sLvl.getRandom().nextFloat() < 0.12f) {
+                                intentarSpawnearFrogzilla(sLvl, player);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Travesuras Ránicas (Nivel 4): Ranas agresivas en todo el Overworld (no afecta a Frogzilla)
+            if (CursosActivos.isTravesurasRanicas()) {
+                if (currentTick % 120 == 0) {
+                    for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                        if (!player.isAlive() || player.isSpectator() || player.isCreative()) continue;
+                        if (player.level() instanceof ServerLevel sLvl && sLvl.dimension() == Level.OVERWORLD) {
+                            if (sLvl.getDifficulty() != net.minecraft.world.Difficulty.PEACEFUL) {
+                                List<net.minecraft.world.entity.animal.frog.Frog> cercanas = sLvl.getEntitiesOfClass(
+                                        net.minecraft.world.entity.animal.frog.Frog.class,
+                                        player.getBoundingBox().inflate(28.0),
+                                        net.minecraft.world.entity.animal.frog.Frog::isAlive
+                                );
+                                if (cercanas.size() < 3 && sLvl.getRandom().nextFloat() < 0.28f) {
+                                    intentarSpawnearRanaTraviesa(sLvl, player);
+                                }
+                            }
+                        }
+                    }
+                }
+                actualizarAtaquesRanasTraviesas(server, currentTick);
+                if (currentTick % 4 == 0) {
+                    procesarTravesurasRanicas(server, currentTick);
+                }
+            }
+
             if (CursosActivos.isFallaMecanica() && currentTick % 20 == 0) {
                 for (ServerLevel lvl : server.getAllLevels()) {
                     for (Entity entity : lvl.getAllEntities()) {
@@ -1486,26 +1567,22 @@ public class Ruleta_Hardcore implements ModInitializer {
             }
 
             // Cuevas Tenebrosas (Nivel 1): Oscuridad por debajo de la capa 0.
-            // Portar farol (en mano principal o secundaria) anula la oscuridad. Portar antorcha atenúa el efecto en menor medida.
+            // Portar cualquier farol (en mano principal o secundaria) anula la oscuridad.
+            // Portar cualquier antorcha solo atenúa parcialmente (se ve mucho menos que con farol).
             if (CursosActivos.isCuevasTenebrosas() && currentTick % 10 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                     if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
                     if (player.getY() < 0.0) {
                         ItemStack main = player.getMainHandItem();
                         ItemStack off = player.getOffhandItem();
-                        boolean tieneFarol = main.is(Items.LANTERN) || main.is(Items.SOUL_LANTERN)
-                                || off.is(Items.LANTERN) || off.is(Items.SOUL_LANTERN);
-                        boolean tieneAntorcha = main.is(Items.TORCH) || main.is(Items.SOUL_TORCH) || main.is(Items.REDSTONE_TORCH)
-                                || off.is(Items.TORCH) || off.is(Items.SOUL_TORCH) || off.is(Items.REDSTONE_TORCH);
+                        boolean tieneFarol = esFarol(main) || esFarol(off);
+                        boolean tieneAntorcha = esAntorcha(main) || esAntorcha(off);
 
-                        if (tieneFarol) {
+                        if (tieneFarol || tieneAntorcha) {
+                            // Farol anula la oscuridad por completo; Antorcha evita los pulsos cegadores
+                            // pero mantiene niebla oscura cerrada en el cliente (alcance corto vs farol)
                             if (player.hasEffect(MobEffects.DARKNESS) && !player.hasEffect(MobEffects.BLINDNESS)) {
                                 player.removeEffect(MobEffects.DARKNESS);
-                            }
-                        } else if (tieneAntorcha) {
-                            // Antorcha protege pero en mucha menor medida: pulsos breves cada 8 segundos (160 ticks)
-                            if (currentTick % 160 == 0) {
-                                player.addEffect(new MobEffectInstance(MobEffects.DARKNESS, 50, 0, false, false, true));
                             }
                         } else {
                             // Sin fuentes de luz en mano: Oscuridad continua
@@ -5538,6 +5615,14 @@ public class Ruleta_Hardcore implements ModInitializer {
                     mobNombre = "§9§l🪨 Hombre Roca";
                 }
             }
+            case "frogzilla" -> {
+                FrogzillaEntity fz = FROGZILLA.create(level, EntitySpawnReason.COMMAND);
+                if (fz != null) {
+                    fz.setPos(pos.x, pos.y, pos.z);
+                    entity = fz;
+                    mobNombre = "§2§l👑 Frogzilla";
+                }
+            }
             case "coloso_ruina" -> {
                 EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(Identifier.fromNamespaceAndPath("minecraft", "iron_golem")).orElse(null);
                 if (type != null && type.create(level, EntitySpawnReason.COMMAND) instanceof IronGolem golem) {
@@ -6934,6 +7019,297 @@ public class Ruleta_Hardcore implements ModInitializer {
         }
     }
 
+    private static void intentarSpawnearFrogzilla(ServerLevel level, ServerPlayer player) {
+        for (int intento = 0; intento < 6; intento++) {
+            double angulo = level.getRandom().nextDouble() * Math.PI * 2.0;
+            double dist = 18.0 + level.getRandom().nextDouble() * 14.0;
+            int x = (int) Math.floor(player.getX() + Math.cos(angulo) * dist);
+            int z = (int) Math.floor(player.getZ() + Math.sin(angulo) * dist);
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+
+            BlockPos spawnPos = new BlockPos(x, y, z);
+            BlockPos below = spawnPos.below();
+            if (level.getBlockState(below).isSolid()
+                    && level.getBlockState(spawnPos).isAir()
+                    && level.getBlockState(spawnPos.above()).isAir()
+                    && level.getBlockState(spawnPos.above(2)).isAir()) {
+                FrogzillaEntity fz = FROGZILLA.create(level, EntitySpawnReason.EVENT);
+                if (fz != null) {
+                    fz.setPos(x + 0.5, y, z + 0.5);
+                    fz.setTarget(player);
+                    level.addFreshEntity(fz);
+                    return;
+                }
+            }
+        }
+    }
+
+    // --- TRAVESURAS RÁNICAS (Nivel 4) ---
+    private static final class RanaAtaqueEstado {
+        final ServerLevel level;
+        final int frogId;
+        final UUID objetivoInicial;
+        Vec3 dir;
+        float yaw;
+        double length = 0.0;
+        int ticks = 0;
+        boolean impacted = false;
+
+        RanaAtaqueEstado(ServerLevel level, int frogId, UUID objetivoInicial, Vec3 dir, float yaw) {
+            this.level = level;
+            this.frogId = frogId;
+            this.objetivoInicial = objetivoInicial;
+            this.dir = dir;
+            this.yaw = yaw;
+        }
+    }
+
+    private static final Map<Integer, Long> ranaTraviesaCooldowns = new HashMap<>();
+    private static final Map<Integer, RanaAtaqueEstado> ranaTraviesaAtaques = new HashMap<>();
+    private static final Map<UUID, Float> ultimoAnguloCamaraRana = new HashMap<>();
+    private static final float[] ANGULOS_CAMARA_RANA = new float[] { 90.0F, 180.0F, -90.0F };
+
+    private static boolean tieneLineaFisicaRana(ServerLevel level, Entity frog, Vec3 from, Vec3 to) {
+        net.minecraft.world.phys.HitResult hit = level.clip(new net.minecraft.world.level.ClipContext(
+                from, to,
+                net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                net.minecraft.world.level.ClipContext.Fluid.NONE,
+                frog));
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.MISS;
+    }
+
+    private static void intentarSpawnearRanaTraviesa(ServerLevel level, ServerPlayer player) {
+        EntityType<?> frogType = BuiltInRegistries.ENTITY_TYPE
+                .getOptional(Identifier.fromNamespaceAndPath("minecraft", "frog"))
+                .orElse(null);
+        if (frogType == null) return;
+
+        for (int intento = 0; intento < 6; intento++) {
+            double angulo = level.getRandom().nextDouble() * Math.PI * 2.0;
+            double dist = 10.0 + level.getRandom().nextDouble() * 10.0;
+            int x = (int) Math.floor(player.getX() + Math.cos(angulo) * dist);
+            int z = (int) Math.floor(player.getZ() + Math.sin(angulo) * dist);
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+
+            BlockPos spawnPos = new BlockPos(x, y, z);
+            if (level.getBlockState(spawnPos.below()).isSolid()
+                    && level.getBlockState(spawnPos).isAir()) {
+                Entity created = frogType.create(level, EntitySpawnReason.EVENT);
+                if (created instanceof net.minecraft.world.entity.animal.frog.Frog frog) {
+                    frog.setPos(x + 0.5, y, z + 0.5);
+                    level.addFreshEntity(frog);
+                    return;
+                }
+            }
+        }
+    }
+
+    private static void actualizarAtaquesRanasTraviesas(MinecraftServer server, long currentTick) {
+        if (ranaTraviesaAtaques.isEmpty()) return;
+
+        Iterator<Map.Entry<Integer, RanaAtaqueEstado>> it = ranaTraviesaAtaques.entrySet().iterator();
+        while (it.hasNext()) {
+            RanaAtaqueEstado st = it.next().getValue();
+            Entity ent = st.level.getEntity(st.frogId);
+            if (!(ent instanceof net.minecraft.world.entity.animal.frog.Frog frog) || !frog.isAlive()) {
+                it.remove();
+                continue;
+            }
+
+            st.ticks++;
+            frog.getNavigation().stop();
+            frog.setYRot(st.yaw);
+            frog.yRotO = st.yaw;
+            frog.yBodyRot = st.yaw;
+            frog.yBodyRotO = st.yaw;
+            frog.yHeadRot = st.yaw;
+            frog.yHeadRotO = st.yaw;
+
+            Vec3 origin = new Vec3(frog.getX(), frog.getY() + 0.35, frog.getZ());
+
+            // Ticks 1..2: breve preparación mirando al jugador; en tick 3 congela dirección y dispara proyectil
+            if (st.ticks == 3) {
+                Entity tgt = st.level.getEntity(st.objetivoInicial);
+                if (tgt instanceof ServerPlayer sp && sp.isAlive() && !sp.isCreative() && !sp.isSpectator()) {
+                    Vec3 aim = sp.position().add(0.0, sp.getBbHeight() * 0.55, 0.0).subtract(origin);
+                    if (aim.lengthSqr() > 1.0E-4) {
+                        st.dir = aim.normalize();
+                        st.yaw = (float) (Math.atan2(st.dir.z, st.dir.x) * (180.0 / Math.PI)) - 90.0F;
+                        frog.setYRot(st.yaw);
+                        frog.yBodyRot = st.yaw;
+                        frog.yHeadRot = st.yaw;
+                    }
+                }
+                st.level.playSound(null, frog.getX(), frog.getY(), frog.getZ(),
+                        SoundEvents.FROG_TONGUE, SoundSource.HOSTILE, 1.2F, 1.05F);
+            }
+
+            // Ticks 3..7: avance del proyectil de lengua hasta 4.0 bloques respetando colisiones con bloques sólidos
+            if (st.ticks >= 3 && st.ticks <= 7 && !st.impacted) {
+                double prevLen = st.length;
+                double nextLen = Math.min(4.0, st.length + 0.95);
+                Vec3 prevTip = origin.add(st.dir.scale(prevLen));
+                Vec3 nextTip = origin.add(st.dir.scale(nextLen));
+
+                net.minecraft.world.phys.HitResult blockHit = st.level.clip(new net.minecraft.world.level.ClipContext(
+                        prevTip, nextTip,
+                        net.minecraft.world.level.ClipContext.Block.COLLIDER,
+                        net.minecraft.world.level.ClipContext.Fluid.NONE,
+                        frog));
+                boolean hitBlock = blockHit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK;
+                Vec3 endTip = hitBlock ? blockHit.getLocation() : nextTip;
+                st.length = origin.distanceTo(endTip);
+
+                st.level.sendParticles(ParticleTypes.ITEM_SLIME,
+                        endTip.x, endTip.y, endTip.z, 2, 0.05, 0.05, 0.05, 0.01);
+
+                AABB segBox = new AABB(prevTip, endTip).inflate(0.24);
+                List<ServerPlayer> candidatos = st.level.getEntitiesOfClass(
+                        ServerPlayer.class,
+                        segBox,
+                        p -> p.isAlive() && !p.isCreative() && !p.isSpectator() && !FrogzillaEntity.estaDevorado(p.getUUID())
+                );
+
+                ServerPlayer impactado = null;
+                for (ServerPlayer p : candidatos) {
+                    AABB pBox = p.getBoundingBox().inflate(0.20);
+                    if (pBox.clip(prevTip, endTip).isPresent() || pBox.contains(endTip)) {
+                        impactado = p;
+                        break;
+                    }
+                }
+
+                if (impactado != null) {
+                    st.impacted = true;
+                    st.level.sendParticles(ParticleTypes.ITEM_SLIME,
+                            impactado.getX(), impactado.getY() + 1.0, impactado.getZ(),
+                            10, 0.28, 0.28, 0.28, 0.07);
+                    st.level.playSound(null, impactado.getX(), impactado.getY(), impactado.getZ(),
+                            SoundEvents.SLIME_SQUISH_SMALL, SoundSource.HOSTILE, 1.1F, 1.1F);
+
+                    desacomodarHotbarYOffhand(impactado);
+
+                    float prevAngle = ultimoAnguloCamaraRana.getOrDefault(impactado.getUUID(), 0.0F);
+                    float nextAngle = elegirAnguloCamaraRana(st.level.getRandom(), prevAngle);
+                    ultimoAnguloCamaraRana.put(impactado.getUUID(), nextAngle);
+                    ServerPlayNetworking.send(impactado, new RanaCamaraRollPayload(nextAngle, 200));
+                } else if (hitBlock) {
+                    st.impacted = true;
+                    st.level.sendParticles(ParticleTypes.ITEM_SLIME,
+                            endTip.x, endTip.y, endTip.z, 5, 0.1, 0.1, 0.1, 0.03);
+                }
+            }
+
+            if (st.ticks >= 10) {
+                frog.eraseTongueTarget();
+                if (frog.getPose() == net.minecraft.world.entity.Pose.USING_TONGUE) {
+                    frog.setPose(net.minecraft.world.entity.Pose.STANDING);
+                }
+                it.remove();
+            }
+        }
+    }
+
+    private static void procesarTravesurasRanicas(MinecraftServer server, long currentTick) {
+        if (currentTick % 200 == 0) {
+            ranaTraviesaCooldowns.entrySet().removeIf(e -> e.getValue() <= currentTick);
+        }
+
+        Set<Integer> procesadas = new HashSet<>();
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (!player.isAlive() || player.isSpectator() || player.isCreative()) continue;
+            if (FrogzillaEntity.estaDevorado(player.getUUID())) continue;
+            if (!(player.level() instanceof ServerLevel sLvl) || sLvl.dimension() != Level.OVERWORLD) continue;
+
+            List<net.minecraft.world.entity.animal.frog.Frog> ranas = sLvl.getEntitiesOfClass(
+                    net.minecraft.world.entity.animal.frog.Frog.class,
+                    player.getBoundingBox().inflate(16.0),
+                    net.minecraft.world.entity.animal.frog.Frog::isAlive
+            );
+
+            for (net.minecraft.world.entity.animal.frog.Frog frog : ranas) {
+                int fid = frog.getId();
+                if (!procesadas.add(fid)) continue;
+                if (ranaTraviesaAtaques.containsKey(fid)) continue;
+
+                // Buscar el jugador objetivo más cercano en 16 bloques
+                ServerPlayer objetivo = null;
+                double mejorDistSq = 16.0 * 16.0;
+                for (ServerPlayer cand : sLvl.players()) {
+                    if (!cand.isAlive() || cand.isSpectator() || cand.isCreative()) continue;
+                    if (FrogzillaEntity.estaDevorado(cand.getUUID())) continue;
+                    double dSq = frog.distanceToSqr(cand);
+                    if (dSq < mejorDistSq) {
+                        mejorDistSq = dSq;
+                        objetivo = cand;
+                    }
+                }
+                if (objetivo == null) continue;
+
+                frog.getLookControl().setLookAt(objetivo, 45.0F, 45.0F);
+                double dist = Math.sqrt(mejorDistSq);
+                if (dist > 2.2) {
+                    frog.getNavigation().moveTo(objetivo, 1.35);
+                    if (frog.onGround() && dist > 3.2 && sLvl.getRandom().nextFloat() < 0.25f) {
+                        Vec3 dir = objetivo.position().subtract(frog.position()).normalize();
+                        frog.setDeltaMovement(dir.x * 0.36, 0.36, dir.z * 0.36);
+                    }
+                }
+
+                long readyAt = ranaTraviesaCooldowns.getOrDefault(fid, 0L);
+                Vec3 origin = new Vec3(frog.getX(), frog.getY() + 0.35, frog.getZ());
+                Vec3 aimTarget = objetivo.position().add(0.0, objetivo.getBbHeight() * 0.55, 0.0);
+
+                // Solo dispara si no hay bloques sólidos/vidrios/puertas bloqueando la línea física
+                if (dist <= 3.8 && currentTick >= readyAt && tieneLineaFisicaRana(sLvl, frog, origin, aimTarget)) {
+                    Vec3 dir = aimTarget.subtract(origin).normalize();
+                    float yaw = (float) (Math.atan2(dir.z, dir.x) * (180.0 / Math.PI)) - 90.0F;
+                    ranaTraviesaCooldowns.put(fid, currentTick + 75L);
+                    ranaTraviesaAtaques.put(fid, new RanaAtaqueEstado(sLvl, fid, objetivo.getUUID(), dir, yaw));
+
+                    frog.getNavigation().stop();
+                    frog.setYRot(yaw);
+                    frog.yBodyRot = yaw;
+                    frog.yHeadRot = yaw;
+                    frog.setTongueTarget(objetivo);
+                    frog.setPose(net.minecraft.world.entity.Pose.USING_TONGUE);
+                }
+            }
+        }
+    }
+
+    private static float elegirAnguloCamaraRana(net.minecraft.util.RandomSource rng, float prevAngle) {
+        List<Float> opciones = new ArrayList<>(3);
+        for (float ang : ANGULOS_CAMARA_RANA) {
+            if (Math.abs(ang - prevAngle) > 1.0F) {
+                opciones.add(ang);
+            }
+        }
+        return opciones.get(rng.nextInt(opciones.size()));
+    }
+
+    private static void desacomodarHotbarYOffhand(ServerPlayer player) {
+        ItemStack[] slots = new ItemStack[10];
+        for (int i = 0; i < 9; i++) {
+            slots[i] = player.getInventory().getItem(i).copy();
+        }
+        slots[9] = player.getItemBySlot(EquipmentSlot.OFFHAND).copy();
+
+        net.minecraft.util.RandomSource rng = player.level().getRandom();
+        for (int i = slots.length - 1; i > 0; i--) {
+            int j = rng.nextInt(i + 1);
+            ItemStack tmp = slots[i];
+            slots[i] = slots[j];
+            slots[j] = tmp;
+        }
+
+        for (int i = 0; i < 9; i++) {
+            player.getInventory().setItem(i, slots[i]);
+        }
+        player.setItemSlot(EquipmentSlot.OFFHAND, slots[9]);
+        player.inventoryMenu.broadcastChanges();
+    }
+
     // --- EL COLOSO DE RUINA (Nivel 6) ---
     private static final Map<Integer, Integer> colosoSlamCooldowns = new HashMap<>();
     private static final Map<Integer, Integer> colosoSlamWindups = new HashMap<>();
@@ -7224,6 +7600,20 @@ public class Ruleta_Hardcore implements ModInitializer {
             if (r < acumulado) return nivel;
         }
         return ultimoDisponible;
+    }
+
+    public static boolean esFarol(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        if (stack.is(Items.LANTERN) || stack.is(Items.SOUL_LANTERN)) return true;
+        return stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() instanceof LanternBlock;
+    }
+
+    public static boolean esAntorcha(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        return stack.is(Items.TORCH)
+                || stack.is(Items.SOUL_TORCH)
+                || stack.is(Items.REDSTONE_TORCH)
+                || stack.is(Items.COPPER_TORCH);
     }
 
     public static Identifier id(String path) {

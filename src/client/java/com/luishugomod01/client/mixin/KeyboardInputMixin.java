@@ -1,5 +1,6 @@
 package com.luishugomod01.client.mixin;
 
+import com.luishugomod01.client.frogzilla.FrogzillaClientState;
 import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import net.minecraft.client.player.ClientInput;
 import net.minecraft.client.player.KeyboardInput;
@@ -15,7 +16,7 @@ public abstract class KeyboardInputMixin extends ClientInput {
 
     @Inject(method = "tick", at = @At("TAIL"))
     private void ruleta$bloquearMovimientoEnCinematica(CallbackInfo ci) {
-        if (ReviveRitualClientManager.isLocalPlayerInCinematic()) {
+        if (ReviveRitualClientManager.isLocalPlayerInCinematic() || FrogzillaClientState.isDevoured()) {
             this.keyPresses = Input.EMPTY;
             this.moveVector = Vec2.ZERO;
         }

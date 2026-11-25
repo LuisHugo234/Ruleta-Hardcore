@@ -89,6 +89,8 @@ public class CursosActivos {
     private static volatile boolean colosalFusion             = false;
     private static volatile boolean cazadorIgneo              = false;
     private static volatile boolean cordura                   = false;
+    private static volatile boolean travesurasRanicas         = false;
+    private static volatile boolean frogzilla                 = false;
 
     // Nivel 5
     private static volatile boolean intrusosCalavericos       = false;
@@ -359,6 +361,12 @@ public class CursosActivos {
     public static void activarCordura() { cordura = true; }
     public static boolean isCordura() { return cordura; }
 
+    public static void activarTravesurasRanicas() { travesurasRanicas = true; }
+    public static boolean isTravesurasRanicas() { return travesurasRanicas; }
+
+    public static void activarFrogzilla() { frogzilla = true; }
+    public static boolean isFrogzilla() { return frogzilla; }
+
     public static void activarMimic() { mimic = true; }
     public static boolean isMimic() { return mimic; }
 
@@ -497,7 +505,7 @@ public class CursosActivos {
                 || monturaAcuatica || eclipseSolar || elVerdugo || maresAcidos || pareceQueVaALlover
                 || anomaliaGravitacional || corrupcionVacio || creeperAntimateria || creeperTermonuclear || colosoRuina
                 || escupitajoMortal || camellosFuriosos || totemInestable || superMurcielago || esqueletosConEspada
-                || cordura || mimic || brujasNigromantes || phantomsRaptores;
+                || cordura || travesurasRanicas || frogzilla || mimic || brujasNigromantes || phantomsRaptores;
     }
 
     public static List<String> obtenerIdsActivas() {
@@ -567,6 +575,8 @@ public class CursosActivos {
         if (colosalFusion) ids.add("colosalfusion");
         if (cazadorIgneo) ids.add("cazadorigneo");
         if (cordura) ids.add("cordura");
+        if (travesurasRanicas) ids.add("travesurasranicas");
+        if (frogzilla) ids.add("frogzilla");
         if (intrusosCalavericos) ids.add("intrusoscalavericos");
         if (spiderman) ids.add("spiderman");
         if (enderGhast) ids.add("enderghast");
@@ -672,6 +682,8 @@ public class CursosActivos {
             case "colosalfusion" -> activarColosalFusion();
             case "cazadorigneo" -> activarCazadorIgneo();
             case "cordura" -> activarCordura();
+            case "travesurasranicas" -> activarTravesurasRanicas();
+            case "frogzilla" -> activarFrogzilla();
             case "intrusoscalavericos" -> activarIntrusosCalavericos();
             case "spiderman" -> activarSpiderman();
             case "enderghast" -> activarEnderGhast();
@@ -907,6 +919,12 @@ public class CursosActivos {
         if (cordura) {
             lista.add(Component.literal("  §d🧠 CORDURA:§r Un medidor de cordura disminuye en la oscuridad o peligro, provocando alucinaciones auditivas y visuales al llegar a niveles críticos."));
         }
+        if (travesurasRanicas) {
+            lista.add(Component.literal("  §a🐸 TRAVESURAS RÁNICAS:§r Ranas agresivas en todo el Overworld que con su lengua desacomodan tu hotbar + mano secundaria y rotan la cámara (90°, 180° o -90°) por 10s."));
+        }
+        if (frogzilla) {
+            lista.add(Component.literal("  §2👑 FROGZILLA:§r Rana gigante agresiva (80 HP, 6 daño) que dispara su lengua como proyectil hasta 10 bloques y te devora al tocarte (4 daño/s); solo escapas llenando la barra con ESPACIO o con rescate aliado (25% HP)."));
+        }
         if (mimic) {
             lista.add(Component.literal("  §6📦 MIMIC:§r Cofres trampa en cuevas y estructuras que despiertan en forma arácnida al acercarse o intentar abrirlos (80 HP, 16 daño y Lentitud III)."));
         }
@@ -1095,6 +1113,8 @@ public class CursosActivos {
         if (colosalFusion) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Colosal de Fusión", "Magma Cubes colosales en el Nether que crean cráteres de magma al aterrizar y lanzan crías al morir."));
         if (cazadorIgneo) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Cazador Ígneo", "15% de Wither Skeletons en el Nether portan arcos de fuego azul que aplican Wither I por 6s."));
         if (cordura) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Cordura", "Un medidor de cordura baja en la oscuridad o peligro, provocando alucinaciones auditivas y visuales."));
+        if (travesurasRanicas) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Travesuras Ránicas", "Ranas agresivas que con su lengua desacomodan hotbar + mano secundaria y rotan tu cámara (90°/180°/-90°) por 10s."));
+        if (frogzilla) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(4, "Frogzilla", "Rana gigante (80 HP, 6 daño) que dispara su lengua proyectil (10 bloques) y te devora al tocarte (4 daño/s); escapa llenando la barra con ESPACIO o con ayuda aliada (25% HP)."));
 
         // Nivel 5
         if (intrusosCalavericos) lista.add(new com.luishugomod01.network.AbrirMenuEstadoPayload.MaldicionInfo(5, "Intrusos Calavéricos", "Wither Skeletons con armadura de diamante y Filo V aparecen de noche."));
@@ -1198,6 +1218,8 @@ public class CursosActivos {
         colosalFusion = false;
         cazadorIgneo = false;
         cordura = false;
+        travesurasRanicas = false;
+        frogzilla = false;
         intrusosCalavericos = false;
         spiderman = false;
         enderGhast = false;

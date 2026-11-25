@@ -367,6 +367,14 @@ public class CatalogoCastigos {
                 "Existe un medidor de cordura que baja progresivamente en la oscuridad, dimensiones hostiles o cerca de monstruos hasta llegar a 0, provocando alucinaciones auditivas y visuales.",
                 (level, player) -> CursosActivos.activarCordura());
 
+        registrar("travesurasranicas", NivelRuleta.NIVEL_4, "Travesuras Ránicas",
+                "Todas las ranas del Overworld se vuelven agresivas y aparecen con mayor frecuencia. Su lengüetazo no inflige daño, pero desacomoda tu hotbar junto con la mano secundaria y rota tu cámara a 90°, 180° o -90° durante 10 segundos.",
+                (level, player) -> CursosActivos.activarTravesurasRanicas());
+
+        registrar("frogzilla", NivelRuleta.NIVEL_4, "Frogzilla",
+                "En cualquier bioma del Overworld puede aparecer una rana gigante agresiva (80 HP, 6 de daño normal) que dispara su lengua como proyectil hasta 10 bloques. Si la lengua te toca, te devora e inmoviliza causándote 4 de daño por segundo; solo puedes escapar llenando la barra con ESPACIO repetidas veces o si un compañero le quita el 25% de su vida máxima.",
+                (level, player) -> CursosActivos.activarFrogzilla());
+
         // --- NIVEL 5 ---
         registrar("intrusoscalavericos", NivelRuleta.NIVEL_5, "Intrusos Calavéricos",
                 "Wither Skeletons con armadura diamante y espada Filo V aparecen de noche.",

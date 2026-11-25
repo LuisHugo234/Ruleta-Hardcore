@@ -1,5 +1,6 @@
 package com.luishugomod01.client.mixin;
 
+import com.luishugomod01.Ruleta_Hardcore;
 import com.luishugomod01.client.bloodmoon.BloodMoonClientState;
 import com.luishugomod01.client.ritual.ReviveRitualClientManager;
 import com.luishugomod01.client.vidas.VidasClientState;
@@ -71,17 +72,24 @@ public abstract class FogRendererMixin {
         FogData fogData = cir.getReturnValue();
         LocalPlayer player = Minecraft.getInstance().player;
 
-        // Cuevas Tenebrosas (Nivel 1): si el jugador está bajo Y=0 y lleva un farol en la mano secundaria,
-        // el efecto de Oscuridad se reduce como si portara una fuente de luz
+        // Cuevas Tenebrosas (Nivel 1):
+        // - Farol (cualquier variante/mano): visibilidad natural abierta de cueva (sin fullbright artificial)
+        // - Antorcha (cualquier variante/mano, sin farol): quita los pulsos de Oscuridad, pero mantiene niebla oscura cerrada (5-20 bloques)
         if (BloodMoonClientState.isCuevasTenebrosasActive() && player != null && player.getY() < 0.0) {
-            ItemStack offhand = player.getItemBySlot(EquipmentSlot.OFFHAND);
-            if (offhand.is(Items.LANTERN) || offhand.is(Items.SOUL_LANTERN)) {
-                fogData.environmentalStart = Math.max(fogData.environmentalStart, 20.0f);
-                fogData.environmentalEnd = Math.max(fogData.environmentalEnd, 44.0f);
-                fogData.renderDistanceStart = Math.max(fogData.renderDistanceStart, 20.0f);
-                fogData.renderDistanceEnd = Math.max(fogData.renderDistanceEnd, 44.0f);
-                fogData.skyEnd = Math.max(fogData.skyEnd, 44.0f);
-                fogData.cloudEnd = Math.max(fogData.cloudEnd, 44.0f);
+            ItemStack main = player.getItemBySlot(EquipmentSlot.MAINHAND);
+            ItemStack off = player.getItemBySlot(EquipmentSlot.OFFHAND);
+            boolean tieneFarol = Ruleta_Hardcore.esFarol(main) || Ruleta_Hardcore.esFarol(off);
+            boolean tieneAntorcha = Ruleta_Hardcore.esAntorcha(main) || Ruleta_Hardcore.esAntorcha(off);
+            if (!tieneFarol && tieneAntorcha) {
+                fogData.environmentalStart = Math.min(fogData.environmentalStart, 5.0f);
+                fogData.environmentalEnd = Math.min(fogData.environmentalEnd, 20.0f);
+                fogData.renderDistanceStart = Math.min(fogData.renderDistanceStart, 5.0f);
+                fogData.renderDistanceEnd = Math.min(fogData.renderDistanceEnd, 22.0f);
+                fogData.skyEnd = Math.min(fogData.skyEnd, 22.0f);
+                fogData.cloudEnd = Math.min(fogData.cloudEnd, 22.0f);
+                fogData.color.x = 0.02f;
+                fogData.color.y = 0.02f;
+                fogData.color.z = 0.03f;
             }
         }
 
