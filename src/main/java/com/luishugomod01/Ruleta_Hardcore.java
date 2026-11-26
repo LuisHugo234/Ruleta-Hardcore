@@ -540,6 +540,7 @@ public class Ruleta_Hardcore implements ModInitializer {
             proximoTickGiroAutomaticoPermitido = 0L;
             RuletaPersistencia.guardar(server);
         });
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> limpiarEstadoEnMemoria());
 
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> {
             dispatcher.register(Commands.literal("ruleta")
@@ -943,6 +944,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                         || hitState.is(BlockTags.WOODEN_TRAPDOORS)
                         || hitState.is(BlockTags.WOODEN_DOORS)
                         || hitState.is(BlockTags.FENCE_GATES)) {
+                    sp.sendOverlayMessage(Component.literal("§4☠ Muerte Instantánea: §cno toques mecanismos de madera."));
                     sp.hurtServer(serverLevel, serverLevel.damageSources().generic(), 1.0E9f);
                 }
             }
@@ -1149,9 +1151,18 @@ public class Ruleta_Hardcore implements ModInitializer {
         // Protección de desconexión durante un Ritual de Revivir: si sale antes de aterrizar, finalizar en Survival
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             ServerPlayer player = handler.getPlayer();
+            UUID uuid = player.getUUID();
             FrogzillaEntity.liberarSiEstaDevorado(player);
-            ultimoAnguloCamaraRana.remove(player.getUUID());
-            RitualRevivirServidor pendiente = RITUALES_REVIVIR_ACTIVOS.remove(player.getUUID());
+            ultimoAnguloCamaraRana.remove(uuid);
+            TICKS_AVISO_RAYO.remove(uuid);
+            RAPTOS_PHANTOM.remove(uuid);
+            ARRASTRES_PYKETE.remove(uuid);
+            TICKS_INSOLACION_DESIERTO.remove(uuid);
+            TICKS_OSCURIDAD_PARANOIA.remove(uuid);
+            ULTIMA_PARANOIA_NOTIFICACION.remove(uuid);
+            DESESTABILIZACION_HOGLIN_EXPIRY.remove(uuid);
+            JUGADORES_SUELO_PREVIO.remove(uuid);
+            RitualRevivirServidor pendiente = RITUALES_REVIVIR_ACTIVOS.remove(uuid);
             if (pendiente != null) {
                 finalizarAterrizajeRitualRevivir(server, player, pendiente, false);
             }
@@ -1541,31 +1552,6 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            if (CursosActivos.isFallaMecanica() && currentTick % 20 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof IronGolem golem && golem.isAlive()
-                                && !golem.entityTags().contains("coloso_ruina")) {
-                            aplicarFallaMecanica(golem, lvl);
-                        }
-                    }
-                }
-            }
-
-            // Adivina Quién Ha Vuelto (Nivel 3): Illusioners equipados y acompañando raids, outposts y patrullas
-            if (CursosActivos.isAdivinaQuien() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Illusioner illusioner && illusioner.isAlive() && !illusioner.entityTags().contains("illusioner_equipado")) {
-                            prepararIllusioner(illusioner, lvl);
-                        } else if (entity instanceof Raider raider && !(entity instanceof Illusioner) && !(entity instanceof Witch)
-                                && raider.isAlive() && !raider.entityTags().contains("illusioner_spawn_evaluado")) {
-                            evaluarSpawnIllusionerAcompaniante(raider, lvl);
-                        }
-                    }
-                }
-            }
-
             // Cuevas Tenebrosas (Nivel 1): Oscuridad por debajo de la capa 0.
             // Portar cualquier farol (en mano principal o secundaria) anula la oscuridad.
             // Portar cualquier antorcha solo atenúa parcialmente (se ve mucho menos que con farol).
@@ -1594,221 +1580,6 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Cuccos Salvajes (Nivel 1): Pollos con 15 de vida que atacan (1 corazón) al ser golpeados
-            if (CursosActivos.isCuccosSalvajes()) {
-                if (currentTick % 40 == 0) {
-                    for (ServerLevel lvl : server.getAllLevels()) {
-                        for (Entity entity : lvl.getAllEntities()) {
-                            if (entity instanceof Chicken chicken && chicken.isAlive() && !chicken.entityTags().contains("cucco_salvaje_aplicado")) {
-                                aplicarCuccoSalvaje(chicken);
-                            }
-                        }
-                    }
-                }
-                if (currentTick % 10 == 0) {
-                    for (ServerLevel lvl : server.getAllLevels()) {
-                        for (Entity entity : lvl.getAllEntities()) {
-                            if (entity instanceof Chicken chicken && chicken.isAlive() && chicken.entityTags().contains("cucco_enfurecido")) {
-                                Player target = lvl.getNearestPlayer(
-                                        chicken.getX(), chicken.getY(), chicken.getZ(),
-                                        24.0,
-                                        e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
-                                );
-                                if (target != null) {
-                                    chicken.getNavigation().moveTo(target, 1.6);
-                                    if (chicken.distanceToSqr(target) <= 2.25 && currentTick % 20 == 0) {
-                                        target.hurtServer(lvl, lvl.damageSources().mobAttack(chicken), 2.0f);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Camellos Furiosos (Nivel 1): Todos los camellos son agresivos hacia los jugadores (3 corazones por golpe)
-            if (CursosActivos.isCamellosFuriosos() && currentTick % 5 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Camel camel && camel.isAlive()) {
-                            Player target = lvl.getNearestPlayer(
-                                    camel.getX(), camel.getY(), camel.getZ(),
-                                    24.0,
-                                    e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator() && !camel.hasPassenger(p)
-                            );
-                            if (target != null) {
-                                if (camel.isCamelSitting()) {
-                                    camel.standUpInstantly();
-                                }
-                                camel.getLookControl().setLookAt(target, 30.0f, 30.0f);
-                                camel.getNavigation().moveTo(target, 1.55);
-                                if (camel.distanceToSqr(target) <= 6.25 && currentTick % 20 == 0) {
-                                    target.hurtServer(lvl, lvl.damageSources().mobAttack(camel), 6.0f);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Super Murciélago (Nivel 1): Doble tamaño, 10 HP, agresivos, 2 corazones de daño y 50% omnivampirismo
-            if (CursosActivos.isSuperMurcielago()) {
-                if (currentTick % 40 == 0) {
-                    for (ServerLevel lvl : server.getAllLevels()) {
-                        for (Entity entity : lvl.getAllEntities()) {
-                            if (entity instanceof Bat bat && bat.isAlive() && !bat.entityTags().contains("super_murcielago_aplicado")) {
-                                aplicarSuperMurcielago(bat);
-                            }
-                        }
-                    }
-                }
-                if (currentTick % 2 == 0) {
-                    for (ServerLevel lvl : server.getAllLevels()) {
-                        for (Entity entity : lvl.getAllEntities()) {
-                            if (entity instanceof Bat bat && bat.isAlive()) {
-                                Player target = lvl.getNearestPlayer(
-                                        bat.getX(), bat.getY(), bat.getZ(),
-                                        24.0,
-                                        e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
-                                );
-                                if (target != null) {
-                                    if (bat.isResting()) {
-                                        bat.setResting(false);
-                                    }
-                                    Vec3 dir = target.getEyePosition().subtract(bat.position());
-                                    if (dir.lengthSqr() > 0.01) {
-                                        Vec3 vel = dir.normalize().scale(0.32);
-                                        bat.setDeltaMovement(vel);
-                                        float yaw = (float) (Math.atan2(vel.z, vel.x) * (180.0 / Math.PI)) - 90.0f;
-                                        bat.setYRot(yaw);
-                                        bat.yBodyRot = yaw;
-                                        bat.yHeadRot = yaw;
-                                    }
-                                    if (currentTick % 20 == 0 && bat.position().distanceToSqr(target.getEyePosition()) <= 3.6) {
-                                        target.hurtServer(lvl, lvl.damageSources().mobAttack(bat), 4.0f);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Abejas Asesinas (Nivel 2): Abejas agresivas que aplican Wither II
-            if (CursosActivos.isAbejasAsesinas() && currentTick % 20 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Bee bee && bee.isAlive()) {
-                            aplicarAbejaAsesina(bee, lvl);
-                        }
-                    }
-                }
-            }
-
-            // Carga Pesada (Nivel 2): Devastador con 150 corazones (300 HP), x1.5 daño y Lentitud II
-            if (CursosActivos.isCargaPesada() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Ravager ravager && ravager.isAlive()) {
-                            aplicarCargaPesada(ravager);
-                        }
-                    }
-                }
-            }
-
-            // Vex Grandes (Nivel 2): Vexes x2 tamaño y x2 daño
-            if (CursosActivos.isVexGrandes() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Vex vex && vex.isAlive() && !vex.entityTags().contains("vex_grande_aplicado")) {
-                            aplicarVexGrande(vex);
-                        }
-                    }
-                }
-            }
-
-            // Resistencia Física (Nivel 2): Vindicadores con Resistencia I y Resistencia al Fuego
-            if (CursosActivos.isResistenciaFisica() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Vindicator vindicator && vindicator.isAlive()) {
-                            aplicarResistenciaFisica(vindicator);
-                        }
-                    }
-                }
-            }
-
-            // Apocalipsis Zombie: mutaciones de escalado e inmunidad solar
-            if (CursosActivos.isApocalipsisZombie() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Zombie zombie && !esEntidadCordura(zombie) && !zombie.entityTags().contains("apoc_evaluado")) {
-                            evaluarZombieApocalipsis(zombie);
-                        }
-                    }
-                }
-            }
-
-            // Filo Mortal: espadas con Filo III a zombies
-            if (CursosActivos.isFiloMortal() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Zombie zombie && zombie.getClass() == Zombie.class
-                                && !esEntidadCordura(zombie)
-                                && !zombie.entityTags().contains("filo_mortal_equipado")) {
-                            equiparEspadaFiloMortal(zombie, lvl);
-                        }
-                    }
-                }
-            }
-
-            if ((CursosActivos.isArtesMaritimos() || CursosActivos.isPykete() || CursosActivos.isEnergiaPoseica() || CursosActivos.isMonturaAcuatica()) && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Drowned drowned && drowned.isAlive()) {
-                            if (CursosActivos.isArtesMaritimos()) {
-                                equiparTridenteArtesMaritimos(drowned);
-                            }
-                            if (CursosActivos.isPykete()) {
-                                configurarPykete(drowned);
-                            }
-                            if (CursosActivos.isEnergiaPoseica()) {
-                                aplicarEnergiaPoseica(drowned, lvl);
-                            }
-                            if (CursosActivos.isMonturaAcuatica()) {
-                                aplicarMonturaAcuatica(drowned, lvl);
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (currentTick % 5 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Drowned drowned && drowned.isAlive()
-                                && (drowned.entityTags().contains("pykete_arponero") || CursosActivos.isPykete())) {
-                            procesarPykete(drowned, lvl, currentTick);
-                        }
-                    }
-                }
-            }
-
-            // Conducir monturas acuáticas (Delfín / Nautilo) hacia el objetivo del Ahogado
-            if (CursosActivos.isMonturaAcuatica() && currentTick % 15 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Drowned drowned && drowned.isAlive() && drowned.isPassenger()) {
-                            Entity vehicle = drowned.getVehicle();
-                            LivingEntity target = drowned.getTarget();
-                            if (vehicle instanceof Mob mount && mount.isAlive() && target != null && target.isAlive()) {
-                                mount.getNavigation().moveTo(target, 1.35);
-                            }
-                        }
-                    }
-                }
-            }
-
             // Infestación Minera (Nivel 3): Bloques infestados en las paredes de las Mineshafts
             if (CursosActivos.isInfestacionMinera() && currentTick % 40 == 0) {
                 for (ServerPlayer player : server.getPlayerList().getPlayers()) {
@@ -1825,6 +1596,7 @@ public class Ruleta_Hardcore implements ModInitializer {
                     if (!player.isAlive() || player.isCreative() || player.isSpectator()) continue;
                     ServerLevel sLvl = (ServerLevel) player.level();
                     if (estaTocandoMagmaDirectamente(sLvl, player.getBoundingBox())) {
+                        player.sendOverlayMessage(Component.literal("§6🔥 Magma al Contacto: §c¡el magma es letal!"));
                         player.hurtServer(sLvl, sLvl.damageSources().hotFloor(), 1.0E9f);
                     }
                 }
@@ -1837,17 +1609,6 @@ public class Ruleta_Hardcore implements ModInitializer {
                     if (!player.level().dimension().equals(Level.OVERWORLD)) continue;
                     if (player.getY() > 160.0) {
                         player.addEffect(new MobEffectInstance(MobEffects.POISON, 100, 4, false, true, true));
-                    }
-                }
-            }
-
-            // Rey de lo Profundo (Nivel 4): Elder Guardian con 100 de vida
-            if (CursosActivos.isReyDeLoProfundo() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof ElderGuardian elder && elder.isAlive() && !elder.entityTags().contains("rey_profundo_aplicado")) {
-                            aplicarReyDeLoProfundo(elder);
-                        }
                     }
                 }
             }
@@ -2047,49 +1808,6 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Escopeta (Nivel 4): Pillagers con Multishot VI, Carga Rápida II y Perforación V
-            if (CursosActivos.isEscopeta() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Pillager pillager && pillager.isAlive() && !pillager.entityTags().contains("escopeta_equipada")) {
-                            equiparEscopetaPillager(pillager, lvl);
-                        }
-                    }
-                }
-            }
-
-            // El Verdugo (Nivel 6): Piglins Brutos gigantes y letales
-            if (CursosActivos.isElVerdugo() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof PiglinBrute brute && !brute.entityTags().contains("piglin_verdugo_evaluado")) {
-                            evaluarVerdugo(brute, lvl);
-                        }
-                    }
-                }
-            }
-
-            // Phantom Alfa (Nivel 5) y Phantoms Raptores (Nivel 3): evaluar Phantoms y habilidades aéreas
-            if (currentTick % 10 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Phantom phantom && phantom.isAlive()) {
-                            if (CursosActivos.isPhantomAlfa() && !phantom.entityTags().contains("phantom_alfa_evaluado")) {
-                                evaluarPhantomAlfa(phantom);
-                            }
-                            if (phantom.entityTags().contains("phantom_alfa")) {
-                                ejecutarOndaPhantomAlfa(phantom, lvl, currentTick);
-                            }
-                            if (CursosActivos.isPhantomsRaptores()
-                                    && !phantom.entityTags().contains("phantom_alfa")
-                                    && !phantom.entityTags().contains("phantom_raptor_evaluado")) {
-                                configurarPhantomRaptor(phantom);
-                            }
-                        }
-                    }
-                }
-            }
-
             // Procesar raptos aéreos activos de Phantoms Raptores (subir hasta +8 bloques y soltar)
             if (!RAPTOS_PHANTOM.isEmpty()) {
                 procesarRaptosPhantom(server, currentTick);
@@ -2214,106 +1932,27 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // ¿Spiderman?: efectos permanentes a todas las arañas
-            if (CursosActivos.isSpiderman() && currentTick % 40 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Spider spider && !spider.entityTags().contains("spiderman_aplicado")) {
-                            aplicarSpiderman(spider);
-                        }
-                    }
-                }
-            }
+            // Intrusos Calavéricos: spawn nocturno de Wither Skeletons en Overworld
+            if (CursosActivos.isIntrusosCalavericos() && currentTick % 60 == 0) {
+                EntityType<?> wsType = getWitherSkeletonType();
+                if (wsType != null) {
+                    for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                        if (!player.isAlive()) continue;
+                        if (!player.level().dimension().equals(Level.OVERWORLD)) continue;
 
-            // Ender Ghast (Nivel 5): Ghasts más agresivos con mayor rango de persecución
-            if (CursosActivos.isEnderGhast() && currentTick % 30 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Ghast ghast && ghast.isAlive()) {
-                            prepararEnderGhast(ghast, lvl);
-                        }
-                    }
-                }
-            }
+                        ServerLevel serverLevel = (ServerLevel) player.level();
+                        if (!serverLevel.isDarkOutside() || serverLevel.getDifficulty() == Difficulty.PEACEFUL) continue;
 
-            // Mega Hoglin (Nivel 5): mantener Lentitud I activa, romper obstáculos y embestida lineal con onda expansiva desestabilizadora
-            if (CursosActivos.isMegaHoglin() || currentTick % 4 == 0) {
-                if (currentTick % 60 == 0) {
-                    for (ServerLevel lvl : server.getAllLevels()) {
-                        for (Entity entity : lvl.getAllEntities()) {
-                            if (entity instanceof Hoglin hoglin && hoglin.isAlive() && hoglin.entityTags().contains("mega_hoglin")) {
-                                hoglin.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 0));
-                            }
-                        }
-                    }
-                }
-                if (currentTick % 4 == 0) {
-                    for (ServerLevel lvl : server.getAllLevels()) {
-                        for (Entity entity : lvl.getAllEntities()) {
-                            if (entity instanceof Hoglin hoglin && hoglin.isAlive() && hoglin.entityTags().contains("mega_hoglin")) {
-                                romperBloquesMegaHoglin(hoglin, lvl);
-                            }
-                        }
-                    }
-                }
-                if (currentTick % 20 == 0) {
-                    for (ServerLevel lvl : server.getAllLevels()) {
-                        for (Entity entity : lvl.getAllEntities()) {
-                            if (entity instanceof Hoglin hoglin && hoglin.isAlive() && hoglin.entityTags().contains("mega_hoglin")) {
-                                ejecutarEmbestidaMegaHoglin(hoglin, lvl, currentTick);
-                            }
-                        }
-                    }
-                }
-            }
+                        var nearbyWS = serverLevel.getEntities(
+                                player,
+                                player.getBoundingBox().inflate(64.0),
+                                entity -> entity.getType() == wsType && entity.isAlive()
+                        );
+                        if (nearbyWS.size() >= 4) continue;
 
-            // Giga-Endermite (Nivel 5): ataque anunciado y embestida/salto hacia el jugador
-            if (currentTick % 20 == 0) {
-                for (ServerLevel lvl : server.getAllLevels()) {
-                    for (Entity entity : lvl.getAllEntities()) {
-                        if (entity instanceof Endermite endermite && endermite.isAlive()
-                                && endermite.entityTags().contains("giga_endermite")) {
-                            ejecutarAtaqueGigaEndermite(endermite, lvl, currentTick);
-                        }
-                    }
-                }
-            }
+                        if (ThreadLocalRandom.current().nextFloat() >= 0.45f) continue;
 
-            // Intrusos Calavéricos: equipar Wither Skeletons y spawn nocturno en Overworld
-            if (CursosActivos.isIntrusosCalavericos()) {
-                if (currentTick % 40 == 0) {
-                    for (ServerLevel lvl : server.getAllLevels()) {
-                        for (Entity entity : lvl.getAllEntities()) {
-                            if (entity instanceof WitherSkeleton ws
-                                    && !ws.entityTags().contains("intruso_calaverico_equipado")
-                                    && !ws.entityTags().contains("cazador_igneo")) {
-                                prepararIntrusoCalaverico(ws, lvl);
-                            }
-                        }
-                    }
-                }
-
-                if (currentTick % 60 == 0) {
-                    EntityType<?> wsType = getWitherSkeletonType();
-                    if (wsType != null) {
-                        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                            if (!player.isAlive()) continue;
-                            if (!player.level().dimension().equals(Level.OVERWORLD)) continue;
-
-                            ServerLevel serverLevel = (ServerLevel) player.level();
-                            if (!serverLevel.isDarkOutside() || serverLevel.getDifficulty() == Difficulty.PEACEFUL) continue;
-
-                            var nearbyWS = serverLevel.getEntities(
-                                    player,
-                                    player.getBoundingBox().inflate(64.0),
-                                    entity -> entity.getType() == wsType && entity.isAlive()
-                            );
-                            if (nearbyWS.size() >= 4) continue;
-
-                            if (ThreadLocalRandom.current().nextFloat() >= 0.45f) continue;
-
-                            intentarSpawnearWitherSkeletonNoche(serverLevel, player.blockPosition(), wsType);
-                        }
+                        intentarSpawnearWitherSkeletonNoche(serverLevel, player.blockPosition(), wsType);
                     }
                 }
             }
@@ -2326,20 +1965,6 @@ public class Ruleta_Hardcore implements ModInitializer {
 
                     if (!tieneArmorCompleta(player)) {
                         player.igniteForTicks(40);
-                    }
-                }
-            }
-
-            // Speedpers (Nivel 2): Velocidad II para Creepers que aparezcan en el Overworld (excluyendo Creepers Escondidos)
-            if (CursosActivos.isSpeedpers() && currentTick % 40 == 0) {
-                EntityType<?> creeperType = getCreeperType();
-                ServerLevel overworldLvl = server.overworld();
-                if (creeperType != null && overworldLvl != null) {
-                    for (Entity entity : overworldLvl.getAllEntities()) {
-                        if (entity.getType() == creeperType && entity instanceof LivingEntity living
-                                && !entity.entityTags().contains("creeper_escondido")) {
-                            living.addEffect(new MobEffectInstance(MobEffects.SPEED, 100, 1));
-                        }
                     }
                 }
             }
@@ -2668,12 +2293,21 @@ public class Ruleta_Hardcore implements ModInitializer {
                             double dz = v.z() - target.getZ();
                             double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
                             if (dist <= 18.0 && dist > 0.25) {
-                                double pull = 0.22 + (1.0 - (dist / 18.0)) * 0.28;
-                                target.setDeltaMovement(
+                                boolean lineaLibre = tieneLineaFisicaRana(lvl, target,
+                                        new Vec3(v.x(), v.y() + 0.8, v.z()),
+                                        target.position().add(0.0, target.getBbHeight() * 0.5, 0.0));
+                                double factorCobertura = lineaLibre ? 1.0 : 0.42;
+                                double pull = (0.22 + (1.0 - (dist / 18.0)) * 0.28) * factorCobertura;
+                                Vec3 nextVel = new Vec3(
                                         target.getDeltaMovement().x * 0.4 + (dx / dist) * pull,
                                         target.getDeltaMovement().y * 0.4 + (dy / dist) * pull,
                                         target.getDeltaMovement().z * 0.4 + (dz / dist) * pull
                                 );
+                                double speedSq = nextVel.lengthSqr();
+                                if (speedSq > 0.9025) {
+                                    nextVel = nextVel.scale(0.95 / Math.sqrt(speedSq));
+                                }
+                                target.setDeltaMovement(nextVel);
                                 if (target instanceof ServerPlayer sp) {
                                     sp.connection.send(new ClientboundSetEntityMotionPacket(sp));
                                 }
@@ -2711,15 +2345,18 @@ public class Ruleta_Hardcore implements ModInitializer {
                 }
             }
 
-            // Bucle unificado de entidades por dimensión para optimizar rendimiento del servidor
             boolean tick2 = (currentTick % 2 == 0);
             boolean tick4 = (currentTick % 4 == 0);
             boolean tick5 = (currentTick % 5 == 0);
             boolean tick10 = (currentTick % 10 == 0);
+            boolean tick15 = (currentTick % 15 == 0);
+            boolean tick20 = (currentTick % 20 == 0);
+            boolean tick30 = (currentTick % 30 == 0);
             boolean tick40 = (currentTick % 40 == 0);
             boolean tick60 = (currentTick % 60 == 0);
 
             for (ServerLevel lvl : server.getAllLevels()) {
+                boolean isOverworld = lvl.dimension().equals(Level.OVERWORLD);
                 boolean isNether = lvl.dimension().equals(Level.NETHER);
                 List<Stray> nigromantes = tick5 ? new ArrayList<>() : List.of();
                 List<Creeper> fantasmas = new ArrayList<>();
@@ -2727,6 +2364,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                 List<Creeper> avispones = tick2 ? new ArrayList<>() : List.of();
                 List<Creeper> cosmicos = (tick2 && CursosActivos.isCreeperCosmico()) ? new ArrayList<>() : List.of();
                 List<IronGolem> colosos = new ArrayList<>();
+                List<Raider> raidersIllusioner = (tick40 && CursosActivos.isAdivinaQuien()) ? new ArrayList<>() : List.of();
+                List<Drowned> drownedMonturas = (tick40 && CursosActivos.isMonturaAcuatica()) ? new ArrayList<>() : List.of();
 
                 for (Entity entity : lvl.getAllEntities()) {
                     if (!entity.isAlive()) continue;
@@ -2787,6 +2426,10 @@ public class Ruleta_Hardcore implements ModInitializer {
                     }
 
                     if (entity instanceof Creeper creeper) {
+                        if (tick40 && isOverworld && CursosActivos.isSpeedpers()
+                                && !creeper.entityTags().contains("creeper_escondido")) {
+                            creeper.addEffect(new MobEffectInstance(MobEffects.SPEED, 100, 1));
+                        }
                         boolean esVolador = creeper.entityTags().contains("creeper_fantasma")
                                 || creeper.entityTags().contains("creeper_avispon");
                         if (CursosActivos.isComoPedro() && !esVolador) {
@@ -2845,6 +2488,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                         }
                         if (golem.entityTags().contains("coloso_ruina")) {
                             colosos.add(golem);
+                        } else if (tick20 && CursosActivos.isFallaMecanica()) {
+                            aplicarFallaMecanica(golem, lvl);
                         }
                     } else if (entity instanceof Stray stray) {
                         if (tick40 && CursosActivos.isNigromanteCriptas()
@@ -2856,13 +2501,162 @@ public class Ruleta_Hardcore implements ModInitializer {
                         if (tick5 && stray.entityTags().contains("nigromante_criptas")) {
                             nigromantes.add(stray);
                         }
-                    } else if (tick10 && entity instanceof Vindicator vindicator) {
-                        if (CursosActivos.isBerserker() && !vindicator.entityTags().contains("berserker_equipado")) {
-                            prepararBerserker(vindicator, lvl);
+                    } else if (entity instanceof Vindicator vindicator) {
+                        if (tick40 && CursosActivos.isResistenciaFisica()) {
+                            aplicarResistenciaFisica(vindicator);
                         }
-                        if (vindicator.entityTags().contains("berserker_equipado")) {
-                            procesarCarreraFreneticaBerserker(vindicator, lvl);
+                        if (tick10) {
+                            if (CursosActivos.isBerserker() && !vindicator.entityTags().contains("berserker_equipado")) {
+                                prepararBerserker(vindicator, lvl);
+                            }
+                            if (vindicator.entityTags().contains("berserker_equipado")) {
+                                procesarCarreraFreneticaBerserker(vindicator, lvl);
+                            }
                         }
+                        if (tick40 && CursosActivos.isAdivinaQuien() && !vindicator.entityTags().contains("illusioner_spawn_evaluado")) {
+                            raidersIllusioner.add(vindicator);
+                        }
+                    } else if (entity instanceof Chicken chicken) {
+                        if (CursosActivos.isCuccosSalvajes()) {
+                            if (tick40 && !chicken.entityTags().contains("cucco_salvaje_aplicado")) {
+                                aplicarCuccoSalvaje(chicken);
+                            }
+                            if (tick10 && chicken.entityTags().contains("cucco_enfurecido")) {
+                                Player target = lvl.getNearestPlayer(
+                                        chicken.getX(), chicken.getY(), chicken.getZ(),
+                                        24.0,
+                                        e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+                                );
+                                if (target != null) {
+                                    chicken.getNavigation().moveTo(target, 1.6);
+                                    if (tick20 && chicken.distanceToSqr(target) <= 2.25
+                                            && tieneLineaFisicaRana(lvl, chicken, chicken.getEyePosition(), target.position().add(0.0, target.getBbHeight() * 0.5, 0.0))) {
+                                        target.hurtServer(lvl, lvl.damageSources().mobAttack(chicken), 2.0f);
+                                    }
+                                }
+                            }
+                        }
+                    } else if (entity instanceof Camel camel) {
+                        if (tick5 && CursosActivos.isCamellosFuriosos()) {
+                            Player target = lvl.getNearestPlayer(
+                                    camel.getX(), camel.getY(), camel.getZ(),
+                                    24.0,
+                                    e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator() && !camel.hasPassenger(p)
+                            );
+                            if (target != null) {
+                                if (camel.isCamelSitting()) {
+                                    camel.standUpInstantly();
+                                }
+                                camel.getLookControl().setLookAt(target, 30.0f, 30.0f);
+                                camel.getNavigation().moveTo(target, 1.55);
+                                if (tick20 && camel.distanceToSqr(target) <= 6.25
+                                        && tieneLineaFisicaRana(lvl, camel, camel.getEyePosition(), target.position().add(0.0, target.getBbHeight() * 0.5, 0.0))) {
+                                    target.hurtServer(lvl, lvl.damageSources().mobAttack(camel), 6.0f);
+                                }
+                            }
+                        }
+                    } else if (entity instanceof Bat bat) {
+                        if (CursosActivos.isSuperMurcielago()) {
+                            if (tick40 && !bat.entityTags().contains("super_murcielago_aplicado")) {
+                                aplicarSuperMurcielago(bat);
+                            }
+                            if (tick2) {
+                                Player target = lvl.getNearestPlayer(
+                                        bat.getX(), bat.getY(), bat.getZ(),
+                                        24.0,
+                                        e -> e instanceof Player p && p.isAlive() && !p.isCreative() && !p.isSpectator()
+                                );
+                                if (target != null && tieneLineaFisicaRana(lvl, bat, bat.position(), target.getEyePosition())) {
+                                    if (bat.isResting()) {
+                                        bat.setResting(false);
+                                    }
+                                    Vec3 dir = target.getEyePosition().subtract(bat.position());
+                                    if (dir.lengthSqr() > 0.01) {
+                                        Vec3 vel = dir.normalize().scale(0.32);
+                                        bat.setDeltaMovement(vel);
+                                        float yaw = (float) (Math.atan2(vel.z, vel.x) * (180.0 / Math.PI)) - 90.0f;
+                                        bat.setYRot(yaw);
+                                        bat.yBodyRot = yaw;
+                                        bat.yHeadRot = yaw;
+                                    }
+                                    if (tick20 && bat.position().distanceToSqr(target.getEyePosition()) <= 3.6) {
+                                        target.hurtServer(lvl, lvl.damageSources().mobAttack(bat), 4.0f);
+                                    }
+                                }
+                            }
+                        }
+                    } else if (tick20 && CursosActivos.isAbejasAsesinas() && entity instanceof Bee bee) {
+                        aplicarAbejaAsesina(bee, lvl);
+                    } else if (tick40 && entity instanceof Ravager ravager) {
+                        if (CursosActivos.isCargaPesada()) {
+                            aplicarCargaPesada(ravager);
+                        }
+                        if (CursosActivos.isAdivinaQuien() && !ravager.entityTags().contains("illusioner_spawn_evaluado")) {
+                            raidersIllusioner.add(ravager);
+                        }
+                    } else if (tick40 && CursosActivos.isVexGrandes() && entity instanceof Vex vex && !vex.entityTags().contains("vex_grande_aplicado")) {
+                        aplicarVexGrande(vex);
+                    } else if (entity instanceof Drowned drowned) {
+                        if (tick40) {
+                            if (CursosActivos.isArtesMaritimos()) equiparTridenteArtesMaritimos(drowned);
+                            if (CursosActivos.isPykete()) configurarPykete(drowned);
+                            if (CursosActivos.isEnergiaPoseica()) aplicarEnergiaPoseica(drowned, lvl);
+                            if (CursosActivos.isMonturaAcuatica()) drownedMonturas.add(drowned);
+                        }
+                        if (tick5 && (CursosActivos.isPykete() || drowned.entityTags().contains("pykete_arponero"))) {
+                            procesarPykete(drowned, lvl, currentTick);
+                        }
+                        if (tick15 && CursosActivos.isMonturaAcuatica() && drowned.isPassenger()) {
+                            Entity vehicle = drowned.getVehicle();
+                            LivingEntity target = drowned.getTarget();
+                            if (vehicle instanceof Mob mount && mount.isAlive() && target != null && target.isAlive()) {
+                                mount.getNavigation().moveTo(target, 1.35);
+                            }
+                        }
+                    } else if (tick40 && entity instanceof Zombie zombie && !esEntidadCordura(zombie)) {
+                        if (CursosActivos.isApocalipsisZombie() && !zombie.entityTags().contains("apoc_evaluado")) {
+                            evaluarZombieApocalipsis(zombie);
+                        }
+                        if (CursosActivos.isFiloMortal() && zombie.getClass() == Zombie.class && !zombie.entityTags().contains("filo_mortal_equipado")) {
+                            equiparEspadaFiloMortal(zombie, lvl);
+                        }
+                    } else if (tick40 && CursosActivos.isReyDeLoProfundo() && entity instanceof ElderGuardian elder && !elder.entityTags().contains("rey_profundo_aplicado")) {
+                        aplicarReyDeLoProfundo(elder);
+                    } else if (tick40 && entity instanceof Pillager pillager) {
+                        if (CursosActivos.isEscopeta() && !pillager.entityTags().contains("escopeta_equipada")) {
+                            equiparEscopetaPillager(pillager, lvl);
+                        }
+                        if (CursosActivos.isAdivinaQuien() && !pillager.entityTags().contains("illusioner_spawn_evaluado")) {
+                            raidersIllusioner.add(pillager);
+                        }
+                    } else if (tick40 && CursosActivos.isAdivinaQuien() && entity instanceof Illusioner illusioner && !illusioner.entityTags().contains("illusioner_equipado")) {
+                        prepararIllusioner(illusioner, lvl);
+                    } else if (tick40 && CursosActivos.isAdivinaQuien() && entity instanceof Raider raider && !(entity instanceof Witch) && !raider.entityTags().contains("illusioner_spawn_evaluado")) {
+                        raidersIllusioner.add(raider);
+                    } else if (tick40 && CursosActivos.isElVerdugo() && entity instanceof PiglinBrute brute && !brute.entityTags().contains("piglin_verdugo_evaluado")) {
+                        evaluarVerdugo(brute, lvl);
+                    } else if (tick10 && entity instanceof Phantom phantom) {
+                        if (CursosActivos.isPhantomAlfa() && !phantom.entityTags().contains("phantom_alfa_evaluado")) {
+                            evaluarPhantomAlfa(phantom);
+                        }
+                        if (phantom.entityTags().contains("phantom_alfa")) {
+                            ejecutarOndaPhantomAlfa(phantom, lvl, currentTick);
+                        }
+                        if (CursosActivos.isPhantomsRaptores()
+                                && !phantom.entityTags().contains("phantom_alfa")
+                                && !phantom.entityTags().contains("phantom_raptor_evaluado")) {
+                            configurarPhantomRaptor(phantom);
+                        }
+                    } else if (tick40 && CursosActivos.isSpiderman() && entity instanceof Spider spider && !spider.entityTags().contains("spiderman_aplicado")) {
+                        aplicarSpiderman(spider);
+                    } else if (tick30 && CursosActivos.isEnderGhast() && entity instanceof Ghast ghast) {
+                        prepararEnderGhast(ghast, lvl);
+                    } else if (entity instanceof Hoglin hoglin && hoglin.entityTags().contains("mega_hoglin")) {
+                        if (tick60) hoglin.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 200, 0));
+                        if (tick4) romperBloquesMegaHoglin(hoglin, lvl);
+                        if (tick20) ejecutarEmbestidaMegaHoglin(hoglin, lvl, currentTick);
+                    } else if (tick20 && entity instanceof Endermite endermite && endermite.entityTags().contains("giga_endermite")) {
+                        ejecutarAtaqueGigaEndermite(endermite, lvl, currentTick);
                     } else if (tick10 && CursosActivos.isGritoPrimal() && entity instanceof Enderman enderman
                             && enderman.getTarget() instanceof ServerPlayer sp
                             && sp.isAlive() && !sp.isCreative() && !sp.isSpectator()) {
@@ -2878,9 +2672,15 @@ public class Ruleta_Hardcore implements ModInitializer {
                         if (tick2 && mc.entityTags().contains("colosal_fusion")) {
                             procesarSaltoYCraterColosalFusion(mc, lvl, currentTick);
                         }
-                    } else if (tick40 && CursosActivos.isCazadorIgneo() && entity instanceof WitherSkeleton ws
-                            && !ws.entityTags().contains("cazador_igneo_evaluado")) {
-                        evaluarCazadorIgneo(ws, lvl);
+                    } else if (tick40 && entity instanceof WitherSkeleton ws) {
+                        if (CursosActivos.isCazadorIgneo() && !ws.entityTags().contains("cazador_igneo_evaluado")) {
+                            evaluarCazadorIgneo(ws, lvl);
+                        }
+                        if (CursosActivos.isIntrusosCalavericos()
+                                && !ws.entityTags().contains("intruso_calaverico_equipado")
+                                && !ws.entityTags().contains("cazador_igneo")) {
+                            prepararIntrusoCalaverico(ws, lvl);
+                        }
                     } else if (tick60 && CursosActivos.isAtaqueSlimes() && entity instanceof Slime slime
                             && slime.entityTags().contains("slime_gigante_pantano") && slime.onGround()) {
                         Player nearest = lvl.getNearestPlayer(
@@ -2927,12 +2727,21 @@ public class Ruleta_Hardcore implements ModInitializer {
                         double dz = creeper.getZ() - target.getZ();
                         double dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
                         if (dist > 0.5) {
-                            double strength = 0.08 + (1.0 - Math.min(1.0, dist / 30.0)) * 0.10;
-                            target.setDeltaMovement(target.getDeltaMovement().add(
+                            boolean lineaLibre = tieneLineaFisicaRana(lvl, target,
+                                    creeper.position().add(0.0, 0.9, 0.0),
+                                    target.position().add(0.0, target.getBbHeight() * 0.5, 0.0));
+                            double factorCobertura = lineaLibre ? 1.0 : 0.42;
+                            double strength = (0.08 + (1.0 - Math.min(1.0, dist / 30.0)) * 0.10) * factorCobertura;
+                            Vec3 nextVel = target.getDeltaMovement().add(
                                     (dx / dist) * strength,
                                     (dy / dist) * (strength * 0.5),
                                     (dz / dist) * strength
-                            ));
+                            );
+                            double speedSq = nextVel.lengthSqr();
+                            if (speedSq > 0.81) {
+                                nextVel = nextVel.scale(0.90 / Math.sqrt(speedSq));
+                            }
+                            target.setDeltaMovement(nextVel);
                             if (target instanceof ServerPlayer sp) {
                                 sp.connection.send(new ClientboundSetEntityMotionPacket(sp));
                             }
@@ -2954,6 +2763,16 @@ public class Ruleta_Hardcore implements ModInitializer {
                 for (IronGolem coloso : colosos) {
                     procesarColosoRuina(coloso, lvl, currentTick);
                 }
+                for (Raider raider : raidersIllusioner) {
+                    evaluarSpawnIllusionerAcompaniante(raider, lvl);
+                }
+                for (Drowned drowned : drownedMonturas) {
+                    aplicarMonturaAcuatica(drowned, lvl);
+                }
+            }
+
+            if (currentTick % 600 == 0) {
+                purgarMapasEntidadesMuertas(server);
             }
 
             // BossBars por proximidad (<32 bloques) para Coloso de Ruina y Rey de lo Profundo
@@ -3864,8 +3683,8 @@ public class Ruleta_Hardcore implements ModInitializer {
                 continue;
             }
 
-            if (sp.getY() >= rapto.targetY() || currentTick >= rapto.expiryTick()) {
-                // Soltar al jugador desde las alturas
+            if (sp.getY() >= rapto.targetY() || currentTick >= rapto.expiryTick()
+                    || !tieneLineaFisicaRana(sLvl, sp, sp.getEyePosition(), sp.getEyePosition().add(0.0, 1.1, 0.0))) {
                 sLvl.playSound(null, sp.getX(), sp.getY(), sp.getZ(),
                         SoundEvents.PHANTOM_BITE, SoundSource.HOSTILE, 1.3f, 0.7f);
                 sp.setDeltaMovement(0.0, -0.15, 0.0);
@@ -4368,6 +4187,12 @@ public class Ruleta_Hardcore implements ModInitializer {
                 vy = Math.max(vy, 0.24);
             } else if (owner instanceof Drowned d && d.isInWater() && sp.isInWater()) {
                 vy = Math.min(vy, -0.06);
+            }
+
+            Vec3 spCenter = sp.position().add(0.0, sp.getBbHeight() * 0.5, 0.0);
+            if (!tieneLineaFisicaRana(sLvl, sp, spCenter, spCenter.add(vx, vy, vz))) {
+                it.remove();
+                continue;
             }
 
             sp.setDeltaMovement(vx, vy, vz);
@@ -6286,16 +6111,54 @@ public class Ruleta_Hardcore implements ModInitializer {
             horizBack = horizBack.normalize();
         }
 
-        double tx = player.getX() + horizBack.x * 1.65;
-        double ty = player.getY();
-        double tz = player.getZ() + horizBack.z * 1.65;
+        double[] angulos = { 0.0, 0.61, -0.61, 1.22, -1.22 };
+        double[] distancias = { 1.65, 1.25 };
+        Vec3 destinoSeguro = null;
+
+        for (double dist : distancias) {
+            for (double ang : angulos) {
+                double cos = Math.cos(ang);
+                double sin = Math.sin(ang);
+                double dirX = horizBack.x * cos - horizBack.z * sin;
+                double dirZ = horizBack.x * sin + horizBack.z * cos;
+                double cx = player.getX() + dirX * dist;
+                double cz = player.getZ() + dirZ * dist;
+                int bx = (int) Math.floor(cx);
+                int by = (int) Math.floor(player.getY());
+                int bz = (int) Math.floor(cz);
+                BlockPos base = new BlockPos(bx, by, bz);
+
+                if (esPosicionSeguraEnderman(level, base)) {
+                    destinoSeguro = new Vec3(cx, by, cz);
+                    break;
+                } else if (esPosicionSeguraEnderman(level, base.above())) {
+                    destinoSeguro = new Vec3(cx, by + 1, cz);
+                    break;
+                } else if (esPosicionSeguraEnderman(level, base.below())) {
+                    destinoSeguro = new Vec3(cx, by - 1, cz);
+                    break;
+                }
+            }
+            if (destinoSeguro != null) break;
+        }
+
+        if (destinoSeguro == null) {
+            return;
+        }
 
         level.sendParticles(ParticleTypes.PORTAL, enderman.getX(), enderman.getY() + 1.2, enderman.getZ(), 25, 0.35, 0.8, 0.35, 0.2);
-        enderman.teleportTo(tx, ty, tz);
+        enderman.teleportTo(destinoSeguro.x, destinoSeguro.y, destinoSeguro.z);
         enderman.setYRot(player.getYRot());
         enderman.setTarget(player);
-        level.sendParticles(ParticleTypes.REVERSE_PORTAL, tx, ty + 1.2, tz, 30, 0.35, 0.8, 0.35, 0.15);
-        level.playSound(null, tx, ty, tz, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.3f, 0.7f);
+        level.sendParticles(ParticleTypes.REVERSE_PORTAL, destinoSeguro.x, destinoSeguro.y + 1.2, destinoSeguro.z, 30, 0.35, 0.8, 0.35, 0.15);
+        level.playSound(null, destinoSeguro.x, destinoSeguro.y, destinoSeguro.z, SoundEvents.ENDERMAN_TELEPORT, SoundSource.HOSTILE, 1.3f, 0.7f);
+    }
+
+    private static boolean esPosicionSeguraEnderman(ServerLevel level, BlockPos pos) {
+        return level.getBlockState(pos.below()).isSolid()
+                && !level.getBlockState(pos).isSolid()
+                && !level.getBlockState(pos.above()).isSolid()
+                && !level.getBlockState(pos.above(2)).isSolid();
     }
 
     public static void procesarSombraParpadeanteJugador(ServerPlayer player, ServerLevel level, long currentTick) {
@@ -7069,6 +6932,68 @@ public class Ruleta_Hardcore implements ModInitializer {
     private static final Map<UUID, Float> ultimoAnguloCamaraRana = new HashMap<>();
     private static final float[] ANGULOS_CAMARA_RANA = new float[] { 90.0F, 180.0F, -90.0F };
 
+    private static void limpiarEstadoEnMemoria() {
+        CursosActivos.limpiar();
+        CatalogoCastigos.reiniciar();
+        limpiarBossBars();
+        proximoTickGiroAutomaticoPermitido = 0L;
+        TICKS_EXPOSICION_NIEVE.clear();
+        TICKS_INSOLACION_DESIERTO.clear();
+        ULTIMA_EXPLOSION_MINERIA.clear();
+        TICKS_OSCURIDAD_PARANOIA.clear();
+        ULTIMA_PARANOIA_NOTIFICACION.clear();
+        ULTIMA_ONDA_PHANTOM_ALFA.clear();
+        TICKS_AVISO_RAYO.clear();
+        RAYOS_IMPACTADOS.clear();
+        JUGADORES_SUELO_PREVIO.clear();
+        DESESTABILIZACION_HOGLIN_EXPIRY.clear();
+        COLOSAL_SUELO_PREVIO.clear();
+        TEMPERATURA_CREEPER_TERMONUCLEAR.clear();
+        ESQUELETO_ARCO_ORIGINAL.clear();
+        ESQUELETO_EVALUADO_MELEE.clear();
+        ULTIMA_INVOCACION_BRUJA.clear();
+        RAPTOS_PHANTOM.clear();
+        ARRASTRES_PYKETE.clear();
+        ULTIMO_GRITO_ENDERMAN.clear();
+        ULTIMO_PARPADEO_SOMBRA.clear();
+        CORDURA_JUGADOR.clear();
+        ULTIMA_BAJADA_CORDURA.clear();
+        ULTIMO_SONIDO_CORDURA.clear();
+        ULTIMA_ALUCINACION_CORDURA.clear();
+        VORTICES_ANTIMATERIA.clear();
+        ranaTraviesaCooldowns.clear();
+        ranaTraviesaAtaques.clear();
+        ultimoAnguloCamaraRana.clear();
+        colosoSlamCooldowns.clear();
+        colosoSlamWindups.clear();
+        colosoAntiTowerCooldowns.clear();
+        RITUALES_REVIVIR_ACTIVOS.clear();
+    }
+
+    private static void purgarMapasEntidadesMuertas(MinecraftServer server) {
+        Set<Integer> idsVivos = new HashSet<>();
+        Set<UUID> uuidsVivos = new HashSet<>();
+        for (ServerLevel lvl : server.getAllLevels()) {
+            for (Entity e : lvl.getAllEntities()) {
+                if (e.isAlive()) {
+                    idsVivos.add(e.getId());
+                    uuidsVivos.add(e.getUUID());
+                }
+            }
+        }
+        colosoSlamCooldowns.keySet().retainAll(idsVivos);
+        colosoSlamWindups.keySet().retainAll(idsVivos);
+        colosoAntiTowerCooldowns.keySet().retainAll(idsVivos);
+        ULTIMA_INVOCACION_BRUJA.keySet().retainAll(uuidsVivos);
+        ESQUELETO_ARCO_ORIGINAL.keySet().retainAll(uuidsVivos);
+        ESQUELETO_EVALUADO_MELEE.retainAll(uuidsVivos);
+        TEMPERATURA_CREEPER_TERMONUCLEAR.keySet().retainAll(uuidsVivos);
+        COLOSAL_SUELO_PREVIO.keySet().retainAll(uuidsVivos);
+        ULTIMO_GRITO_ENDERMAN.keySet().retainAll(uuidsVivos);
+        ULTIMO_PARPADEO_SOMBRA.keySet().retainAll(uuidsVivos);
+        ULTIMA_ONDA_PHANTOM_ALFA.keySet().retainAll(uuidsVivos);
+    }
+
     private static boolean tieneLineaFisicaRana(ServerLevel level, Entity frog, Vec3 from, Vec3 to) {
         net.minecraft.world.phys.HitResult hit = level.clip(new net.minecraft.world.level.ClipContext(
                 from, to,
@@ -7160,8 +7085,15 @@ public class Ruleta_Hardcore implements ModInitializer {
                 Vec3 endTip = hitBlock ? blockHit.getLocation() : nextTip;
                 st.length = origin.distanceTo(endTip);
 
-                st.level.sendParticles(ParticleTypes.ITEM_SLIME,
-                        endTip.x, endTip.y, endTip.z, 2, 0.05, 0.05, 0.05, 0.01);
+                net.minecraft.core.particles.DustParticleOptions lenguaRosa =
+                        new net.minecraft.core.particles.DustParticleOptions(0xE05A78, 0.85F);
+                for (int s = 1; s <= 4; s++) {
+                    double frac = s / 4.0;
+                    double px = prevTip.x + (endTip.x - prevTip.x) * frac;
+                    double py = prevTip.y + (endTip.y - prevTip.y) * frac;
+                    double pz = prevTip.z + (endTip.z - prevTip.z) * frac;
+                    st.level.sendParticles(lenguaRosa, px, py, pz, 1, 0.01, 0.01, 0.01, 0.0);
+                }
 
                 AABB segBox = new AABB(prevTip, endTip).inflate(0.24);
                 List<ServerPlayer> candidatos = st.level.getEntitiesOfClass(
@@ -7260,9 +7192,12 @@ public class Ruleta_Hardcore implements ModInitializer {
                 Vec3 origin = new Vec3(frog.getX(), frog.getY() + 0.35, frog.getZ());
                 Vec3 aimTarget = objetivo.position().add(0.0, objetivo.getBbHeight() * 0.55, 0.0);
 
-                // Solo dispara si no hay bloques sólidos/vidrios/puertas bloqueando la línea física
-                if (dist <= 3.8 && currentTick >= readyAt && tieneLineaFisicaRana(sLvl, frog, origin, aimTarget)) {
-                    Vec3 dir = aimTarget.subtract(origin).normalize();
+                // Solo dispara si la rana ya mira hacia el jugador y no hay bloques bloqueando la línea física
+                Vec3 dir = aimTarget.subtract(origin).normalize();
+                Vec3 frogForward = Vec3.directionFromRotation(0.0F, frog.yBodyRot).normalize();
+                Vec3 dirHoriz = new Vec3(dir.x, 0.0, dir.z);
+                boolean mirandoAlJugador = dirHoriz.lengthSqr() < 1.0E-4 || frogForward.dot(dirHoriz.normalize()) > 0.72;
+                if (dist <= 3.8 && currentTick >= readyAt && mirandoAlJugador && tieneLineaFisicaRana(sLvl, frog, origin, aimTarget)) {
                     float yaw = (float) (Math.atan2(dir.z, dir.x) * (180.0 / Math.PI)) - 90.0F;
                     ranaTraviesaCooldowns.put(fid, currentTick + 75L);
                     ranaTraviesaAtaques.put(fid, new RanaAtaqueEstado(sLvl, fid, objetivo.getUUID(), dir, yaw));
